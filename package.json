@@ -11,8 +11,20 @@
     "test:rooms:errors": "node tests/rooms-error-handling.test.js",
     "test:rooms:ui": "node tests/ui-integration.test.js",
     "test:rooms:all": "node tests/run-rooms-validation.js",
+    "test:rooms:crud": "node tests/rooms-crud-test-simple.js",
+    "test:rooms:crud-comprehensive": "npx tsx tests/rooms-crud-comprehensive-test.ts",
     "validate:rooms": "npm run test:rooms:all",
-    "test:rooms:full": "node test-rooms-functionality.js"
+    "test:rooms:full": "node test-rooms-functionality.js",
+    "test:establishments:crud": "node tests/run-establishments-crud.js",
+    "test:establishments:validation": "node tests/run-establishments-crud.js",
+    "validate:establishments": "npm run test:establishments:crud",
+    "test:database:integrity": "node tests/database-relationships-integrity.test.js",
+    "validate:database": "npm run test:database:integrity",
+    "test:persistence": "node tests/data-persistence.test.js",
+    "test:tracking": "node tests/modification-tracking.test.js",
+    "test:persistence:all": "node tests/run-persistence-tests.js",
+    "validate:persistence": "npm run test:persistence:all",
+    "test:all": "npm run test:rooms:all && npm run test:establishments:crud && npm run test:database:integrity && npm run test:persistence:all"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
@@ -37,6 +49,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.0.0",
     "@playwright/test": "^1.53.2",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.10",
