@@ -39,15 +39,10 @@ export {
 export { 
   equipmentsApi,
   getEquipments,
-  getEquipmentsByHotel,
   getEquipment,
   createEquipment,
   updateEquipment,
   deleteEquipment,
-  addEquipmentToHotel,
-  removeEquipmentFromHotel,
-  updateHotelEquipment,
-  getHotelEquipmentStatistics,
   searchEquipments
 } from './equipments'
 
@@ -67,8 +62,5 @@ export type {
 export type { 
   Equipment,
   EquipmentInsert,
-  EquipmentUpdate,
-  HotelEquipment,
-  HotelEquipmentInsert,
-  HotelEquipmentUpdate
+  EquipmentUpdate
 } from './equipments'

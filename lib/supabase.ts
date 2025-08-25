@@ -103,11 +103,6 @@ export interface Database {
           contact_info: Record<string, unknown> | null
           // Champs manquants mais requis
           user_owner_id: string
-          type_etablissement: string | null
-          classement_etoiles: number | null
-          parking_places: number | null
-          surface_totale: number | null
-          nombre_etages: number | null
           // Nouveaux champs de gestion avancée
           type_etablissement: 'hotel' | 'residence' | 'foyer' | 'chrs' | 'chr' | 'autre' | null
           license_number: string | null
@@ -997,94 +992,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      hotel_equipments: {
-        Row: {
-          id: number
-          hotel_id: number
-          equipment_id: number
-          est_disponible: boolean
-          est_gratuit: boolean
-          prix_supplement: number | null
-          description_specifique: string | null
-          horaires_disponibilite: Record<string, unknown> | null
-          conditions_usage: string | null
-          date_ajout: string
-          date_derniere_maj: string
-          notes_internes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          hotel_id: number
-          equipment_id: number
-          est_disponible?: boolean
-          est_gratuit?: boolean
-          prix_supplement?: number | null
-          description_specifique?: string | null
-          horaires_disponibilite?: Record<string, unknown> | null
-          conditions_usage?: string | null
-          date_ajout?: string
-          date_derniere_maj?: string
-          notes_internes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          hotel_id?: number
-          equipment_id?: number
-          est_disponible?: boolean
-          est_gratuit?: boolean
-          prix_supplement?: number | null
-          description_specifique?: string | null
-          horaires_disponibilite?: Record<string, unknown> | null
-          conditions_usage?: string | null
-          date_ajout?: string
-          date_derniere_maj?: string
-          notes_internes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      room_equipments: {
-        Row: {
-          id: number
-          room_id: number
-          equipment_id: number
-          est_disponible: boolean
-          est_fonctionnel: boolean
-          date_installation: string
-          date_derniere_verification: string | null
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          room_id: number
-          equipment_id: number
-          est_disponible?: boolean
-          est_fonctionnel?: boolean
-          date_installation?: string
-          date_derniere_verification?: string | null
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          room_id?: number
-          equipment_id?: number
-          est_disponible?: boolean
-          est_fonctionnel?: boolean
-          date_installation?: string
-          date_derniere_verification?: string | null
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
     }
     Views: {
       [_ in never]: never
@@ -1125,12 +1032,6 @@ export type Client = Tables<'clients'>
 export type Equipment = Tables<'equipments'>
 export type EquipmentInsert = Inserts<'equipments'>
 export type EquipmentUpdate = Updates<'equipments'>
-export type HotelEquipment = Tables<'hotel_equipments'>
-export type HotelEquipmentInsert = Inserts<'hotel_equipments'>
-export type HotelEquipmentUpdate = Updates<'hotel_equipments'>
-export type RoomEquipment = Tables<'room_equipments'>
-export type RoomEquipmentInsert = Inserts<'room_equipments'>
-export type RoomEquipmentUpdate = Updates<'room_equipments'>
 
 // Room-specific types for API responses
 export interface RoomAvailabilityCheck {
@@ -1289,46 +1190,6 @@ export const equipmentHelpers = {
       .order('ordre_affichage')
   },
 
-  // Récupérer tous les équipements d'un hôtel
-  async getHotelEquipments(hotelId: number) {
-    return await supabase
-      .from('hotel_equipments')
-      .select(`
-        *,
-        equipments (*)
-      `)
-      .eq('hotel_id', hotelId)
-      .eq('equipments.est_actif', true)
-      .order('equipments.categorie, equipments.ordre_affichage')
-  },
-
-  // Ajouter un équipement à un hôtel
-  async addEquipmentToHotel(data: HotelEquipmentInsert) {
-    return await supabase
-      .from('hotel_equipments')
-      .insert(data)
-      .select()
-      .single()
-  },
-
-  // Supprimer un équipement d'un hôtel
-  async removeEquipmentFromHotel(hotelId: number, equipmentId: number) {
-    return await supabase
-      .from('hotel_equipments')
-      .delete()
-      .eq('hotel_id', hotelId)
-      .eq('equipment_id', equipmentId)
-  },
-
-  // Mettre à jour un équipement d'hôtel
-  async updateHotelEquipment(id: number, data: HotelEquipmentUpdate) {
-    return await supabase
-      .from('hotel_equipments')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single()
-  },
 
   // Obtenir les statistiques des équipements
   async getEquipmentStatistics() {
@@ -1336,27 +1197,6 @@ export const equipmentHelpers = {
   }
 }
 
-// Types spécifiques pour les équipements
-export interface EquipmentWithHotelInfo extends Equipment {
-  est_disponible?: boolean
-  est_gratuit?: boolean
-  prix_supplement?: number
-  description_specifique?: string
-}
-
-export interface HotelEquipmentsResponse {
-  equipment_id: number
-  nom: string
-  nom_en: string | null
-  description: string | null
-  icone: string | null
-  categorie: string
-  couleur: string | null
-  est_premium: boolean
-  est_disponible: boolean
-  est_gratuit: boolean
-  prix_supplement: number | null
-}
 
 // API Layer References
 // For establishments CRUD operations, use the dedicated API:
