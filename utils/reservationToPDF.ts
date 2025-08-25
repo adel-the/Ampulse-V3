@@ -1,13 +1,13 @@
 import { Reservation, Hotel, OperateurSocial, DocumentTemplate } from '../types/index';
-import { 
-  getSyntheticUserData, 
-  getSyntheticHotelData, 
-  getSyntheticOperateurData,
-  getOccupantsForReservation,
-  getComplementaryInfo,
-  getProlongationMotif,
-  getFinPriseChargeMotif
-} from './syntheticData';
+
+// Temporary stub functions - to be replaced with proper data fetching
+const getSyntheticUserData = (nom: string, prenom: string) => null;
+const getSyntheticHotelData = (nom: string) => null;
+const getSyntheticOperateurData = (organisation: string) => null;
+const getOccupantsForReservation = (id: number) => [];
+const getComplementaryInfo = (id: number) => '';
+const getProlongationMotif = (id: number) => '';
+const getFinPriseChargeMotif = (id: number) => '';
 
 export interface ReservationData {
   reservation: Reservation;
