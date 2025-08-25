@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-08-18T15:06:15.487Z",
+  "simulationMode": true,
+  "config": {
+    "supabaseUrl": "https://pgjatiookprsvfesrsrx.supabase.co",
+    "testHotelId": 1
+  },
+  "results": {
+    "setup": {
+      "passed": 2,
+      "failed": 0,
+      "simulated": 1,
+      "details": []
+    },
+    "create": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    },
+    "read": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    },
+    "update": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    },
+    "delete": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    },
+    "realtime": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    },
+    "rls": {
+      "passed": 0,
+      "failed": 0,
+      "simulated": 4,
+      "details": []
+    }
+  },
+  "summary": {
+    "totalTests": 27,
+    "totalPassed": 2,
+    "totalFailed": 0,
+    "totalSimulated": 25,
+    "successRate": "7.41"
+  }
+}

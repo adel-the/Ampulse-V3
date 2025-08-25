@@ -1,0 +1,60 @@
+# Dépendances de développement
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers de build
+.next
+out
+dist
+
+# Fichiers de test
+coverage
+.nyc_output
+
+# Fichiers de cache
+.cache
+.parcel-cache
+
+# Fichiers de logs
+*.log
+logs
+
+# Fichiers temporaires
+.tmp
+.temp
+
+# Fichiers de configuration locale
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers de système
+.DS_Store
+Thumbs.db
+
+# Fichiers de développement
+*.tsbuildinfo
+.vscode
+.idea
+
+# Scripts de développement
+launch-dev.js
+clean-windows.js
+deploy-git.js
+setup-vercel-deploy.js
+diagnostic-final.js
+simulate-vercel.js
+
+# Documentation locale
+RAPPORT_NETTOYAGE_FINAL.md
+
+# Tests
+tests/
+*.spec.ts
+*.test.ts
+
+# Migrations (à gérer séparément)
+supabase/migrations/

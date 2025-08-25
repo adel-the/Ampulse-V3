@@ -1,0 +1,249 @@
+-- ===================================================================
+-- MIGRATION 034: SYSTÈME D'ÉQUIPEMENTS POUR SOLIRESERVE ENHANCED
+-- ===================================================================
+-- Date: 2025-08-18
+-- Description: Création du système de gestion des équipements et services
+-- Tables: equipments, hotel_equipments
+-- ===================================================================
+
+-- 1. TABLE EQUIPMENTS (Équipements disponibles)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS public.equipments (
+    id BIGSERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+    nom_en VARCHAR(100) NULL,
+    description TEXT NULL,
+    description_en TEXT NULL,
+    icone VARCHAR(50) NULL,
+    categorie VARCHAR(50) NOT NULL DEFAULT 'general',
+    couleur VARCHAR(7) NULL DEFAULT '#3B82F6',
+    est_premium BOOLEAN NOT NULL DEFAULT false,
+    ordre_affichage INTEGER NOT NULL DEFAULT 0,
+    est_actif BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index pour optimiser les requêtes
+CREATE INDEX IF NOT EXISTS idx_equipments_categorie ON public.equipments(categorie);
+CREATE INDEX IF NOT EXISTS idx_equipments_actif ON public.equipments(est_actif);
+CREATE INDEX IF NOT EXISTS idx_equipments_ordre ON public.equipments(ordre_affichage);
+
+-- 2. TABLE HOTEL_EQUIPMENTS (Relation many-to-many)
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS public.hotel_equipments (
+    id BIGSERIAL PRIMARY KEY,
+    hotel_id BIGINT NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
+    equipment_id BIGINT NOT NULL REFERENCES public.equipments(id) ON DELETE CASCADE,
+    est_disponible BOOLEAN NOT NULL DEFAULT true,
+    est_gratuit BOOLEAN NOT NULL DEFAULT true,
+    prix_supplement DECIMAL(10,2) NULL,
+    description_specifique TEXT NULL,
+    horaires_disponibilite JSONB NULL,
+    conditions_usage TEXT NULL,
+    date_ajout TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    date_derniere_maj TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    notes_internes TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(hotel_id, equipment_id)
+);
+
+-- Index pour optimiser les requêtes
+CREATE INDEX IF NOT EXISTS idx_hotel_equipments_hotel ON public.hotel_equipments(hotel_id);
+CREATE INDEX IF NOT EXISTS idx_hotel_equipments_equipment ON public.hotel_equipments(equipment_id);
+CREATE INDEX IF NOT EXISTS idx_hotel_equipments_disponible ON public.hotel_equipments(est_disponible);
+
+-- 3. TRIGGERS POUR UPDATED_AT
+-- ===================================================================
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE OR REPLACE TRIGGER update_equipments_updated_at 
+    BEFORE UPDATE ON public.equipments 
+    FOR EACH ROW 
+    EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE OR REPLACE TRIGGER update_hotel_equipments_updated_at 
+    BEFORE UPDATE ON public.hotel_equipments 
+    FOR EACH ROW 
+    EXECUTE FUNCTION public.handle_updated_at();
+
+-- 4. ÉQUIPEMENTS DE BASE - CONNECTIVITÉ
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('WiFi Gratuit', 'Free WiFi', 'Accès internet sans fil gratuit dans tout l''établissement', 'Free wireless internet access throughout the property', 'wifi', 'connectivity', '#10B981', false, 1),
+('WiFi Premium', 'Premium WiFi', 'Connexion internet haut débit premium', 'Premium high-speed internet connection', 'wifi-off', 'connectivity', '#F59E0B', true, 2),
+('Ethernet', 'Ethernet', 'Connexion internet filaire dans les chambres', 'Wired internet connection in rooms', 'ethernet', 'connectivity', '#6366F1', false, 3)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 5. ÉQUIPEMENTS DE BASE - TRANSPORT
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Parking Gratuit', 'Free Parking', 'Stationnement gratuit sur place', 'Free on-site parking', 'car', 'services', '#10B981', false, 10),
+('Parking Payant', 'Paid Parking', 'Stationnement payant sécurisé', 'Secure paid parking', 'car-front', 'services', '#F59E0B', true, 11),
+('Garage Fermé', 'Closed Garage', 'Garage fermé et sécurisé', 'Closed and secure garage', 'garage', 'services', '#3B82F6', true, 12),
+('Borne Recharge Électrique', 'Electric Charging', 'Borne de recharge pour véhicules électriques', 'Electric vehicle charging station', 'zap', 'services', '#22C55E', true, 13)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 6. ÉQUIPEMENTS DE BASE - LOISIRS ET BIEN-ÊTRE
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Piscine Intérieure', 'Indoor Pool', 'Piscine couverte chauffée', 'Heated indoor swimming pool', 'waves', 'wellness', '#0EA5E9', true, 20),
+('Piscine Extérieure', 'Outdoor Pool', 'Piscine extérieure avec terrasse', 'Outdoor pool with terrace', 'sun', 'wellness', '#F97316', true, 21),
+('Spa', 'Spa', 'Centre de bien-être et détente', 'Wellness and relaxation center', 'sparkles', 'wellness', '#EC4899', true, 22),
+('Sauna', 'Sauna', 'Sauna traditionnel', 'Traditional sauna', 'thermometer', 'wellness', '#EF4444', true, 23),
+('Salle de Sport', 'Fitness Center', 'Salle de fitness équipée', 'Fully equipped fitness center', 'dumbbell', 'wellness', '#F97316', true, 25)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 7. ÉQUIPEMENTS DE BASE - RESTAURATION
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Restaurant', 'Restaurant', 'Restaurant sur place', 'On-site restaurant', 'utensils', 'services', '#DC2626', false, 30),
+('Bar', 'Bar', 'Bar avec boissons variées', 'Bar with various beverages', 'wine', 'services', '#7C3AED', false, 31),
+('Room Service', 'Room Service', 'Service en chambre 24h/24', '24-hour room service', 'concierge-bell', 'services', '#059669', true, 32),
+('Petit-Déjeuner', 'Breakfast', 'Petit-déjeuner continental', 'Continental breakfast', 'coffee', 'services', '#D97706', true, 33)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 8. ÉQUIPEMENTS DE BASE - SERVICES GÉNÉRAUX
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Réception 24h/24', '24h Reception', 'Accueil ouvert en permanence', 'Round-the-clock reception', 'clock', 'services', '#1F2937', false, 40),
+('Concierge', 'Concierge', 'Service de conciergerie', 'Concierge service', 'user-check', 'services', '#374151', true, 41),
+('Bagagerie', 'Luggage Storage', 'Consigne à bagages', 'Luggage storage service', 'luggage', 'services', '#6B7280', false, 42),
+('Blanchisserie', 'Laundry', 'Service de blanchisserie', 'Laundry service', 'washing-machine', 'services', '#3B82F6', true, 44)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 9. ÉQUIPEMENTS DE BASE - ACCESSIBILITÉ
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Accès PMR', 'Wheelchair Access', 'Accès pour personnes à mobilité réduite', 'Wheelchair accessible', 'wheelchair', 'accessibility', '#059669', false, 50),
+('Ascenseur', 'Elevator', 'Ascenseur dans le bâtiment', 'Building elevator', 'arrow-up-down', 'accessibility', '#0891B2', false, 51),
+('Salle de Bain PMR', 'Accessible Bathroom', 'Salle de bain adaptée PMR', 'Wheelchair accessible bathroom', 'bath', 'accessibility', '#06B6D4', false, 52)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 10. ÉQUIPEMENTS DE BASE - SÉCURITÉ
+-- ===================================================================
+INSERT INTO public.equipments (nom, nom_en, description, description_en, icone, categorie, couleur, est_premium, ordre_affichage) VALUES
+('Surveillance 24h/24', '24h Security', 'Surveillance sécurisée permanente', 'Round-the-clock security surveillance', 'shield', 'security', '#DC2626', false, 60),
+('Vidéosurveillance', 'CCTV', 'Système de vidéosurveillance', 'CCTV security system', 'video', 'security', '#7C3AED', false, 61),
+('Coffre-Fort', 'Safe', 'Coffre-fort en chambre', 'In-room safe', 'shield-check', 'security', '#EF4444', false, 46)
+ON CONFLICT (nom) DO NOTHING;
+
+-- 11. POLITIQUES RLS (ROW LEVEL SECURITY)
+-- ===================================================================
+ALTER TABLE public.equipments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hotel_equipments ENABLE ROW LEVEL SECURITY;
+
+-- Politique pour equipments : lecture libre pour les utilisateurs authentifiés
+DROP POLICY IF EXISTS "equipments_select_policy" ON public.equipments;
+CREATE POLICY "equipments_select_policy" ON public.equipments
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Politique pour equipments : modification uniquement pour les admins
+DROP POLICY IF EXISTS "equipments_modify_policy" ON public.equipments;
+CREATE POLICY "equipments_modify_policy" ON public.equipments
+    FOR ALL
+    TO authenticated
+    USING (auth.jwt() ->> 'role' = 'admin');
+
+-- Politique pour hotel_equipments : les utilisateurs peuvent voir les équipements de leurs hôtels
+DROP POLICY IF EXISTS "hotel_equipments_select_policy" ON public.hotel_equipments;
+CREATE POLICY "hotel_equipments_select_policy" ON public.hotel_equipments
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Politique pour hotel_equipments : modification selon les droits utilisateur
+DROP POLICY IF EXISTS "hotel_equipments_modify_policy" ON public.hotel_equipments;
+CREATE POLICY "hotel_equipments_modify_policy" ON public.hotel_equipments
+    FOR ALL
+    TO authenticated
+    USING (
+        auth.jwt() ->> 'role' IN ('admin', 'manager') OR
+        hotel_id IN (
+            SELECT hotel_id FROM public.users 
+            WHERE id = auth.uid()::text AND hotel_id IS NOT NULL
+        )
+    );
+
+-- 12. FONCTIONS UTILITAIRES
+-- ===================================================================
+
+-- Fonction pour obtenir tous les équipements d'un hôtel
+CREATE OR REPLACE FUNCTION public.get_hotel_equipments(p_hotel_id BIGINT)
+RETURNS TABLE (
+    equipment_id BIGINT,
+    nom VARCHAR(100),
+    nom_en VARCHAR(100),
+    description TEXT,
+    icone VARCHAR(50),
+    categorie VARCHAR(50),
+    couleur VARCHAR(7),
+    est_premium BOOLEAN,
+    est_disponible BOOLEAN,
+    est_gratuit BOOLEAN,
+    prix_supplement DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        e.id,
+        e.nom,
+        e.nom_en,
+        e.description,
+        e.icone,
+        e.categorie,
+        e.couleur,
+        e.est_premium,
+        he.est_disponible,
+        he.est_gratuit,
+        he.prix_supplement
+    FROM public.equipments e
+    INNER JOIN public.hotel_equipments he ON e.id = he.equipment_id
+    WHERE he.hotel_id = p_hotel_id 
+      AND e.est_actif = true
+    ORDER BY e.categorie, e.ordre_affichage;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour ajouter un équipement à un hôtel
+CREATE OR REPLACE FUNCTION public.add_equipment_to_hotel(
+    p_hotel_id BIGINT,
+    p_equipment_id BIGINT,
+    p_est_disponible BOOLEAN DEFAULT true,
+    p_est_gratuit BOOLEAN DEFAULT true,
+    p_prix_supplement DECIMAL(10,2) DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    INSERT INTO public.hotel_equipments (
+        hotel_id,
+        equipment_id,
+        est_disponible,
+        est_gratuit,
+        prix_supplement
+    ) VALUES (
+        p_hotel_id,
+        p_equipment_id,
+        p_est_disponible,
+        p_est_gratuit,
+        p_prix_supplement
+    );
+    
+    RETURN true;
+EXCEPTION
+    WHEN unique_violation THEN
+        RETURN false;
+    WHEN OTHERS THEN
+        RAISE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

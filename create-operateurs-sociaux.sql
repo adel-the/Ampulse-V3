@@ -1,0 +1,43 @@
+-- Créer la table operateurs_sociaux
+CREATE TABLE IF NOT EXISTS public.operateurs_sociaux (
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(255) NOT NULL,
+    type VARCHAR(100) NOT NULL, -- 'association', 'entreprise', 'collectivite', 'autre'
+    secteur_activite VARCHAR(255),
+    adresse TEXT,
+    ville VARCHAR(100),
+    code_postal VARCHAR(10),
+    telephone VARCHAR(20),
+    email VARCHAR(255),
+    contact_principal VARCHAR(255),
+    siret VARCHAR(20),
+    statut VARCHAR(50) DEFAULT 'actif' CHECK (statut IN ('actif', 'inactif', 'suspendu')),
+    date_creation DATE DEFAULT CURRENT_DATE,
+    nombre_places_total INTEGER DEFAULT 0,
+    nombre_places_occupees INTEGER DEFAULT 0,
+    description TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Index pour performance
+CREATE INDEX IF NOT EXISTS idx_operateurs_sociaux_nom ON public.operateurs_sociaux(nom);
+CREATE INDEX IF NOT EXISTS idx_operateurs_sociaux_type ON public.operateurs_sociaux(type);
+CREATE INDEX IF NOT EXISTS idx_operateurs_sociaux_statut ON public.operateurs_sociaux(statut);
+
+-- RLS permissif
+ALTER TABLE public.operateurs_sociaux ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "operateurs_sociaux_all_operations" ON public.operateurs_sociaux FOR ALL USING (true) WITH CHECK (true);
+
+-- Données de test
+INSERT INTO public.operateurs_sociaux (nom, type, secteur_activite, ville, statut, nombre_places_total) VALUES
+('Association Aide Sociale Marseille', 'association', 'Action sociale', 'Marseille', 'actif', 50),
+('Entreprise Solidaire Sud', 'entreprise', 'Insertion professionnelle', 'Marseille', 'actif', 25),
+('Collectivité PACA', 'collectivite', 'Services publics', 'Aix-en-Provence', 'actif', 100),
+('Fondation Logement Social', 'association', 'Logement social', 'Marseille', 'actif', 75),
+('Centre d''Action Sociale', 'collectivite', 'Action sociale', 'Marseille', 'actif', 40)
+ON CONFLICT (nom) DO NOTHING;
+
+-- Vérification
+SELECT COUNT(*) as total_operateurs FROM public.operateurs_sociaux;

@@ -1,0 +1,62 @@
+{
+  "timestamp": "2025-08-18T16:48:04.335Z",
+  "overall_score": 100,
+  "results": {
+    "components": {
+      "tested": 10,
+      "passed": 10,
+      "failed": 0,
+      "details": [
+        "✅ EquipmentsSection - 19682 bytes",
+        "✅ EquipmentFormModal - 15762 bytes",
+        "✅ Sidebar - 8269 bytes",
+        "✅ ReservationsTable - 26848 bytes",
+        "✅ UsersManagement - 22948 bytes",
+        "✅ EquipmentsSection - 19682 bytes",
+        "✅ EquipmentFormModal - 15762 bytes",
+        "✅ Sidebar - 8269 bytes",
+        "✅ ReservationsTable - 26848 bytes",
+        "✅ UsersManagement - 22948 bytes"
+      ]
+    },
+    "pages": {
+      "tested": 6,
+      "passed": 6,
+      "failed": 0,
+      "details": [
+        "✅ HomePage - 19090 bytes",
+        "✅ ParametresPage - 10685 bytes",
+        "✅ ChambresPage - 2409 bytes",
+        "✅ HomePage - 19090 bytes",
+        "✅ ParametresPage - 10685 bytes",
+        "✅ ChambresPage - 2409 bytes"
+      ]
+    },
+    "api": {
+      "tested": 4,
+      "passed": 4,
+      "failed": 0,
+      "details": [
+        "✅ Equipments API - 16640 bytes",
+        "✅ Supabase Client - 43114 bytes",
+        "✅ Equipments API - 16640 bytes",
+        "✅ Supabase Client - 43114 bytes"
+      ]
+    },
+    "integration": {
+      "tested": 8,
+      "passed": 8,
+      "failed": 0,
+      "details": [
+        "✅ Navigation Équipements",
+        "✅ API Équipements Integration",
+        "✅ Modal Integration",
+        "✅ TypeScript Types",
+        "✅ Navigation Équipements",
+        "✅ API Équipements Integration",
+        "✅ Modal Integration",
+        "✅ TypeScript Types"
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-08-18T16:45:42.921Z",
+  "duration": 651,
+  "success_rate": 0,
+  "results": [
+    {
+      "test": "Accès equipments",
+      "success": false
+    },
+    {
+      "test": "Accès hotel_equipments",
+      "success": false
+    },
+    {
+      "test": "Création équipement",
+      "success": false
+    },
+    {
+      "test": "Suppression équipement",
+      "success": false
+    },
+    {
+      "test": "Équipements initiaux",
+      "success": false
+    }
+  ],
+  "recommendation": "NEEDS_FIXES"
+}
