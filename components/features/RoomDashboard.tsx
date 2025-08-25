@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { roomsApi } from '@/lib/api/rooms';
+import { establishmentsApi } from '@/lib/api/establishments';
+import type { Room } from '@/lib/api/rooms';
+import type { Establishment } from '@/lib/api/establishments';
 import { 
   Building2, 
   Bed, 
@@ -50,25 +54,66 @@ interface RoomDashboardProps {
 
 export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDashboardProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter'>('month');
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Données synthétiques pour le tableau de bord
-  const roomStats = {
-    totalRooms: selectedHotel?.chambresTotal || 150,
-    occupiedRooms: selectedHotel?.chambresOccupees || 120,
-    availableRooms: (selectedHotel?.chambresTotal || 150) - (selectedHotel?.chambresOccupees || 120),
-    maintenanceRooms: 8,
-    cleaningRooms: 12,
-    occupancyRate: selectedHotel?.tauxOccupation || 80,
-    averageRating: 4.6,
-    revenuePerRoom: 85.50
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Charger les établissements
+      const estResponse = await establishmentsApi.getEstablishments();
+      if (estResponse.success && estResponse.data) {
+        setEstablishments(estResponse.data);
+        
+        // Charger les chambres du premier établissement
+        if (estResponse.data.length > 0) {
+          const roomsResponse = await roomsApi.getRoomsByHotel(estResponse.data[0].id);
+          if (roomsResponse.success && roomsResponse.data) {
+            setRooms(roomsResponse.data);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const roomCategories = [
-    { name: 'Simple', count: 45, occupancy: 92, color: 'bg-blue-500' },
-    { name: 'Double', count: 60, occupancy: 88, color: 'bg-green-500' },
-    { name: 'Triple', count: 25, occupancy: 76, color: 'bg-purple-500' },
-    { name: 'Suite', count: 20, occupancy: 95, color: 'bg-orange-500' }
-  ];
+  // Calculer les statistiques réelles
+  const roomStats = {
+    totalRooms: rooms.length,
+    occupiedRooms: rooms.filter(r => r.statut === 'occupee').length,
+    availableRooms: rooms.filter(r => r.statut === 'disponible').length,
+    maintenanceRooms: rooms.filter(r => r.statut === 'maintenance').length,
+    cleaningRooms: 0, // Pas de statut "cleaning" dans notre schéma
+    occupancyRate: rooms.length > 0 ? Math.round((rooms.filter(r => r.statut === 'occupee').length / rooms.length) * 100) : 0,
+    averageRating: 4.6, // Valeur par défaut car pas de ratings dans le schéma
+    revenuePerRoom: rooms.length > 0 ? Math.round(rooms.reduce((sum, r) => sum + Number(r.prix || 0), 0) / rooms.length) : 0
+  };
+
+  // Calculer les catégories de chambres réelles
+  const roomTypeStats = rooms.reduce((acc, room) => {
+    if (!acc[room.type]) {
+      acc[room.type] = { total: 0, occupied: 0 };
+    }
+    acc[room.type].total++;
+    if (room.statut === 'occupee') {
+      acc[room.type].occupied++;
+    }
+    return acc;
+  }, {} as Record<string, { total: number; occupied: number }>);
+
+  const roomCategories = Object.entries(roomTypeStats).map(([type, stats], index) => ({
+    name: type,
+    count: stats.total,
+    occupancy: stats.total > 0 ? Math.round((stats.occupied / stats.total) * 100) : 0,
+    color: ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500'][index % 4]
+  }));
 
   const roomCharacteristics = [
     { name: 'WiFi', count: 145, icon: Wifi, color: 'text-blue-600' },
@@ -79,13 +124,19 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
     { name: 'Lit bébé', count: 25, icon: Baby, color: 'text-pink-600' }
   ];
 
-  const topPerformingRooms = [
-    { id: 101, type: 'Suite', floor: '1er', occupancy: 98, revenue: 1200, rating: 4.9 },
-    { id: 205, type: 'Double', floor: '2ème', occupancy: 95, revenue: 850, rating: 4.8 },
-    { id: 312, type: 'Triple', floor: '3ème', occupancy: 92, revenue: 1100, rating: 4.7 },
-    { id: 408, type: 'Simple', floor: '4ème', occupancy: 89, revenue: 650, rating: 4.6 },
-    { id: 501, type: 'Suite', floor: '5ème', occupancy: 87, revenue: 1150, rating: 4.8 }
-  ];
+  // Top 5 chambres par prix
+  const topPerformingRooms = rooms
+    .sort((a, b) => Number(b.prix) - Number(a.prix))
+    .slice(0, 5)
+    .map(room => ({
+      id: room.id,
+      numero: room.numero,
+      type: room.type,
+      floor: room.floor ? `${room.floor}ème` : 'RDC',
+      occupancy: room.statut === 'occupee' ? 100 : 0,
+      revenue: Number(room.prix),
+      rating: 4.5 + Math.random() * 0.5 // Rating simulé
+    }));
 
   const renderBarChart = (data: any[]) => {
     return (
@@ -205,8 +256,8 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
                       {index + 1}
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">Chambre {room.id}</div>
-                      <div className="text-sm text-gray-500">{room.type} - {room.floor} étage</div>
+                      <div className="font-medium text-gray-900">Chambre {room.numero}</div>
+                      <div className="text-sm text-gray-500">{room.type} - {room.floor}</div>
                     </div>
                   </div>
                   <div className="text-right">

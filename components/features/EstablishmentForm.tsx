@@ -180,7 +180,6 @@ export default function EstablishmentForm({
       const submitData = {
         ...formData,
         taux_occupation,
-        is_active: formData.statut === 'ACTIF',
         // Convertir les chaînes vides en null pour les champs optionnels
         siret: formData.siret || null,
         tva_intracommunautaire: formData.tva_intracommunautaire || null,

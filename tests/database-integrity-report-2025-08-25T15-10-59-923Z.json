@@ -1,0 +1,507 @@
+{
+  "summary": {
+    "totalTests": 22,
+    "totalPassed": 21,
+    "totalFailed": 1,
+    "successRate": 95.45,
+    "timestamp": "2025-08-25T15:10:59.890Z"
+  },
+  "categories": {
+    "relationships": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "successRate": 100,
+      "details": [
+        {
+          "name": "Hotel → Rooms (1-N) Relationship",
+          "status": "PASSED",
+          "result": {
+            "data": {
+              "id": 24,
+              "nom": "Test Hotel Alpha",
+              "rooms": [
+                {
+                  "id": 24,
+                  "prix": 75,
+                  "type": "Single",
+                  "numero": "101",
+                  "statut": "disponible"
+                },
+                {
+                  "id": 25,
+                  "prix": 95,
+                  "type": "Double",
+                  "numero": "102",
+                  "statut": "disponible"
+                }
+              ]
+            },
+            "expectedCount": 2,
+            "actualCount": 2
+          }
+        },
+        {
+          "name": "Hotel ← → Equipment (N-N) Relationship",
+          "status": "PASSED",
+          "result": {
+            "data": {
+              "id": 24,
+              "nom": "Test Hotel Alpha",
+              "hotel_equipments": [
+                {
+                  "id": 28,
+                  "equipments": {
+                    "id": 86,
+                    "nom": "Test WiFi",
+                    "categorie": "connectivity"
+                  },
+                  "est_gratuit": true,
+                  "est_disponible": true,
+                  "prix_supplement": null
+                },
+                {
+                  "id": 29,
+                  "equipments": {
+                    "id": 87,
+                    "nom": "Test TV",
+                    "categorie": "services"
+                  },
+                  "est_gratuit": true,
+                  "est_disponible": true,
+                  "prix_supplement": null
+                }
+              ]
+            },
+            "expectedCount": 2,
+            "actualCount": 2
+          }
+        },
+        {
+          "name": "Room ← → Equipment (N-N) Relationship",
+          "status": "PASSED",
+          "result": {
+            "data": {
+              "id": 24,
+              "numero": "101",
+              "room_equipments": [
+                {
+                  "id": 25,
+                  "equipments": {
+                    "id": 86,
+                    "nom": "Test WiFi",
+                    "categorie": "connectivity"
+                  },
+                  "est_disponible": true,
+                  "est_fonctionnel": true
+                },
+                {
+                  "id": 26,
+                  "equipments": {
+                    "id": 87,
+                    "nom": "Test TV",
+                    "categorie": "services"
+                  },
+                  "est_disponible": true,
+                  "est_fonctionnel": true
+                }
+              ]
+            },
+            "expectedCount": 2,
+            "actualCount": 2
+          }
+        },
+        {
+          "name": "Bidirectional Relationship Consistency",
+          "status": "PASSED",
+          "result": {
+            "hotelLinks": 2,
+            "equipmentLinks": 3,
+            "consistent": true
+          }
+        }
+      ]
+    },
+    "cascades": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2,
+      "successRate": 100,
+      "details": [
+        {
+          "name": "Hotel Deletion Cascades to Rooms",
+          "status": "PASSED",
+          "result": {
+            "cascaded": true,
+            "duration": 11,
+            "deletedHotelId": 26,
+            "deletedRoomId": 27
+          }
+        },
+        {
+          "name": "Equipment Deletion Cascades to Associations",
+          "status": "PASSED",
+          "result": {
+            "cascaded": true,
+            "duration": 15,
+            "deletedEquipmentId": 89,
+            "cascadedHotelEquipments": 1,
+            "cascadedRoomEquipments": 1
+          }
+        }
+      ]
+    },
+    "constraints": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4,
+      "successRate": 100,
+      "details": [
+        {
+          "name": "Room Creation with Invalid Hotel ID",
+          "status": "PASSED",
+          "result": {
+            "constraintEnforced": true,
+            "errorCode": "23503",
+            "errorMessage": "insert or update on table \"rooms\" violates foreign key constraint \"rooms_hotel_id_fkey\""
+          }
+        },
+        {
+          "name": "Hotel Equipment with Invalid Equipment ID",
+          "status": "PASSED",
+          "result": {
+            "constraintEnforced": true,
+            "errorCode": "23503",
+            "errorMessage": "insert or update on table \"hotel_equipments\" violates foreign key constraint \"hotel_equipments_equipment_id_fkey\""
+          }
+        },
+        {
+          "name": "Room Equipment with Invalid Room ID",
+          "status": "PASSED",
+          "result": {
+            "constraintEnforced": true,
+            "errorCode": "23503",
+            "errorMessage": "insert or update on table \"room_equipments\" violates foreign key constraint \"room_equipments_room_id_fkey\""
+          }
+        },
+        {
+          "name": "Unique Constraint: Duplicate Room Number in Same Hotel",
+          "status": "PASSED",
+          "result": {
+            "constraintEnforced": true,
+            "errorCode": "23505",
+            "errorMessage": "duplicate key value violates unique constraint \"rooms_hotel_id_numero_key\""
+          }
+        }
+      ]
+    },
+    "complexQueries": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5,
+      "successRate": 100,
+      "details": [
+        {
+          "name": "Get Hotel with All Rooms and Equipment",
+          "status": "PASSED",
+          "result": {
+            "hotel": "Test Hotel Alpha",
+            "roomCount": 2,
+            "hotelEquipmentCount": 2,
+            "roomEquipmentCount": 2,
+            "duration": 4,
+            "performanceOk": true
+          }
+        },
+        {
+          "name": "Get Room with All Equipment (Room + Hotel Level)",
+          "status": "PASSED",
+          "result": {
+            "room": "101",
+            "hotel": "Test Hotel Alpha",
+            "roomEquipmentCount": 2,
+            "hotelEquipmentCount": 2,
+            "totalEquipment": 4,
+            "duration": 3,
+            "performanceOk": true
+          }
+        },
+        {
+          "name": "Count Rooms by Status per Hotel",
+          "status": "PASSED",
+          "result": {
+            "roomStats": [
+              {
+                "hotelId": 8,
+                "hotelName": "Hotel Test Luxury",
+                "disponible": 3,
+                "occupee": 0,
+                "maintenance": 0,
+                "total": 3
+              },
+              {
+                "hotelId": 15,
+                "hotelName": "Test Hotel Equipment 1756134600086",
+                "disponible": 2,
+                "occupee": 0,
+                "maintenance": 0,
+                "total": 2
+              },
+              {
+                "hotelId": 24,
+                "hotelName": "Test Hotel Alpha",
+                "disponible": 2,
+                "occupee": 0,
+                "maintenance": 0,
+                "total": 2
+              },
+              {
+                "hotelId": 25,
+                "hotelName": "Test Hotel Beta",
+                "disponible": 1,
+                "occupee": 0,
+                "maintenance": 0,
+                "total": 1
+              }
+            ],
+            "totalHotels": 4,
+            "duration": 3,
+            "performanceOk": true
+          }
+        },
+        {
+          "name": "Calculate Occupancy Rates",
+          "status": "PASSED",
+          "result": {
+            "hotelOccupancy": [
+              {
+                "hotelId": 8,
+                "hotelName": "Hotel Test Luxury",
+                "totalRooms": 3,
+                "occupiedRooms": 0,
+                "availableRooms": 3,
+                "maintenanceRooms": 0,
+                "occupancyRate": 0
+              },
+              {
+                "hotelId": 15,
+                "hotelName": "Test Hotel Equipment 1756134600086",
+                "totalRooms": 2,
+                "occupiedRooms": 0,
+                "availableRooms": 2,
+                "maintenanceRooms": 0,
+                "occupancyRate": 0
+              },
+              {
+                "hotelId": 24,
+                "hotelName": "Test Hotel Alpha",
+                "totalRooms": 2,
+                "occupiedRooms": 0,
+                "availableRooms": 2,
+                "maintenanceRooms": 0,
+                "occupancyRate": 0
+              },
+              {
+                "hotelId": 25,
+                "hotelName": "Test Hotel Beta",
+                "totalRooms": 1,
+                "occupiedRooms": 0,
+                "availableRooms": 1,
+                "maintenanceRooms": 0,
+                "occupancyRate": 0
+              }
+            ],
+            "overallStats": {
+              "totalRooms": 8,
+              "totalOccupied": 0,
+              "averageOccupancyRate": 0
+            },
+            "duration": 2,
+            "performanceOk": true
+          }
+        },
+        {
+          "name": "Aggregate Equipment by Category",
+          "status": "PASSED",
+          "result": {
+            "equipmentStats": {
+              "connectivity": {
+                "totalEquipment": 8,
+                "premiumEquipment": 2,
+                "hotelInstallations": 2,
+                "roomInstallations": 2,
+                "availableInHotels": 2,
+                "availableInRooms": 2
+              },
+              "services": {
+                "totalEquipment": 22,
+                "premiumEquipment": 9,
+                "hotelInstallations": 3,
+                "roomInstallations": 2,
+                "availableInHotels": 3,
+                "availableInRooms": 2
+              },
+              "wellness": {
+                "totalEquipment": 12,
+                "premiumEquipment": 3,
+                "hotelInstallations": 0,
+                "roomInstallations": 0,
+                "availableInHotels": 0,
+                "availableInRooms": 0
+              },
+              "general": {
+                "totalEquipment": 18,
+                "premiumEquipment": 4,
+                "hotelInstallations": 1,
+                "roomInstallations": 2,
+                "availableInHotels": 1,
+                "availableInRooms": 2
+              },
+              "security": {
+                "totalEquipment": 6,
+                "premiumEquipment": 0,
+                "hotelInstallations": 0,
+                "roomInstallations": 1,
+                "availableInHotels": 0,
+                "availableInRooms": 1
+              },
+              "accessibility": {
+                "totalEquipment": 6,
+                "premiumEquipment": 0,
+                "hotelInstallations": 0,
+                "roomInstallations": 0,
+                "availableInHotels": 0,
+                "availableInRooms": 0
+              },
+              "recreation": {
+                "totalEquipment": 6,
+                "premiumEquipment": 1,
+                "hotelInstallations": 0,
+                "roomInstallations": 0,
+                "availableInHotels": 0,
+                "availableInRooms": 0
+              }
+            },
+            "totalCategories": 7,
+            "duration": 3,
+            "performanceOk": true
+          }
+        }
+      ]
+    },
+    "dataConsistency": {
+      "passed": 3,
+      "failed": 1,
+      "total": 4,
+      "successRate": 75,
+      "details": [
+        {
+          "name": "Equipment Shared Between Multiple Rooms",
+          "status": "PASSED",
+          "result": {
+            "sharedEquipment": "Test WiFi",
+            "roomCount": 2,
+            "rooms": [
+              "101",
+              "102"
+            ]
+          }
+        },
+        {
+          "name": "Data Consistency After Room Updates",
+          "status": "PASSED",
+          "result": {
+            "roomId": 24,
+            "originalStatus": "disponible",
+            "updatedStatus": "maintenance",
+            "consistent": true
+          }
+        },
+        {
+          "name": "Orphan Record Prevention",
+          "status": "FAILED",
+          "error": "Orphan records were not properly prevented"
+        },
+        {
+          "name": "Timestamp Consistency",
+          "status": "PASSED",
+          "result": {
+            "timestampConsistent": true,
+            "beforeUpdate": "2025-08-25T15:10:59.874Z",
+            "updatedAt": "2025-08-25T15:10:59.875116+00:00",
+            "afterUpdate": "2025-08-25T15:10:59.877Z"
+          }
+        }
+      ]
+    },
+    "performance": {
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "successRate": 100,
+      "details": [
+        {
+          "name": "Simple Hotel Query Performance",
+          "status": "PASSED",
+          "result": {
+            "duration": 2,
+            "threshold": 500,
+            "count": 4
+          }
+        },
+        {
+          "name": "Complex Join Query Performance",
+          "status": "PASSED",
+          "result": {
+            "duration": 4,
+            "threshold": 2000,
+            "count": 4
+          }
+        },
+        {
+          "name": "Aggregation Query Performance",
+          "status": "PASSED",
+          "result": {
+            "duration": 3,
+            "threshold": 1500,
+            "categories": 7,
+            "aggregated": {
+              "connectivity": {
+                "hotelCount": 2,
+                "roomCount": 2
+              },
+              "services": {
+                "hotelCount": 3,
+                "roomCount": 2
+              },
+              "wellness": {
+                "hotelCount": 0,
+                "roomCount": 0
+              },
+              "general": {
+                "hotelCount": 1,
+                "roomCount": 2
+              },
+              "security": {
+                "hotelCount": 0,
+                "roomCount": 1
+              },
+              "accessibility": {
+                "hotelCount": 0,
+                "roomCount": 0
+              },
+              "recreation": {
+                "hotelCount": 0,
+                "roomCount": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "qualityScore": 95,
+  "recommendations": [
+    "HIGH: Data consistency issues detected. Review update triggers."
+  ]
+}

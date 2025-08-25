@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { roomsApi } from '@/lib/api/rooms';
+import { establishmentsApi } from '@/lib/api/establishments';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Plus, Bed, Edit2, Trash2, Check, MapPin, Users, DollarSign, Home, Wifi, Tv, Coffee, Car, AlertCircle, Filter } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -9,6 +10,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import RoomFormModal from '../modals/RoomFormModal';
 import type { Room } from '@/lib/api/rooms';
+import type { Establishment } from '@/lib/api/establishments';
 
 interface RoomFormData extends Partial<Room> {
   amenities_list?: string[];
@@ -16,6 +18,7 @@ interface RoomFormData extends Partial<Room> {
 
 export default function RoomsSection() {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -59,8 +62,26 @@ export default function RoomsSection() {
   ];
 
   useEffect(() => {
+    loadEstablishments();
+  }, []);
+
+  useEffect(() => {
     loadRooms();
   }, [selectedHotelId]);
+
+  const loadEstablishments = async () => {
+    try {
+      const response = await establishmentsApi.getEstablishments();
+      if (response.success && response.data) {
+        setEstablishments(response.data);
+        if (response.data.length > 0 && !selectedHotelId) {
+          setSelectedHotelId(response.data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des etablissements:', error);
+    }
+  };
 
   const loadRooms = async () => {
     try {
@@ -173,7 +194,7 @@ export default function RoomsSection() {
     }
   };
 
-  // Fonction utilitaire pour convertir les amenities/images vers string[]
+  // Fonction utilitaire pour convertir les images vers string[]
   const normalizeArrayField = (field: any): string[] => {
     if (!field) return [];
     if (!Array.isArray(field)) return [];
@@ -187,13 +208,33 @@ export default function RoomsSection() {
     });
   };
 
+  // Helper spécifique pour extraire les IDs d'équipements
+  const extractEquipmentIds = (amenities: any): number[] => {
+    if (!amenities) return [];
+    if (!Array.isArray(amenities)) return [];
+    
+    return amenities
+      .map(item => {
+        if (typeof item === 'number') return item;
+        if (typeof item === 'object' && item !== null) {
+          // Format DB: { equipment_id: number }
+          return (item as any).equipment_id;
+        }
+        // Si c'est une string, essayer de la convertir en nombre
+        const num = parseInt(item.toString(), 10);
+        return isNaN(num) ? null : num;
+      })
+      .filter((id): id is number => id !== null);
+  };
+
   // Préparer les données initiales pour le modal d'édition
   const getInitialModalData = () => {
     if (!editingRoom) return { amenities: [], images: [] };
     
-    // Convertir amenities et images de Record<string, unknown>[] vers string[]
-    const amenitiesList = normalizeArrayField(editingRoom.amenities);
+    // Extraire les IDs d'équipements et convertir les images
+    const equipmentIds = extractEquipmentIds(editingRoom.amenities);
     const imagesList = normalizeArrayField(editingRoom.images);
+    
     
     return {
       ...editingRoom,
@@ -206,7 +247,7 @@ export default function RoomsSection() {
       is_smoking: editingRoom.is_smoking || undefined,
       last_cleaned: editingRoom.last_cleaned || undefined,
       notes: editingRoom.notes || undefined,
-      amenities: amenitiesList,
+      amenities: equipmentIds, // Maintenant des number[] au lieu de string[]
       images: imagesList
     };
   };
@@ -254,11 +295,11 @@ export default function RoomsSection() {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Tous les hôtels ({rooms.length} chambres)</option>
-            <option value="1">Hotel Le Refuge</option>
-            <option value="2">Residence Les Oliviers</option>
-            <option value="3">Foyer Solidaire Marseille</option>
-            <option value="9">Hôtel Le Grand Piip</option>
-            <option value="10">Hôtel Le Grand Paris</option>
+            {establishments.map(hotel => (
+              <option key={hotel.id} value={hotel.id}>
+                {hotel.nom} - {hotel.ville}
+              </option>
+            ))}
           </select>
         </div>
       </div>

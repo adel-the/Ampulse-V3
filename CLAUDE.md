@@ -19,6 +19,9 @@ npm start            # Production server
 npm run test:rooms:all      # Run all room tests
 npm run test:rooms:e2e      # End-to-end room tests
 npm run validate:rooms      # Full room validation suite
+npm run test:database:integrity    # Database relationships & integrity tests
+npm run validate:database   # Database validation suite
+npm run test:all           # Run all test suites
 ```
 
 ## Environment Configuration

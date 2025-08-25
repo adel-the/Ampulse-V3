@@ -1,0 +1,70 @@
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          ESTABLISHMENT CRUD TEST REPORT                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ Test Execution Summary                                                         ║
+║ • Total Tests: 7                                                            ║
+║ • Passed: 2                                                                ║
+║ • Failed: 5                                                                ║
+║ • Success Rate: 29%                                                           ║
+║                                                                                ║
+║ Performance Metrics                                                            ║
+║ • CREATE Operations: 36ms                                                 ║
+║ • READ Operations: 5ms                                                    ║
+║ • UPDATE Operations: 0ms                                                  ║
+║ • DELETE Operations: 0ms                                                  ║
+║ • Total Execution Time: 41ms                                            ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ CRUD Operations Results                                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+📊 CREATE Operations (5 establishments):
+   ❌ Domaine Confort (ID: -1) - Error: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   ❌ La de la Gare (ID: -1) - Error: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   ❌ Maison Élégant (ID: -1) - Error: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   ❌ Château des Voyageurs (ID: -1) - Error: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   ❌ Villa du Parc (ID: -1) - Error: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+
+📖 READ Operations:
+   • All establishments fetch: ❌
+   • Single establishment fetch: ❌
+   • Search functionality: ❌
+
+✏️  UPDATE Operations (0 establishments):
+
+
+🗑️  DELETE Operations (0 establishments):
+
+
+🔍 Validation Tests (0 tests):
+
+
+🔒 RLS Policy Tests (0 tests):
+
+
+
+❌ Errors Encountered:
+   • Create establishment 1: Domaine Confort: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   • Create establishment 2: La de la Gare: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   • Create establishment 3: Maison Élégant: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   • Create establishment 4: Château des Voyageurs: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+   • Create establishment 5: Villa du Parc: null value in column "user_owner_id" of relation "hotels" violates not-null constraint
+
+
+
+⚠️  Warnings:
+   • RLS testing is limited in local development mode with service role keys
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ Data Integrity Verification                                                   ║
+║ • All created establishments have valid IDs: ❌                    ║
+║ • French postal codes validation: ✅                                ║
+║ • Email format validation: ✅                                      ║
+║ • SIRET format validation: ✅                                      ║
+║ • TVA format validation: ✅                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Test completed at: 25/08/2025 17:11:35
+Environment: development
+Database: http://127.0.0.1:54321

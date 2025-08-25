@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Bed, Home, Wifi, Tv, Coffee, Car, Users, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Bed, Home, Wifi, Tv, Coffee, Car, Users, MapPin, Settings } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { useEquipments } from '@/hooks/useSupabase';
+import type { Equipment } from '@/lib/supabase';
 
 interface RoomFormData {
   id?: number;
@@ -21,7 +23,7 @@ interface RoomFormData {
   bed_type?: string;
   view_type?: string;
   is_smoking?: boolean;
-  amenities?: string[];
+  amenities?: number[];
   images?: string[];
   notes?: string;
 }
@@ -55,7 +57,7 @@ export default function RoomFormModal({
     bed_type: 'double',
     view_type: '',
     is_smoking: false,
-    amenities: ['WiFi', 'TV', 'Salle de bain privée'],
+    amenities: [],
     images: [],
     notes: ''
   });
@@ -73,26 +75,65 @@ export default function RoomFormModal({
     { value: 'Studio', label: 'Studio', capacity: 2, basePrice: 55 }
   ];
 
-  // Équipements disponibles avec icônes
-  const availableAmenities = [
-    { value: 'WiFi', label: 'WiFi', icon: Wifi },
-    { value: 'TV', label: 'Télévision', icon: Tv },
-    { value: 'TV 4K', label: 'TV 4K', icon: Tv },
-    { value: 'Climatisation', label: 'Climatisation', icon: Home },
-    { value: 'Chauffage', label: 'Chauffage', icon: Home },
-    { value: 'Minibar', label: 'Minibar', icon: Coffee },
-    { value: 'Machine à café', label: 'Machine à café', icon: Coffee },
-    { value: 'Salle de bain privée', label: 'Salle de bain privée', icon: Home },
-    { value: 'Balcon', label: 'Balcon', icon: Home },
-    { value: 'Terrasse', label: 'Terrasse', icon: Home },
-    { value: 'Vue mer', label: 'Vue mer', icon: MapPin },
-    { value: 'Vue jardin', label: 'Vue jardin', icon: MapPin },
-    { value: 'Parking', label: 'Parking', icon: Car },
-    { value: 'Accès PMR', label: 'Accès PMR', icon: Users },
-    { value: 'Kitchenette', label: 'Kitchenette', icon: Home },
-    { value: 'Jacuzzi', label: 'Jacuzzi', icon: Home },
-    { value: 'Salon séparé', label: 'Salon séparé', icon: Home }
-  ];
+  // Charger les équipements depuis la base de données
+  const equipmentFilters = useMemo(() => ({ est_actif: true }), []);
+  const { equipments, loading: equipmentsLoading } = useEquipments(equipmentFilters);
+
+  // Fonction pour récupérer l'icône appropriée pour un équipement
+  const getEquipmentIcon = (equipment: Equipment) => {
+    const iconName = equipment.icone?.toLowerCase();
+    const categoryName = equipment.categorie?.toLowerCase();
+    
+    // Map des icônes par nom ou catégorie
+    const iconMap: Record<string, any> = {
+      wifi: Wifi,
+      tv: Tv,
+      television: Tv,
+      coffee: Coffee,
+      car: Car,
+      parking: Car,
+      users: Users,
+      pmr: Users,
+      accessibility: Users,
+      map: MapPin,
+      mappin: MapPin,
+      home: Home,
+      connectivity: Wifi,
+      services: Settings,
+      wellness: Home,
+      recreation: Home,
+      security: Home,
+      general: Settings
+    };
+
+    // Essayer avec l'icône spécifique d'abord
+    if (iconName && iconMap[iconName]) {
+      return iconMap[iconName];
+    }
+    
+    // Ensuite essayer avec la catégorie
+    if (categoryName && iconMap[categoryName]) {
+      return iconMap[categoryName];
+    }
+    
+    // Par défaut selon la catégorie
+    switch (equipment.categorie) {
+      case 'connectivity':
+        return Wifi;
+      case 'services':
+        return Coffee;
+      case 'wellness':
+        return Home;
+      case 'accessibility':
+        return Users;
+      case 'security':
+        return Home;
+      case 'recreation':
+        return Home;
+      default:
+        return Settings;
+    }
+  };
 
   // Initialiser le formulaire avec les données initiales
   useEffect(() => {
@@ -156,19 +197,19 @@ export default function RoomFormModal({
     }
   };
 
-  // Gérer les équipements
-  const handleAmenityToggle = (amenity: string) => {
+  // Gérer les équipements (maintenant avec des IDs)
+  const handleAmenityToggle = (equipmentId: number) => {
     setFormData(prev => {
       const currentAmenities = prev.amenities || [];
-      if (currentAmenities.includes(amenity)) {
+      if (currentAmenities.includes(equipmentId)) {
         return {
           ...prev,
-          amenities: currentAmenities.filter(a => a !== amenity)
+          amenities: currentAmenities.filter(id => id !== equipmentId)
         };
       } else {
         return {
           ...prev,
-          amenities: [...currentAmenities, amenity]
+          amenities: [...currentAmenities, equipmentId]
         };
       }
     });
@@ -430,23 +471,41 @@ export default function RoomFormModal({
                 <CardTitle>Équipements et services</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {availableAmenities.map(amenity => {
-                    const IconComponent = amenity.icon;
-                    return (
-                      <label key={amenity.value} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={formData.amenities?.includes(amenity.value) || false}
-                          onChange={() => handleAmenityToggle(amenity.value)}
-                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <IconComponent className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-700">{amenity.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                {equipmentsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600">Chargement des équipements...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {equipments.map(equipment => {
+                      const IconComponent = getEquipmentIcon(equipment);
+                      return (
+                        <label key={equipment.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={formData.amenities?.includes(equipment.id) || false}
+                            onChange={() => handleAmenityToggle(equipment.id)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <IconComponent className="h-4 w-4 text-gray-500" />
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-700">{equipment.nom}</span>
+                            {equipment.est_premium && (
+                              <span className="text-xs text-blue-600 font-medium">Premium</span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {!equipmentsLoading && equipments.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Settings className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p>Aucun équipement disponible</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

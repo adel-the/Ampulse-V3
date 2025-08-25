@@ -101,7 +101,13 @@ export interface Database {
           check_out_time: string | null
           policies: Record<string, unknown> | null
           contact_info: Record<string, unknown> | null
-          is_active: boolean | null
+          // Champs manquants mais requis
+          user_owner_id: string
+          type_etablissement: string | null
+          classement_etoiles: number | null
+          parking_places: number | null
+          surface_totale: number | null
+          nombre_etages: number | null
           // Nouveaux champs de gestion avancée
           type_etablissement: 'hotel' | 'residence' | 'foyer' | 'chrs' | 'chr' | 'autre' | null
           license_number: string | null
@@ -155,7 +161,8 @@ export interface Database {
           check_out_time?: string | null
           policies?: Record<string, unknown> | null
           contact_info?: Record<string, unknown> | null
-          is_active?: boolean | null
+          // Champ requis pour l'authentification
+          user_owner_id: string
           // Nouveaux champs de gestion avancée
           type_etablissement?: 'hotel' | 'residence' | 'foyer' | 'chrs' | 'chr' | 'autre' | null
           license_number?: string | null
@@ -209,7 +216,7 @@ export interface Database {
           check_out_time?: string | null
           policies?: Record<string, unknown> | null
           contact_info?: Record<string, unknown> | null
-          is_active?: boolean | null
+          // user_owner_id ne peut pas être modifié après création
           // Nouveaux champs de gestion avancée
           type_etablissement?: 'hotel' | 'residence' | 'foyer' | 'chrs' | 'chr' | 'autre' | null
           license_number?: string | null
@@ -1040,6 +1047,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      room_equipments: {
+        Row: {
+          id: number
+          room_id: number
+          equipment_id: number
+          est_disponible: boolean
+          est_fonctionnel: boolean
+          date_installation: string
+          date_derniere_verification: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          room_id: number
+          equipment_id: number
+          est_disponible?: boolean
+          est_fonctionnel?: boolean
+          date_installation?: string
+          date_derniere_verification?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          room_id?: number
+          equipment_id?: number
+          est_disponible?: boolean
+          est_fonctionnel?: boolean
+          date_installation?: string
+          date_derniere_verification?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -1083,6 +1128,9 @@ export type EquipmentUpdate = Updates<'equipments'>
 export type HotelEquipment = Tables<'hotel_equipments'>
 export type HotelEquipmentInsert = Inserts<'hotel_equipments'>
 export type HotelEquipmentUpdate = Updates<'hotel_equipments'>
+export type RoomEquipment = Tables<'room_equipments'>
+export type RoomEquipmentInsert = Inserts<'room_equipments'>
+export type RoomEquipmentUpdate = Updates<'room_equipments'>
 
 // Room-specific types for API responses
 export interface RoomAvailabilityCheck {

@@ -1,0 +1,41 @@
+{
+  "summary": {
+    "totalTests": 1,
+    "passed": 0,
+    "failed": 1,
+    "successRate": "0.00%",
+    "overallScore": "0.00%"
+  },
+  "performance": {
+    "totalDuration": "16ms",
+    "averageDuration": "16ms",
+    "testDetails": {
+      "Initial Data Creation": {
+        "duration": 16
+      }
+    }
+  },
+  "statistics": {
+    "dataPersistenceSuccessRate": "0.00%",
+    "modificationTrackingAccuracy": "0.00%",
+    "timestampVerificationRate": "0.00%",
+    "transactionIntegrity": "0.00%",
+    "concurrentUpdateHandling": "0.00%"
+  },
+  "detailedResults": [
+    {
+      "test": "Initial Data Creation",
+      "status": "FAILED",
+      "details": "Could not find the table 'public.clients' in the schema cache",
+      "duration": "16ms",
+      "timestamp": "2025-08-25T15:16:08.856Z"
+    }
+  ],
+  "recommendations": [
+    "Data persistence rate is below 90%. Review database connection stability and transaction handling.",
+    "Modification tracking accuracy is low. Verify trigger functions and audit log implementation.",
+    "Timestamp verification failing. Check database timezone settings and trigger implementations.",
+    "Transaction integrity issues detected. Review rollback mechanisms and constraint implementations.",
+    "Concurrent update handling needs improvement. Consider optimistic locking or queue-based updates."
+  ]
+}

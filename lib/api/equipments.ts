@@ -67,9 +67,9 @@ export const equipmentsApi = {
         query = query.range(filters.offset, (filters.offset + (filters.limit || 10)) - 1)
       }
       
-      // Order by display order and name
-      query = query.order('display_order', { ascending: true })
-        .order('name', { ascending: true })
+      // Order by ordre_affichage and nom
+      query = query.order('ordre_affichage', { ascending: true })
+        .order('nom', { ascending: true })
 
       const { data, error, count } = await query
 

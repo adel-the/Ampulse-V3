@@ -176,20 +176,36 @@ export const establishmentsApi = {
    */
   async createEstablishment(data: EstablishmentInsert): Promise<ApiResponse<Establishment>> {
     try {
-      // Set default values - Remove is_active as it doesn't exist in the table
+      // Utiliser un UUID par défaut temporaire car il n'y a pas encore d'utilisateurs
+      // TODO: À modifier quand le système d'authentification sera implémenté
+      const defaultUserId = '00000000-0000-0000-0000-000000000000';
+      let userId = defaultUserId;
+      
+      try {
+        // Essayer d'obtenir l'utilisateur actuel, mais ne pas échouer si pas connecté
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (user && !authError) {
+          userId = user.id;
+        }
+      } catch (authError) {
+        // Ignorer les erreurs d'authentification et utiliser l'UUID par défaut
+      }
+      
+      // Set default values
       const establishmentData: EstablishmentInsert = {
         ...data,
+        user_owner_id: userId, // Use authenticated user or default UUID
         statut: data.statut || 'ACTIF',
         chambres_total: data.chambres_total || 0,
         chambres_occupees: data.chambres_occupees || 0,
         taux_occupation: data.taux_occupation || 0,
+        type_etablissement: data.type_etablissement || 'hotel',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
       
       // Remove fields that don't exist in the table
-      delete (establishmentData as any).is_active;
-      delete (establishmentData as any).type_etablissement;
+      delete (establishmentData as any).is_active; // is_active doesn't exist, we use statut instead
 
       const { data: establishment, error } = await supabase
         .from('hotels')
@@ -231,6 +247,9 @@ export const establishmentsApi = {
         ...data,
         updated_at: new Date().toISOString()
       }
+      
+      // Remove is_active if present (we use statut instead)
+      delete (updateData as any).is_active;
 
       const { data: establishment, error } = await supabase
         .from('hotels')

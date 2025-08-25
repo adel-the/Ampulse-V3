@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from './useAuth'
 import type { 
   Hotel, 
   Room, 
@@ -13,73 +14,249 @@ import type {
   DocumentTemplate,
   Document,
   Notification,
-  Client
+  Client,
+  Equipment,
+  EquipmentInsert,
+  EquipmentUpdate,
+  HotelEquipment,
+  HotelEquipmentInsert,
+  HotelEquipmentUpdate,
+  RoomEquipment,
+  RoomEquipmentInsert,
+  RoomEquipmentUpdate,
+  Inserts,
+  Updates,
+  RoomInsert,
+  RoomUpdate
 } from '@/lib/supabase'
 
-// Hook pour les hôtels
-export const useHotels = () => {
-  const [hotels, setHotels] = useState<Hotel[]>([])
+// Types for API responses
+interface ApiResponse<T> {
+  data: T | null
+  error: string | null
+  success: boolean
+}
+
+interface ApiListResponse<T> {
+  data: T[] | null
+  error: string | null
+  success: boolean
+  count?: number
+}
+
+// Hook options interface
+interface HookOptions {
+  enableRealTime?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+// Equipment filters
+interface EquipmentFilters {
+  categorie?: 'connectivity' | 'services' | 'wellness' | 'accessibility' | 'security' | 'recreation' | 'general'
+  est_premium?: boolean
+  est_actif?: boolean
+}
+
+
+// Hook pour les établissements (hôtels) avec support multi-tenant
+export const useEstablishments = (options?: HookOptions) => {
+  const [establishments, setEstablishments] = useState<Hotel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
-  const fetchHotels = async () => {
+  const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchEstablishments = async () => {
     try {
       setLoading(true)
+      setError(null)
+
+      if (!user) {
+        setEstablishments([])
+        return
+      }
+
       const { data, error } = await supabase
         .from('hotels')
         .select('*')
+        .eq('user_owner_id', user.id)
         .order('nom')
 
       if (error) throw error
-      setHotels(data || [])
+      setEstablishments(data || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des hôtels')
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des établissements')
     } finally {
       setLoading(false)
     }
   }
 
-  const createHotel = async (hotel: Omit<Hotel, 'id' | 'created_at' | 'updated_at'>) => {
+  const createEstablishment = async (establishment: Omit<Hotel, 'id' | 'created_at' | 'updated_at' | 'user_owner_id'>): Promise<ApiResponse<Hotel>> => {
     try {
+      if (!user) {
+        return { data: null, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      setError(null)
+      const establishmentData = {
+        ...establishment,
+        user_owner_id: user.id,
+        statut: establishment.statut || 'ACTIF',
+        chambres_total: establishment.chambres_total || 0,
+        chambres_occupees: establishment.chambres_occupees || 0,
+        taux_occupation: establishment.taux_occupation || 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('hotels')
-        .insert(hotel)
+        .insert(establishmentData)
         .select()
         .single()
 
       if (error) throw error
-      setHotels(prev => [...prev, data])
-      return data
+      setEstablishments(prev => [...prev, data])
+      return { data, error: null, success: true }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la création de l\'hôtel')
-      throw err
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de l\'établissement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
     }
   }
 
-  const updateHotel = async (id: number, updates: Partial<Hotel>) => {
+  const updateEstablishment = async (id: number, updates: Partial<Hotel>): Promise<ApiResponse<Hotel>> => {
     try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('hotels')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
+        .eq('user_owner_id', user?.id) // Ensure user can only update their own establishments
         .select()
         .single()
 
       if (error) throw error
-      setHotels(prev => prev.map(hotel => hotel.id === id ? data : hotel))
-      return data
+      setEstablishments(prev => prev.map(hotel => hotel.id === id ? data : hotel))
+      return { data, error: null, success: true }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'hôtel')
-      throw err
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'établissement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
     }
   }
 
-  useEffect(() => {
-    fetchHotels()
-  }, [])
+  const deleteEstablishment = async (id: number, hardDelete = false): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
 
-  return { hotels, loading, error, fetchHotels, createHotel, updateHotel }
+      if (hardDelete) {
+        const { error } = await supabase
+          .from('hotels')
+          .delete()
+          .eq('id', id)
+          .eq('user_owner_id', user?.id)
+
+        if (error) throw error
+        setEstablishments(prev => prev.filter(hotel => hotel.id !== id))
+      } else {
+        const { data, error } = await supabase
+          .from('hotels')
+          .update({ statut: 'INACTIF', updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .eq('user_owner_id', user?.id)
+          .select()
+          .single()
+
+        if (error) throw error
+        setEstablishments(prev => prev.map(hotel => hotel.id === id ? data : hotel))
+      }
+
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'établissement'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !user) return
+
+    const channel = supabase
+      .channel(`hotels-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'hotels',
+          filter: `user_owner_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time establishment update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setEstablishments(prev => {
+                if (!prev.some(e => e.id === payload.new.id)) {
+                  return [...prev, payload.new as Hotel].sort((a, b) => a.nom.localeCompare(b.nom))
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setEstablishments(prev => prev.map(establishment => 
+                establishment.id === payload.new.id ? payload.new as Hotel : establishment
+              ))
+              break
+            case 'DELETE':
+              setEstablishments(prev => prev.filter(establishment => establishment.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchEstablishments, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchEstablishments()
+  }, [user])
+
+  return { 
+    establishments, 
+    loading, 
+    error, 
+    fetchEstablishments, 
+    createEstablishment, 
+    updateEstablishment, 
+    deleteEstablishment
+  }
 }
+
+// Backward compatibility alias
+export const useHotels = useEstablishments
 
 // Hook pour les réservations
 export const useReservations = () => {
@@ -162,7 +339,7 @@ export const useReservations = () => {
   return { reservations, loading, error, fetchReservations, createReservation, updateReservation }
 }
 
-// Hook pour les chambres avec support API complet
+// Hook pour les chambres avec support API complet et multi-tenancy
 export const useRooms = (hotelId?: number, options?: {
   enableRealTime?: boolean
   autoRefresh?: boolean
@@ -176,6 +353,7 @@ export const useRooms = (hotelId?: number, options?: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const { user } = useAuth()
 
   const { enableRealTime = true, autoRefresh = false, filters } = options || {}
 
@@ -188,14 +366,30 @@ export const useRooms = (hotelId?: number, options?: {
       }
       setError(null)
 
+      if (!hotelId) {
+        setRooms([])
+        return
+      }
+
+      // Verify user owns the hotel
+      if (user) {
+        const { data: hotelData, error: hotelError } = await supabase
+          .from('hotels')
+          .select('id')
+          .eq('id', hotelId)
+          .eq('user_owner_id', user.id)
+          .single()
+
+        if (hotelError || !hotelData) {
+          throw new Error('Accès non autorisé à cet hôtel')
+        }
+      }
+
       let query = supabase
         .from('rooms')
         .select('*')
+        .eq('hotel_id', hotelId)
         .order('numero')
-
-      if (hotelId) {
-        query = query.eq('hotel_id', hotelId)
-      }
 
       // Apply filters
       if (filters?.statut) {
@@ -222,17 +416,38 @@ export const useRooms = (hotelId?: number, options?: {
     }
   }
 
-  const createRoom = async (room: Omit<Room, 'id' | 'created_at' | 'updated_at'>) => {
+  const createRoom = async (room: RoomInsert): Promise<ApiResponse<Room>> => {
     try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      // Verify user owns the hotel
+      if (user) {
+        const { data: hotelData, error: hotelError } = await supabase
+          .from('hotels')
+          .select('id')
+          .eq('id', hotelId)
+          .eq('user_owner_id', user.id)
+          .single()
+
+        if (hotelError || !hotelData) {
+          return { data: null, error: 'Accès non autorisé à cet hôtel', success: false }
+        }
+      }
+
       setError(null)
+      const roomData = {
+        ...room,
+        hotel_id: hotelId,
+        statut: room.statut || 'disponible',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('rooms')
-        .insert({
-          ...room,
-          statut: room.statut || 'disponible',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(roomData)
         .select()
         .single()
 
@@ -253,16 +468,23 @@ export const useRooms = (hotelId?: number, options?: {
     }
   }
 
-  const updateRoom = async (id: number, updates: Partial<Room>) => {
+  const updateRoom = async (id: number, updates: RoomUpdate): Promise<ApiResponse<Room>> => {
     try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
       setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
       const { data, error } = await supabase
         .from('rooms')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
+        .eq('hotel_id', hotelId) // Ensure room belongs to the specified hotel
         .select()
         .single()
 
@@ -280,8 +502,12 @@ export const useRooms = (hotelId?: number, options?: {
     }
   }
 
-  const deleteRoom = async (id: number) => {
+  const deleteRoom = async (id: number): Promise<ApiResponse<boolean>> => {
     try {
+      if (!hotelId) {
+        return { data: false, error: 'ID d\'hôtel requis', success: false }
+      }
+
       setError(null)
       
       // Check for active reservations first
@@ -302,23 +528,28 @@ export const useRooms = (hotelId?: number, options?: {
         .from('rooms')
         .delete()
         .eq('id', id)
+        .eq('hotel_id', hotelId) // Ensure room belongs to the specified hotel
 
       if (error) throw error
       
       // Update local state optimistically
       setRooms(prev => prev.filter(room => room.id !== id))
       
-      return { success: true, error: null }
+      return { data: true, error: null, success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la chambre'
       setError(errorMessage)
       console.error('Error deleting room:', err)
-      return { success: false, error: errorMessage }
+      return { data: false, error: errorMessage, success: false }
     }
   }
 
-  const updateRoomStatus = async (id: number, status: 'disponible' | 'occupee' | 'maintenance') => {
+  const updateRoomStatus = async (id: number, status: 'disponible' | 'occupee' | 'maintenance'): Promise<ApiResponse<Room>> => {
     try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
       setError(null)
       const updateData: Partial<Room> = {
         statut: status,
@@ -334,6 +565,7 @@ export const useRooms = (hotelId?: number, options?: {
         .from('rooms')
         .update(updateData)
         .eq('id', id)
+        .eq('hotel_id', hotelId) // Ensure room belongs to the specified hotel
         .select()
         .single()
 
@@ -743,4 +975,650 @@ export const useDashboardStats = () => {
   }, [])
 
   return { stats, loading, error, fetchStats }
+}
+
+// Hook pour les équipements
+export const useEquipments = (filters?: EquipmentFilters, options?: HookOptions) => {
+  const [equipments, setEquipments] = useState<Equipment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enableRealTime = false, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchEquipments = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      let query = supabase
+        .from('equipments')
+        .select('*')
+
+      // Apply filters
+      if (filters?.categorie) {
+        query = query.eq('categorie', filters.categorie)
+      }
+      if (filters?.est_premium !== undefined) {
+        query = query.eq('est_premium', filters.est_premium)
+      }
+      if (filters?.est_actif !== undefined) {
+        query = query.eq('est_actif', filters.est_actif)
+      }
+
+      query = query.order('categorie').order('ordre_affichage').order('nom')
+
+      const { data, error } = await query
+
+      if (error) throw error
+      setEquipments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createEquipment = async (equipment: EquipmentInsert): Promise<ApiResponse<Equipment>> => {
+    try {
+      setError(null)
+      const equipmentData = {
+        ...equipment,
+        est_actif: equipment.est_actif ?? true,
+        ordre_affichage: equipment.ordre_affichage ?? 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('equipments')
+        .insert(equipmentData)
+        .select()
+        .single()
+
+      if (error) throw error
+      setEquipments(prev => [...prev, data].sort((a, b) => 
+        a.categorie.localeCompare(b.categorie) || a.ordre_affichage - b.ordre_affichage || a.nom.localeCompare(b.nom)
+      ))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de l\'équipement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateEquipment = async (id: number, updates: EquipmentUpdate): Promise<ApiResponse<Equipment>> => {
+    try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('equipments')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setEquipments(prev => prev.map(equipment => equipment.id === id ? data : equipment))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'équipement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteEquipment = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+
+      // Check if equipment is associated with any hotels
+      const { data: associations, error: checkError } = await supabase
+        .from('hotel_equipments')
+        .select('id')
+        .eq('equipment_id', id)
+        .limit(1)
+
+      if (checkError) {
+        console.warn('Could not check equipment associations before deletion:', checkError)
+      } else if (associations && associations.length > 0) {
+        throw new Error('Impossible de supprimer un équipement associé à des hôtels')
+      }
+
+      const { error } = await supabase
+        .from('equipments')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setEquipments(prev => prev.filter(equipment => equipment.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'équipement'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime) return
+
+    const channel = supabase
+      .channel('equipments')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'equipments'
+        },
+        (payload) => {
+          console.log('Real-time equipment update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setEquipments(prev => {
+                if (!prev.some(e => e.id === payload.new.id)) {
+                  const newEquipments = [...prev, payload.new as Equipment]
+                  return newEquipments.sort((a, b) => 
+                    a.categorie.localeCompare(b.categorie) || a.ordre_affichage - b.ordre_affichage || a.nom.localeCompare(b.nom)
+                  )
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setEquipments(prev => prev.map(equipment => 
+                equipment.id === payload.new.id ? payload.new as Equipment : equipment
+              ))
+              break
+            case 'DELETE':
+              setEquipments(prev => prev.filter(equipment => equipment.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchEquipments, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchEquipments()
+  }, [filters?.categorie, filters?.est_premium, filters?.est_actif])
+
+  return { 
+    equipments, 
+    loading, 
+    error, 
+    fetchEquipments, 
+    createEquipment, 
+    updateEquipment, 
+    deleteEquipment
+  }
+}
+
+// Hook pour les équipements d'hôtel
+export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
+  const [hotelEquipments, setHotelEquipments] = useState<(HotelEquipment & { equipment?: Equipment })[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchHotelEquipments = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (!hotelId) {
+        setHotelEquipments([])
+        return
+      }
+
+      // Verify user owns the hotel
+      if (user) {
+        const { data: hotelData, error: hotelError } = await supabase
+          .from('hotels')
+          .select('id')
+          .eq('id', hotelId)
+          .eq('user_owner_id', user.id)
+          .single()
+
+        if (hotelError || !hotelData) {
+          throw new Error('Accès non autorisé à cet hôtel')
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('hotel_equipments')
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .eq('hotel_id', hotelId)
+
+      if (error) throw error
+      setHotelEquipments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements de l\'hôtel')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addEquipmentToHotel = async (
+    equipmentId: number, 
+    options?: {
+      est_gratuit?: boolean
+      prix_supplement?: number
+      description_specifique?: string
+      horaires_disponibilite?: Record<string, unknown>
+      conditions_usage?: string
+      notes_internes?: string
+    }
+  ): Promise<ApiResponse<HotelEquipment>> => {
+    try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      const hotelEquipmentData: HotelEquipmentInsert = {
+        hotel_id: hotelId,
+        equipment_id: equipmentId,
+        est_disponible: true,
+        est_gratuit: options?.est_gratuit ?? true,
+        prix_supplement: options?.prix_supplement ?? null,
+        description_specifique: options?.description_specifique,
+        horaires_disponibilite: options?.horaires_disponibilite,
+        conditions_usage: options?.conditions_usage,
+        notes_internes: options?.notes_internes,
+        date_ajout: new Date().toISOString(),
+        date_derniere_maj: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('hotel_equipments')
+        .insert(hotelEquipmentData)
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .single()
+
+      if (error) throw error
+      setHotelEquipments(prev => [...prev, data])
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'ajout de l\'équipement à l\'hôtel'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const removeEquipmentFromHotel = async (equipmentId: number): Promise<ApiResponse<boolean>> => {
+    try {
+      if (!hotelId) {
+        return { data: false, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      const { error } = await supabase
+        .from('hotel_equipments')
+        .delete()
+        .eq('hotel_id', hotelId)
+        .eq('equipment_id', equipmentId)
+
+      if (error) throw error
+      setHotelEquipments(prev => prev.filter(he => he.equipment_id !== equipmentId))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'équipement de l\'hôtel'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const updateHotelEquipment = async (
+    equipmentId: number, 
+    updates: Partial<HotelEquipmentUpdate>
+  ): Promise<ApiResponse<HotelEquipment>> => {
+    try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      const updateData = {
+        ...updates,
+        date_derniere_maj: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('hotel_equipments')
+        .update(updateData)
+        .eq('hotel_id', hotelId)
+        .eq('equipment_id', equipmentId)
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .single()
+
+      if (error) throw error
+      setHotelEquipments(prev => prev.map(he => 
+        he.equipment_id === equipmentId ? data : he
+      ))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'équipement de l\'hôtel'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !hotelId) return
+
+    const channel = supabase
+      .channel(`hotel-equipments-${hotelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'hotel_equipments',
+          filter: `hotel_id=eq.${hotelId}`
+        },
+        (payload) => {
+          console.log('Real-time hotel equipment update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              // Refetch to get equipment details
+              fetchHotelEquipments()
+              break
+            case 'UPDATE':
+              // Refetch to get equipment details
+              fetchHotelEquipments()
+              break
+            case 'DELETE':
+              setHotelEquipments(prev => prev.filter(he => he.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [hotelId, enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchHotelEquipments, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchHotelEquipments()
+  }, [hotelId])
+
+  return { 
+    hotelEquipments, 
+    loading, 
+    error, 
+    fetchHotelEquipments, 
+    addEquipmentToHotel, 
+    removeEquipmentFromHotel, 
+    updateHotelEquipment
+  }
+}
+
+// Hook pour les équipements de chambre
+export const useRoomEquipments = (roomId?: number, options?: HookOptions) => {
+  const [roomEquipments, setRoomEquipments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchRoomEquipments = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (!roomId) {
+        setRoomEquipments([])
+        return
+      }
+
+      // Verify user owns the room's hotel
+      if (user) {
+        const { data: roomData, error: roomError } = await supabase
+          .from('rooms')
+          .select('hotel_id, hotels!inner(user_owner_id)')
+          .eq('id', roomId)
+          .single()
+
+        if (roomError || !roomData) {
+          throw new Error('Chambre non trouvée')
+        }
+
+        if ((roomData.hotels as any).user_owner_id !== user.id) {
+          throw new Error('Accès non autorisé à cette chambre')
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('room_equipments')
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .eq('room_id', roomId)
+
+      if (error) throw error
+      setRoomEquipments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements de la chambre')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addEquipmentToRoom = async (
+    equipmentId: number,
+    options?: {
+      est_disponible?: boolean
+      est_fonctionnel?: boolean
+      date_installation?: string
+      notes?: string
+    }
+  ): Promise<ApiResponse<RoomEquipment>> => {
+    try {
+      if (!roomId) {
+        return { data: null, error: 'ID de chambre requis', success: false }
+      }
+
+      setError(null)
+      const roomEquipmentData: RoomEquipmentInsert = {
+        room_id: roomId,
+        equipment_id: equipmentId,
+        est_disponible: options?.est_disponible ?? true,
+        est_fonctionnel: options?.est_fonctionnel ?? true,
+        date_installation: options?.date_installation || new Date().toISOString(),
+        notes: options?.notes,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('room_equipments')
+        .insert(roomEquipmentData)
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .single()
+
+      if (error) throw error
+      setRoomEquipments(prev => [...prev, data])
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'ajout de l\'équipement à la chambre'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const removeEquipmentFromRoom = async (equipmentId: number): Promise<ApiResponse<boolean>> => {
+    try {
+      if (!roomId) {
+        return { data: false, error: 'ID de chambre requis', success: false }
+      }
+
+      setError(null)
+      const { error } = await supabase
+        .from('room_equipments')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('equipment_id', equipmentId)
+
+      if (error) throw error
+      setRoomEquipments(prev => prev.filter((re: any) => re.equipment_id !== equipmentId))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'équipement de la chambre'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const updateRoomEquipment = async (
+    equipmentId: number, 
+    updates: Partial<Omit<RoomEquipment, 'id' | 'room_id' | 'equipment_id' | 'created_at' | 'updated_at'>>
+  ): Promise<ApiResponse<RoomEquipment>> => {
+    try {
+      if (!roomId) {
+        return { data: null, error: 'ID de chambre requis', success: false }
+      }
+
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('room_equipments')
+        .update(updateData)
+        .eq('room_id', roomId)
+        .eq('equipment_id', equipmentId)
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .single()
+
+      if (error) throw error
+      setRoomEquipments(prev => prev.map((re: any) => 
+        re.equipment_id === equipmentId ? data : re
+      ))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'équipement de la chambre'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !roomId) return
+
+    const channel = supabase
+      .channel(`room-equipments-${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_equipments',
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          console.log('Real-time room equipment update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              // Refetch to get equipment details
+              fetchRoomEquipments()
+              break
+            case 'UPDATE':
+              // Refetch to get equipment details
+              fetchRoomEquipments()
+              break
+            case 'DELETE':
+              setRoomEquipments(prev => prev.filter((re: any) => re.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [roomId, enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchRoomEquipments, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchRoomEquipments()
+  }, [roomId])
+
+  return { 
+    roomEquipments, 
+    loading, 
+    error, 
+    fetchRoomEquipments, 
+    addEquipmentToRoom, 
+    removeEquipmentFromRoom, 
+    updateRoomEquipment
+  }
 } 

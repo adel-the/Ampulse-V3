@@ -50,11 +50,15 @@ const equipmentTypes = [
   { value: 'other', label: 'Autre', description: 'Autre type d\'équipement' }
 ];
 
-// Catégories suggérées
+// Catégories autorisées par la base de données (correspondant à la contrainte CHECK)
 const suggestedCategories = [
-  'Connectivité', 'Divertissement', 'Climatisation', 'Salle de bain', 
-  'Confort', 'Cuisine', 'Vue', 'Transport', 'Accessibilité', 
-  'Services', 'Sécurité', 'Bien-être', 'Restauration'
+  { value: 'connectivity', label: 'Connectivité' },
+  { value: 'services', label: 'Services' },
+  { value: 'wellness', label: 'Bien-être' },
+  { value: 'accessibility', label: 'Accessibilité' },
+  { value: 'security', label: 'Sécurité' },
+  { value: 'recreation', label: 'Divertissement' },
+  { value: 'general', label: 'Général' }
 ];
 
 export default function EquipmentFormModal({
@@ -68,7 +72,7 @@ export default function EquipmentFormModal({
   const [formData, setFormData] = useState({
     name: '',
     type: 'amenity' as const,
-    category: '',
+    category: 'general', // Valeur par défaut correspondant à la DB
     description: '',
     icon: 'Home',
     is_active: true,
@@ -92,7 +96,7 @@ export default function EquipmentFormModal({
       });
       
       // Vérifier si la catégorie est personnalisée
-      const isCustom = initialData.categorie && !suggestedCategories.includes(initialData.categorie);
+      const isCustom = initialData.categorie && !suggestedCategories.some(cat => cat.value === initialData.categorie);
       if (isCustom) {
         setCustomCategory(initialData.categorie || '');
         setShowCustomCategory(true);
@@ -109,7 +113,7 @@ export default function EquipmentFormModal({
       setFormData({
         name: '',
         type: 'amenity',
-        category: '',
+        category: 'general',
         description: '',
         icon: 'Home',
         is_active: true,
@@ -255,7 +259,7 @@ export default function EquipmentFormModal({
                       >
                         <option value="">Sélectionner une catégorie</option>
                         {suggestedCategories.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
                         ))}
                       </select>
                       <button

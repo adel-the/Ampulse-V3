@@ -1,0 +1,83 @@
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          ESTABLISHMENT CRUD TEST REPORT                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ Test Execution Summary                                                         ║
+║ • Total Tests: 31                                                           ║
+║ • Passed: 31                                                               ║
+║ • Failed: 0                                                                ║
+║ • Success Rate: 100%                                                           ║
+║                                                                                ║
+║ Performance Metrics                                                            ║
+║ • CREATE Operations: 52ms                                                 ║
+║ • READ Operations: 9ms                                                    ║
+║ • UPDATE Operations: 25ms                                                 ║
+║ • DELETE Operations: 19ms                                                 ║
+║ • Total Execution Time: 105ms                                           ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ CRUD Operations Results                                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+📊 CREATE Operations (5 establishments):
+   ✅ Maison Palace (ID: 35)
+   ✅ Maison Confort (ID: 36)
+   ✅ Les Grand (ID: 37)
+   ✅ La du Commerce (ID: 38)
+   ✅ Les Moderne (ID: 39)
+
+📖 READ Operations:
+   • All establishments fetch: ✅
+   • Single establishment fetch: ✅
+   • Search functionality: ✅
+
+✏️  UPDATE Operations (3 establishments):
+   ✅ Maison Palace (ID: 35)
+   ✅ Maison Confort (ID: 36)
+   ✅ Les Grand (ID: 37)
+
+🗑️  DELETE Operations (2 establishments):
+   ✅ La du Commerce (ID: 38)
+   ✅ Les Moderne (ID: 39)
+
+🔍 Validation Tests (18 tests):
+   ✅ Postal code validation for Maison Palace
+   ✅ Email validation for Maison Palace
+   ✅ Director email validation for Maison Palace
+   ✅ Phone validation for Maison Palace
+   ✅ SIRET validation for Maison Palace
+   ✅ TVA validation for Maison Palace
+   ✅ Postal code validation for Maison Confort
+   ✅ Email validation for Maison Confort
+   ✅ Director email validation for Maison Confort
+   ✅ Phone validation for Maison Confort
+   ✅ SIRET validation for Maison Confort
+   ✅ TVA validation for Maison Confort
+   ✅ Postal code validation for Les Grand
+   ✅ Email validation for Les Grand
+   ✅ Director email validation for Les Grand
+   ✅ Phone validation for Les Grand
+   ✅ SIRET validation for Les Grand
+   ✅ TVA validation for Les Grand
+
+🔒 RLS Policy Tests (0 tests):
+
+
+
+
+
+⚠️  Warnings:
+   • RLS testing is limited in local development mode with service role keys
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ Data Integrity Verification                                                   ║
+║ • All created establishments have valid IDs: ✅                    ║
+║ • French postal codes validation: ✅                                ║
+║ • Email format validation: ✅                                      ║
+║ • SIRET format validation: ✅                                      ║
+║ • TVA format validation: ✅                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Test completed at: 25/08/2025 17:13:22
+Environment: development
+Database: http://127.0.0.1:54321

@@ -1,0 +1,70 @@
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          ESTABLISHMENT CRUD TEST REPORT                       ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ Test Execution Summary                                                         ║
+║ • Total Tests: 7                                                            ║
+║ • Passed: 2                                                                ║
+║ • Failed: 5                                                                ║
+║ • Success Rate: 29%                                                           ║
+║                                                                                ║
+║ Performance Metrics                                                            ║
+║ • CREATE Operations: 36ms                                                 ║
+║ • READ Operations: 7ms                                                    ║
+║ • UPDATE Operations: 0ms                                                  ║
+║ • DELETE Operations: 0ms                                                  ║
+║ • Total Execution Time: 43ms                                            ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ CRUD Operations Results                                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+📊 CREATE Operations (5 establishments):
+   ❌ Les Étoilé (ID: -1) - Error: new row violates row-level security policy for table "hotels"
+   ❌ Domaine du Commerce (ID: -1) - Error: new row violates row-level security policy for table "hotels"
+   ❌ Les de la Gare (ID: -1) - Error: new row violates row-level security policy for table "hotels"
+   ❌ Résidence Royal (ID: -1) - Error: new row violates row-level security policy for table "hotels"
+   ❌ Domaine Étoilé (ID: -1) - Error: new row violates row-level security policy for table "hotels"
+
+📖 READ Operations:
+   • All establishments fetch: ❌
+   • Single establishment fetch: ❌
+   • Search functionality: ❌
+
+✏️  UPDATE Operations (0 establishments):
+
+
+🗑️  DELETE Operations (0 establishments):
+
+
+🔍 Validation Tests (0 tests):
+
+
+🔒 RLS Policy Tests (0 tests):
+
+
+
+❌ Errors Encountered:
+   • Create establishment 1: Les Étoilé: new row violates row-level security policy for table "hotels"
+   • Create establishment 2: Domaine du Commerce: new row violates row-level security policy for table "hotels"
+   • Create establishment 3: Les de la Gare: new row violates row-level security policy for table "hotels"
+   • Create establishment 4: Résidence Royal: new row violates row-level security policy for table "hotels"
+   • Create establishment 5: Domaine Étoilé: new row violates row-level security policy for table "hotels"
+
+
+
+⚠️  Warnings:
+   • RLS testing is limited in local development mode with service role keys
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ Data Integrity Verification                                                   ║
+║ • All created establishments have valid IDs: ❌                    ║
+║ • French postal codes validation: ✅                                ║
+║ • Email format validation: ✅                                      ║
+║ • SIRET format validation: ✅                                      ║
+║ • TVA format validation: ✅                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Test completed at: 25/08/2025 17:10:54
+Environment: development
+Database: http://127.0.0.1:54321
