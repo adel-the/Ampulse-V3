@@ -247,59 +247,6 @@ export type Database = {
         }
         Relationships: []
       }
-      room_categories: {
-        Row: {
-          amenities: Json | null
-          base_price: number
-          created_at: string | null
-          description: string | null
-          display_order: number | null
-          hotel_id: number
-          id: number
-          images: Json | null
-          is_active: boolean | null
-          max_occupancy: number
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          amenities?: Json | null
-          base_price: number
-          created_at?: string | null
-          description?: string | null
-          display_order?: number | null
-          hotel_id: number
-          id?: number
-          images?: Json | null
-          is_active?: boolean | null
-          max_occupancy?: number
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          amenities?: Json | null
-          base_price?: number
-          created_at?: string | null
-          description?: string | null
-          display_order?: number | null
-          hotel_id?: number
-          id?: number
-          images?: Json | null
-          is_active?: boolean | null
-          max_occupancy?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "room_categories_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       room_equipments: {
         Row: {
           created_at: string | null
@@ -365,7 +312,6 @@ export type Database = {
         Row: {
           amenities: Json | null
           bed_type: string | null
-          category_id: number | null
           created_at: string | null
           description: string | null
           floor: number | null
@@ -386,7 +332,6 @@ export type Database = {
         Insert: {
           amenities?: Json | null
           bed_type?: string | null
-          category_id?: number | null
           created_at?: string | null
           description?: string | null
           floor?: number | null
@@ -407,7 +352,6 @@ export type Database = {
         Update: {
           amenities?: Json | null
           bed_type?: string | null
-          category_id?: number | null
           created_at?: string | null
           description?: string | null
           floor?: number | null
@@ -426,13 +370,6 @@ export type Database = {
           view_type?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "rooms_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "room_categories"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "rooms_hotel_id_fkey"
             columns: ["hotel_id"]
@@ -473,13 +410,6 @@ export type Database = {
           view_type: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "rooms_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "room_categories"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "rooms_hotel_id_fkey"
             columns: ["hotel_id"]

@@ -130,19 +130,17 @@ export const establishmentsApi = {
   },
 
   /**
-   * Fetch establishment with related data (rooms, categories)
+   * Fetch establishment with related data (rooms)
    */
   async getEstablishmentWithDetails(id: number): Promise<ApiResponse<Establishment & {
     rooms?: any[]
-    room_categories?: any[]
   }>> {
     try {
       const { data, error } = await supabase
         .from('hotels')
         .select(`
           *,
-          rooms (*),
-          room_categories (*)
+          rooms (*)
         `)
         .eq('id', id)
         .single()

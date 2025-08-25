@@ -236,7 +236,6 @@ export interface Database {
           prix: number
           statut: 'disponible' | 'occupee' | 'maintenance'
           description: string | null
-          category_id: number | null
           floor: number | null
           room_size: number | null
           bed_type: string | null
@@ -257,7 +256,6 @@ export interface Database {
           prix: number
           statut?: 'disponible' | 'occupee' | 'maintenance'
           description?: string | null
-          category_id?: number | null
           floor?: number | null
           room_size?: number | null
           bed_type?: string | null
@@ -278,7 +276,6 @@ export interface Database {
           prix?: number
           statut?: 'disponible' | 'occupee' | 'maintenance'
           description?: string | null
-          category_id?: number | null
           floor?: number | null
           room_size?: number | null
           bed_type?: string | null
@@ -842,50 +839,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      room_categories: {
-        Row: {
-          id: number
-          hotel_id: number
-          name: string
-          description: string | null
-          base_price: number
-          max_occupancy: number
-          amenities: Record<string, unknown>[] | null[] | null
-          images: Record<string, unknown>[] | null[] | null
-          is_active: boolean
-          display_order: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          hotel_id: number
-          name: string
-          description?: string | null
-          base_price: number
-          max_occupancy?: number
-          amenities?: Record<string, unknown>[] | null[] | null
-          images?: Record<string, unknown>[] | null[] | null
-          is_active?: boolean
-          display_order?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          hotel_id?: number
-          name?: string
-          description?: string | null
-          base_price?: number
-          max_occupancy?: number
-          amenities?: Record<string, unknown>[] | null[] | null
-          images?: Record<string, unknown>[] | null[] | null
-          is_active?: boolean
-          display_order?: number
-          created_at?: string
-          updated_at?: string
-        }
-      }
       establishments: {
         Row: {
           id: number
@@ -1017,7 +970,6 @@ export type Establishment = Tables<'hotels'> // Alias pour clarté
 export type Room = Tables<'rooms'>
 export type RoomInsert = Inserts<'rooms'>
 export type RoomUpdate = Updates<'rooms'>
-export type RoomCategory = Tables<'room_categories'>
 export type Usager = Tables<'usagers'>
 export type OperateurSocial = Tables<'operateurs_sociaux'>
 export type Reservation = Tables<'reservations'>
@@ -1074,17 +1026,6 @@ export const establishmentHelpers = {
       .order('nom')
   },
 
-  // Récupérer un établissement avec ses catégories
-  async getEstablishmentWithCategories(id: number) {
-    return await supabase
-      .from('hotels')
-      .select(`
-        *,
-        room_categories (*)
-      `)
-      .eq('id', id)
-      .single()
-  },
 
   // Créer un établissement avec catégories par défaut
   async createEstablishmentWithDefaults(data: Inserts<'hotels'>) {
@@ -1110,64 +1051,6 @@ export const establishmentHelpers = {
   }
 }
 
-// Fonctions helper pour les catégories de chambres
-export const roomCategoryHelpers = {
-  // Récupérer les catégories d'un établissement
-  async getCategoriesByEstablishment(establishmentId: number) {
-    return await supabase
-      .from('room_categories')
-      .select('*')
-      .eq('establishment_id', establishmentId)
-      .eq('is_active', true)
-      .order('display_order')
-  },
-
-  // Créer une nouvelle catégorie
-  async createCategory(data: Inserts<'room_categories'>) {
-    return await supabase
-      .from('room_categories')
-      .insert(data)
-      .select()
-      .single()
-  },
-
-  // Mettre à jour une catégorie
-  async updateCategory(id: number, data: Updates<'room_categories'>) {
-    return await supabase
-      .from('room_categories')
-      .update(data)
-      .eq('id', id)
-      .select()
-      .single()
-  },
-
-  // Supprimer une catégorie
-  async deleteCategory(id: number) {
-    return await supabase
-      .from('room_categories')
-      .delete()
-      .eq('id', id)
-  },
-
-  // Créer des chambres en lot pour une catégorie
-  async createRoomsBatch(
-    hotelId: number,
-    categoryId: number,
-    floor: number,
-    startNumber: number,
-    endNumber: number,
-    price?: number
-  ) {
-    return await supabase.rpc('create_rooms_batch', {
-      p_hotel_id: hotelId,
-      p_category_id: categoryId,
-      p_floor: floor,
-      p_start_number: startNumber,
-      p_end_number: endNumber,
-      p_price: price
-    })
-  }
-}
 
 // Fonctions helper pour les équipements
 export const equipmentHelpers = {

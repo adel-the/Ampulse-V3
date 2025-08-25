@@ -51,7 +51,7 @@ interface RoomState {
 
 export default function ReservationsCalendar({ reservations, hotels = [], selectedHotel }: ReservationsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedRoomCategory, setSelectedRoomCategory] = useState<string>('all');
+  const [selectedRoomType, setSelectedRoomType] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [roomStates, setRoomStates] = useState<RoomState[]>([]);
@@ -252,10 +252,10 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     }
   };
 
-  // Obtenir les catégories de chambres disponibles
-  const getRoomCategories = () => {
+  // Obtenir les types de chambres disponibles
+  const getRoomTypes = () => {
     return [
-      { value: 'all', label: 'Toutes les catégories', icon: <Bed className="h-4 w-4" /> },
+      { value: 'all', label: 'Tous les types', icon: <Bed className="h-4 w-4" /> },
       { value: 'simple', label: 'Chambres Simples', icon: <Bed className="h-4 w-4" /> },
       { value: 'double', label: 'Chambres Doubles', icon: <Bed className="h-4 w-4" /> },
       { value: 'suite', label: 'Suites', icon: <Bed className="h-4 w-4" /> },
@@ -263,27 +263,27 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     ];
   };
 
-  // Filtrer les chambres par catégorie
-  const getRoomsByCategory = (hotelName: string, category: string) => {
+  // Filtrer les chambres par type
+  const getRoomsByType = (hotelName: string, roomType: string) => {
     const allRooms = getRoomsByHotel(hotelName);
     
-    if (category === 'all') return allRooms;
+    if (roomType === 'all') return allRooms;
     
     return allRooms.filter(room => {
-      const roomType = room.type.toLowerCase();
-      switch (category) {
-        case 'simple': return roomType === 'simple';
-        case 'double': return roomType === 'double';
-        case 'suite': return roomType === 'suite';
-        case 'familiale': return roomType === 'familiale';
+      const roomTypeCheck = room.type.toLowerCase();
+      switch (roomType) {
+        case 'simple': return roomTypeCheck === 'simple';
+        case 'double': return roomTypeCheck === 'double';
+        case 'suite': return roomTypeCheck === 'suite';
+        case 'familiale': return roomTypeCheck === 'familiale';
         default: return true;
       }
     });
   };
 
   // Filtrer les chambres par état de disponibilité et numéro de chambre
-  const getFilteredRooms = (hotelName: string, category: string) => {
-    let rooms = getRoomsByCategory(hotelName, category);
+  const getFilteredRooms = (hotelName: string, roomType: string) => {
+    let rooms = getRoomsByType(hotelName, roomType);
     
     // Filtrer par numéro de chambre si spécifié
     if (roomNumberFilter.trim()) {
@@ -304,8 +304,8 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     return rooms;
   };
 
-  const getRoomStatsByStatus = (hotelName: string, category: string = 'all') => {
-    const rooms = getRoomsByCategory(hotelName, category);
+  const getRoomStatsByStatus = (hotelName: string, roomType: string = 'all') => {
+    const rooms = getRoomsByType(hotelName, roomType);
     const today = new Date();
     
     const stats = {
@@ -411,26 +411,26 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
       
 
-      {/* Calendrier par catégorie de chambre */}
+      {/* Calendrier par type de chambre */}
       <div className="space-y-6">
-                 {/* Sélection de catégorie de chambre et filtres - Version optimisée */}
+                 {/* Sélection de type de chambre et filtres - Version optimisée */}
          <Card>
            <CardContent className="p-4">
              <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
-                               {/* Hôtel et catégorie */}
+                               {/* Hôtel et type */}
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                      Catégorie:
+                      Type:
                     </label>
                     <select
-                      value={selectedRoomCategory}
-                      onChange={(e) => setSelectedRoomCategory(e.target.value)}
+                      value={selectedRoomType}
+                      onChange={(e) => setSelectedRoomType(e.target.value)}
                       className="text-sm p-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      {getRoomCategories().map((category) => (
-                        <option key={category.value} value={category.value}>
-                          {category.label}
+                      {getRoomTypes().map((roomType) => (
+                        <option key={roomType.value} value={roomType.value}>
+                          {roomType.label}
                         </option>
                       ))}
                     </select>
@@ -438,7 +438,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
                   {selectedHotel && (
                     <Badge variant="outline" className="text-xs">
-                      {getFilteredRooms(selectedHotel, selectedRoomCategory).length} chambres
+                      {getFilteredRooms(selectedHotel, selectedRoomType).length} chambres
                     </Badge>
                   )}
                 </div>
@@ -564,7 +564,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
                 {/* Grille du calendrier par chambre */}
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {getFilteredRooms(selectedHotel, selectedRoomCategory).map((room) => (
+                  {getFilteredRooms(selectedHotel, selectedRoomType).map((room) => (
                     <div key={room.id} className="grid grid-cols-8 gap-1 border-b border-gray-200 pb-2">
                       <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
                         <Bed className="h-4 w-4 text-gray-600" />
@@ -633,10 +633,10 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
               </CardContent>
             </Card>
 
-            {/* Statistiques par catégorie de chambre */}
+            {/* Statistiques par type de chambre */}
             <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
               {(() => {
-                const stats = getRoomStatsByStatus(selectedHotel, selectedRoomCategory);
+                const stats = getRoomStatsByStatus(selectedHotel, selectedRoomType);
                 return [
                   { key: 'available', label: 'Libres', color: 'text-green-600', bgColor: 'bg-green-400' },
                   { key: 'occupied', label: 'Occupées', color: 'text-red-600', bgColor: 'bg-red-500' },

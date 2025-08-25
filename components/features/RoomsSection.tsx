@@ -239,7 +239,6 @@ export default function RoomsSection() {
     return {
       ...editingRoom,
       description: editingRoom.description || undefined,
-      category_id: editingRoom.category_id || undefined,
       floor: editingRoom.floor || undefined,
       room_size: editingRoom.room_size || undefined,
       bed_type: editingRoom.bed_type || undefined,

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import RoomCategories from '../features/RoomCategories';
 import RoomCharacteristics from '../features/RoomCharacteristics';
 import RoomOptions from '../features/RoomOptions';
 import RoomList from '../features/RoomList';
@@ -43,19 +42,14 @@ export default function ChambresPage({ selectedHotel, onActionClick }: ChambresP
       
       <div className="px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="chambres-liste">Liste des Chambres</TabsTrigger>
-            <TabsTrigger value="chambres-categories">Catégories</TabsTrigger>
             <TabsTrigger value="chambres-caracteristiques">Caractéristiques</TabsTrigger>
             <TabsTrigger value="chambres-options">Options/Suppléments</TabsTrigger>
           </TabsList>
 
           <TabsContent value="chambres-liste" className="space-y-6">
             <RoomList />
-          </TabsContent>
-
-          <TabsContent value="chambres-categories" className="space-y-6">
-            <RoomCategories />
           </TabsContent>
 
           <TabsContent value="chambres-caracteristiques" className="space-y-6">
