@@ -210,7 +210,14 @@ export default function RoomsSection() {
 
   // Préparer les données initiales pour le modal d'édition
   const getInitialModalData = () => {
-    if (!editingRoom) return { equipment_ids: [], images: [] };
+    if (!editingRoom) {
+      // Pour une nouvelle chambre, inclure l'hôtel sélectionné
+      return { 
+        hotel_id: selectedHotelId || hotels[0]?.id || 1,
+        equipment_ids: [], 
+        images: [] 
+      };
+    }
     
     // Extraire les IDs d'équipements et convertir les images
     const equipmentIds = extractEquipmentIds(editingRoom.equipment_ids);

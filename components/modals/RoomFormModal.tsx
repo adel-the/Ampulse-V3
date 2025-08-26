@@ -46,20 +46,20 @@ export default function RoomFormModal({
   loading = false
 }: RoomFormModalProps) {
   const [formData, setFormData] = useState<RoomFormData>({
-    hotel_id: 1,
-    numero: '',
-    type: 'Simple',
-    prix: 45,
-    statut: 'disponible',
-    description: '',
-    floor: 1,
-    room_size: 20,
-    bed_type: 'double',
-    view_type: '',
-    is_smoking: false,
-    equipment_ids: [],
-    images: [],
-    notes: ''
+    hotel_id: initialData?.hotel_id || 1,
+    numero: initialData?.numero || '',
+    type: initialData?.type || 'Simple',
+    prix: initialData?.prix || 45,
+    statut: initialData?.statut || 'disponible',
+    description: initialData?.description || '',
+    floor: initialData?.floor || 1,
+    room_size: initialData?.room_size || 20,
+    bed_type: initialData?.bed_type || 'double',
+    view_type: initialData?.view_type || '',
+    is_smoking: initialData?.is_smoking || false,
+    equipment_ids: initialData?.equipment_ids || [],
+    images: initialData?.images || [],
+    notes: initialData?.notes || ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -151,6 +151,8 @@ export default function RoomFormModal({
       setFormData(prev => ({
         ...prev,
         ...initialData,
+        // Assurons-nous que l'hotel_id est toujours défini
+        hotel_id: initialData.hotel_id || prev.hotel_id || 1,
         // Assurons-nous que les champs tableaux sont toujours définis
         equipment_ids: initialData.equipment_ids || prev.equipment_ids || [],
         images: initialData.images || prev.images || []
