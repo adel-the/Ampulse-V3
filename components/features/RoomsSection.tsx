@@ -13,7 +13,7 @@ import type { Room } from '@/lib/api/rooms';
 import type { Establishment } from '@/lib/api/establishments';
 
 interface RoomFormData extends Partial<Room> {
-  amenities_list?: string[];
+  equipment_ids?: number[];
 }
 
 export default function RoomsSection() {
@@ -40,26 +40,7 @@ export default function RoomsSection() {
     { value: 'Studio', label: 'Studio', capacity: 2, basePrice: 55 }
   ];
 
-  // Équipements disponibles
-  const availableAmenities = [
-    { value: 'WiFi', label: 'WiFi', icon: Wifi },
-    { value: 'TV', label: 'Télévision', icon: Tv },
-    { value: 'TV 4K', label: 'TV 4K', icon: Tv },
-    { value: 'Climatisation', label: 'Climatisation', icon: Home },
-    { value: 'Chauffage', label: 'Chauffage', icon: Home },
-    { value: 'Minibar', label: 'Minibar', icon: Coffee },
-    { value: 'Machine à café', label: 'Machine à café', icon: Coffee },
-    { value: 'Salle de bain privée', label: 'Salle de bain privée', icon: Home },
-    { value: 'Balcon', label: 'Balcon', icon: Home },
-    { value: 'Terrasse', label: 'Terrasse', icon: Home },
-    { value: 'Vue mer', label: 'Vue mer', icon: MapPin },
-    { value: 'Vue jardin', label: 'Vue jardin', icon: MapPin },
-    { value: 'Parking', label: 'Parking', icon: Car },
-    { value: 'Accès PMR', label: 'Accès PMR', icon: Users },
-    { value: 'Kitchenette', label: 'Kitchenette', icon: Home },
-    { value: 'Jacuzzi', label: 'Jacuzzi', icon: Home },
-    { value: 'Salon séparé', label: 'Salon séparé', icon: Home }
-  ];
+  // La liste des équipements est maintenant gérée par hôtel via hotel_equipment
 
   useEffect(() => {
     loadEstablishments();
@@ -148,7 +129,7 @@ export default function RoomsSection() {
         // Mise à jour
         const updateData = {
           ...data,
-          amenities: data.amenities || [],
+          equipment_ids: data.equipment_ids || [],
           images: data.images || []
         };
         response = await roomsApi.updateRoom(editingRoom.id, updateData);
@@ -166,7 +147,7 @@ export default function RoomsSection() {
           bed_type: data.bed_type,
           view_type: data.view_type,
           is_smoking: data.is_smoking || false,
-          amenities: data.amenities || [],
+          equipment_ids: data.equipment_ids || [],
           images: data.images || [],
           notes: data.notes
         };
@@ -209,11 +190,11 @@ export default function RoomsSection() {
   };
 
   // Helper spécifique pour extraire les IDs d'équipements
-  const extractEquipmentIds = (amenities: any): number[] => {
-    if (!amenities) return [];
-    if (!Array.isArray(amenities)) return [];
+  const extractEquipmentIds = (equipment_ids: any): number[] => {
+    if (!equipment_ids) return [];
+    if (!Array.isArray(equipment_ids)) return [];
     
-    return amenities
+    return equipment_ids
       .map(item => {
         if (typeof item === 'number') return item;
         if (typeof item === 'object' && item !== null) {
@@ -229,10 +210,10 @@ export default function RoomsSection() {
 
   // Préparer les données initiales pour le modal d'édition
   const getInitialModalData = () => {
-    if (!editingRoom) return { amenities: [], images: [] };
+    if (!editingRoom) return { equipment_ids: [], images: [] };
     
     // Extraire les IDs d'équipements et convertir les images
-    const equipmentIds = extractEquipmentIds(editingRoom.amenities);
+    const equipmentIds = extractEquipmentIds(editingRoom.equipment_ids);
     const imagesList = normalizeArrayField(editingRoom.images);
     
     
@@ -246,7 +227,7 @@ export default function RoomsSection() {
       is_smoking: editingRoom.is_smoking || undefined,
       last_cleaned: editingRoom.last_cleaned || undefined,
       notes: editingRoom.notes || undefined,
-      amenities: equipmentIds, // Maintenant des number[] au lieu de string[]
+      equipment_ids: equipmentIds, // IDs d'équipements comme number[]
       images: imagesList
     };
   };

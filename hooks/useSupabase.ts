@@ -27,12 +27,6 @@ import type {
   HotelEquipment,
   HotelEquipmentInsert,
   HotelEquipmentUpdate,
-  RoomEquipment,
-  RoomEquipmentInsert,
-  RoomEquipmentUpdate,
-  EquipmentWithHotelInfo,
-  HotelEquipmentWithDetails,
-  RoomEquipmentWithDetails,
   Inserts,
   Updates,
   RoomInsert,
@@ -446,10 +440,12 @@ export const useRooms = (hotelId?: number, options?: {
       }
 
       setError(null)
+      
       const roomData = {
         ...room,
         hotel_id: hotelId,
         statut: room.statut || 'disponible',
+        equipment_ids: room.equipment_ids || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -484,6 +480,7 @@ export const useRooms = (hotelId?: number, options?: {
       }
 
       setError(null)
+      
       const updateData = {
         ...updates,
         updated_at: new Date().toISOString()
@@ -668,6 +665,30 @@ export const useRooms = (hotelId?: number, options?: {
     }
   }
 
+  const getRoomEquipmentDetails = async (roomId: number) => {
+    try {
+      const room = rooms.find(r => r.id === roomId)
+      if (!room || !room.equipment_ids || room.equipment_ids.length === 0) {
+        return []
+      }
+
+      const { data, error } = await supabase
+        .from('hotel_equipment')
+        .select('*')
+        .in('id', room.equipment_ids)
+        .eq('est_actif', true)
+        .order('categorie')
+        .order('ordre_affichage')
+        .order('nom')
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error('Error fetching room equipment details:', err)
+      return []
+    }
+  }
+
   // Real-time subscription setup
   useEffect(() => {
     if (!enableRealTime || !hotelId) return
@@ -743,7 +764,8 @@ export const useRooms = (hotelId?: number, options?: {
     getRoomById,
     getRoomsByType,
     getAvailableRooms,
-    getRoomStatistics
+    getRoomStatistics,
+    getRoomEquipmentDetails
   }
 }
 
@@ -986,7 +1008,9 @@ export const useDashboardStats = () => {
   return { stats, loading, error, fetchStats }
 }
 
-// Hook pour les équipements
+// DEPRECATED: Hook pour les équipements (ancien système global)
+// Utiliser useHotelEquipmentCRUD à la place
+/*
 export const useEquipments = (filters?: EquipmentFilters, options?: HookOptions) => {
   const [equipments, setEquipments] = useState<Equipment[]>([])
   const [loading, setLoading] = useState(true)
@@ -1170,6 +1194,7 @@ export const useEquipments = (filters?: EquipmentFilters, options?: HookOptions)
     deleteEquipment
   }
 }
+*/
 
 // Hook pour les clients
 export const useClients = (options?: HookOptions) => {
@@ -1685,7 +1710,9 @@ export const useConventions = (clientId?: number) => {
   }
 }
 
-// Hook pour les équipements d'hôtel (relation hotel_equipments)
+// DEPRECATED: Hook pour les équipements d'hôtel (ancien système equipment_assignments)
+// Utiliser useHotelEquipmentCRUD à la place
+/*
 export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
   const [equipments, setEquipments] = useState<EquipmentWithHotelInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -1704,33 +1731,35 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
       setLoading(true)
       setError(null)
 
-      // Get all equipments with hotel availability info
+      // Get only equipments that are assigned to this hotel from equipment_assignments
       const { data, error } = await supabase
-        .from('equipments')
+        .from('equipment_assignments')
         .select(`
-          *,
-          hotel_equipment:hotel_equipments!left(
-            est_disponible,
-            est_gratuit,
-            prix_supplement,
-            description_specifique,
-            conditions_usage
-          )
+          id,
+          est_disponible,
+          est_gratuit,
+          prix_supplement,
+          description_specifique,
+          conditions_usage,
+          equipment:equipments(*)
         `)
-        .eq('hotel_equipments.hotel_id', hotelId)
-        .eq('est_actif', true)
-        .order('categorie, ordre_affichage, nom')
+        .eq('hotel_id', hotelId)
+        .is('room_id', null)
+        .eq('est_disponible', true)
+        .order('equipment_id')
 
       if (error) throw error
 
       // Transform the data to include hotel availability info
-      const transformedData: EquipmentWithHotelInfo[] = (data || []).map(equipment => ({
-        ...equipment,
-        is_available_in_hotel: !!equipment.hotel_equipment?.length,
-        is_free: equipment.hotel_equipment?.[0]?.est_gratuit ?? true,
-        supplement_price: equipment.hotel_equipment?.[0]?.prix_supplement ?? null,
-        hotel_equipment: equipment.hotel_equipment?.[0] || undefined
-      }))
+      const transformedData: EquipmentWithHotelInfo[] = (data || [])
+        .filter(assignment => assignment.equipment && assignment.equipment.est_actif) // Only include assignments with valid, active equipment
+        .map(assignment => ({
+          ...assignment.equipment!,
+          is_available_in_hotel: true, // Since we're only getting assigned equipments
+          is_free: assignment.est_gratuit ?? true,
+          supplement_price: assignment.prix_supplement ?? null,
+          equipment_assignment: assignment
+        }))
 
       setEquipments(transformedData)
     } catch (err) {
@@ -1740,7 +1769,7 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
     }
   }
 
-  const addEquipmentToHotel = async (equipmentId: number, equipmentData?: Partial<HotelEquipmentInsert>): Promise<ApiResponse<HotelEquipment>> => {
+  const addEquipmentToHotel = async (equipmentId: number, equipmentData?: Partial<EquipmentAssignmentInsert>): Promise<ApiResponse<EquipmentAssignment>> => {
     try {
       if (!hotelId) {
         return { data: null, error: 'ID d\'hôtel requis', success: false }
@@ -1748,9 +1777,10 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
 
       setError(null)
 
-      const insertData: HotelEquipmentInsert = {
+      const insertData: EquipmentAssignmentInsert = {
         hotel_id: hotelId,
         equipment_id: equipmentId,
+        room_id: null, // Hotel-level equipment
         est_disponible: equipmentData?.est_disponible ?? true,
         est_gratuit: equipmentData?.est_gratuit ?? true,
         prix_supplement: equipmentData?.prix_supplement ?? null,
@@ -1761,7 +1791,7 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
       }
 
       const { data, error } = await supabase
-        .from('hotel_equipments')
+        .from('equipment_assignments')
         .insert(insertData)
         .select()
         .single()
@@ -1788,10 +1818,11 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
       setError(null)
 
       const { error } = await supabase
-        .from('hotel_equipments')
+        .from('equipment_assignments')
         .delete()
         .eq('hotel_id', hotelId)
         .eq('equipment_id', equipmentId)
+        .is('room_id', null) // Only hotel-level equipment
 
       if (error) throw error
 
@@ -1806,7 +1837,7 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
     }
   }
 
-  const updateHotelEquipment = async (equipmentId: number, updates: Partial<HotelEquipmentUpdate>): Promise<ApiResponse<HotelEquipment>> => {
+  const updateHotelEquipment = async (equipmentId: number, updates: Partial<EquipmentAssignmentUpdate>): Promise<ApiResponse<EquipmentAssignment>> => {
     try {
       if (!hotelId) {
         return { data: null, error: 'ID d\'hôtel requis', success: false }
@@ -1815,10 +1846,11 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
       setError(null)
 
       const { data, error } = await supabase
-        .from('hotel_equipments')
+        .from('equipment_assignments')
         .update(updates)
         .eq('hotel_id', hotelId)
         .eq('equipment_id', equipmentId)
+        .is('room_id', null) // Only hotel-level equipment
         .select()
         .single()
 
@@ -1850,7 +1882,11 @@ export const useHotelEquipments = (hotelId?: number, options?: HookOptions) => {
   }
 }
 
-// Hook pour les équipements disponibles pour un hôtel (pour sélection dans les chambres)
+*/
+
+// DEPRECATED: Hook pour les équipements disponibles (ancien système)
+// Utiliser useHotelEquipmentCRUD à la place
+/*
 export const useAvailableRoomEquipments = (hotelId?: number, options?: HookOptions) => {
   const [equipments, setEquipments] = useState<Equipment[]>([])
   const [loading, setLoading] = useState(true)
@@ -1869,7 +1905,7 @@ export const useAvailableRoomEquipments = (hotelId?: number, options?: HookOptio
       setLoading(true)
       setError(null)
 
-      // Get only equipments that are available for this hotel
+      // Get only equipments that are available for this hotel from equipment_assignments
       const { data, error } = await supabase
         .from('equipments')
         .select(`
@@ -1877,9 +1913,10 @@ export const useAvailableRoomEquipments = (hotelId?: number, options?: HookOptio
         `)
         .in('id', 
           supabase
-            .from('hotel_equipments')
+            .from('equipment_assignments')
             .select('equipment_id')
             .eq('hotel_id', hotelId)
+            .is('room_id', null)
             .eq('est_disponible', true)
         )
         .eq('est_actif', true)
@@ -1903,13 +1940,13 @@ export const useAvailableRoomEquipments = (hotelId?: number, options?: HookOptio
     if (!enableRealTime || !hotelId) return
 
     const subscription = supabase
-      .channel(`hotel_equipments_${hotelId}`)
+      .channel(`equipment_assignments_${hotelId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'hotel_equipments',
+          table: 'equipment_assignments',
           filter: `hotel_id=eq.${hotelId}`
         },
         () => {
@@ -1931,5 +1968,480 @@ export const useAvailableRoomEquipments = (hotelId?: number, options?: HookOptio
   }
 }
 
+*/
 
- 
+// DEPRECATED: Hook pour les équipements de chambre (ancien système)
+// Utiliser useRoomEquipmentIds à la place
+/*
+export const useRoomEquipments = (hotelId?: number, roomId?: number, options?: HookOptions) => {
+  const [equipments, setEquipments] = useState<EquipmentAssignmentWithDetails[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enableRealTime = false } = options || {}
+
+  const fetchRoomEquipments = async () => {
+    try {
+      if (!hotelId || !roomId) {
+        setEquipments([])
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      // Get room equipments with equipment details
+      const { data, error } = await supabase
+        .from('equipment_assignments')
+        .select(`
+          *,
+          equipment:equipments(*)
+        `)
+        .eq('hotel_id', hotelId)
+        .eq('room_id', roomId)
+        .order('equipment.categorie, equipment.ordre_affichage, equipment.nom')
+
+      if (error) throw error
+      setEquipments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements de la chambre')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addEquipmentToRoom = async (equipmentId: number, equipmentData?: Partial<EquipmentAssignmentInsert>): Promise<ApiResponse<EquipmentAssignment>> => {
+    try {
+      if (!hotelId || !roomId) {
+        return { data: null, error: 'ID d\'hôtel et de chambre requis', success: false }
+      }
+
+      setError(null)
+
+      // First, check if the equipment is available at the hotel level
+      const { data: hotelEquipment, error: checkError } = await supabase
+        .from('equipment_assignments')
+        .select('id')
+        .eq('hotel_id', hotelId)
+        .eq('equipment_id', equipmentId)
+        .is('room_id', null)
+        .eq('est_disponible', true)
+        .single()
+
+      if (checkError || !hotelEquipment) {
+        return { data: null, error: 'Équipement non disponible dans cet hôtel', success: false }
+      }
+
+      const insertData: EquipmentAssignmentInsert = {
+        hotel_id: hotelId,
+        equipment_id: equipmentId,
+        room_id: roomId,
+        est_disponible: equipmentData?.est_disponible ?? true,
+        est_fonctionnel: equipmentData?.est_fonctionnel ?? true,
+        date_installation: equipmentData?.date_installation ?? new Date().toISOString(),
+        notes: equipmentData?.notes ?? null,
+        ...equipmentData
+      }
+
+      const { data, error } = await supabase
+        .from('equipment_assignments')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Refresh the equipments list
+      await fetchRoomEquipments()
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'ajout de l\'équipement à la chambre'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const removeEquipmentFromRoom = async (equipmentId: number): Promise<ApiResponse<boolean>> => {
+    try {
+      if (!hotelId || !roomId) {
+        return { data: false, error: 'ID d\'hôtel et de chambre requis', success: false }
+      }
+
+      setError(null)
+
+      const { error } = await supabase
+        .from('equipment_assignments')
+        .delete()
+        .eq('hotel_id', hotelId)
+        .eq('equipment_id', equipmentId)
+        .eq('room_id', roomId)
+
+      if (error) throw error
+
+      // Refresh the equipments list
+      await fetchRoomEquipments()
+
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'équipement de la chambre'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const updateRoomEquipment = async (equipmentId: number, updates: Partial<EquipmentAssignmentUpdate>): Promise<ApiResponse<EquipmentAssignment>> => {
+    try {
+      if (!hotelId || !roomId) {
+        return { data: null, error: 'ID d\'hôtel et de chambre requis', success: false }
+      }
+
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('equipment_assignments')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('hotel_id', hotelId)
+        .eq('equipment_id', equipmentId)
+        .eq('room_id', roomId)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Refresh the equipments list
+      await fetchRoomEquipments()
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'équipement de la chambre'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  useEffect(() => {
+    fetchRoomEquipments()
+  }, [hotelId, roomId])
+
+  // Set up real-time subscription if enabled
+  useEffect(() => {
+    if (!enableRealTime || !hotelId || !roomId) return
+
+    const subscription = supabase
+      .channel(`room_equipment_assignments_${hotelId}_${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'equipment_assignments',
+          filter: `hotel_id=eq.${hotelId}.and.room_id=eq.${roomId}`
+        },
+        () => {
+          fetchRoomEquipments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [enableRealTime, hotelId, roomId])
+
+  return {
+    equipments,
+    loading,
+    error,
+    fetchRoomEquipments,
+    addEquipmentToRoom,
+    removeEquipmentFromRoom,
+    updateRoomEquipment
+  }
+}
+*/
+
+// ====================================
+// Ultra-Simplified Room Equipment Management
+// ====================================
+
+// Hook for managing room equipment IDs (using equipment_ids array field)
+export const useRoomEquipmentIds = (roomId?: number, hotelId?: number) => {
+  const [equipmentIds, setEquipmentIds] = useState<number[]>([])
+  const [equipments, setEquipments] = useState<HotelEquipment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchRoomEquipments = async () => {
+    try {
+      if (!roomId) {
+        setEquipmentIds([])
+        setEquipments([])
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      // Get room with equipment_ids
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .select('equipment_ids')
+        .eq('id', roomId)
+        .single()
+
+      if (roomError) throw roomError
+
+      const ids = roomData?.equipment_ids || []
+      setEquipmentIds(ids)
+
+      // If there are equipment IDs, fetch their details
+      if (ids.length > 0) {
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('hotel_equipment')
+          .select('*')
+          .in('id', ids)
+          .eq('est_actif', true)
+          .order('categorie', { ascending: true })
+          .order('ordre_affichage', { ascending: true })
+          .order('nom', { ascending: true })
+
+        if (equipmentError) throw equipmentError
+        setEquipments(equipmentData || [])
+      } else {
+        setEquipments([])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const setRoomEquipments = async (newEquipmentIds: number[]): Promise<ApiResponse<boolean>> => {
+    try {
+      if (!roomId) {
+        return { data: false, error: 'ID de chambre requis', success: false }
+      }
+
+      setError(null)
+
+      // Update room with new equipment IDs
+      const { error } = await supabase
+        .from('rooms')
+        .update({ equipment_ids: newEquipmentIds })
+        .eq('id', roomId)
+
+      if (error) throw error
+
+      // Update local state
+      setEquipmentIds(newEquipmentIds)
+      
+      // Refresh equipment details
+      await fetchRoomEquipments()
+
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour des équipements'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const addEquipment = async (equipmentId: number): Promise<ApiResponse<boolean>> => {
+    if (equipmentIds.includes(equipmentId)) {
+      return { data: false, error: 'Équipement déjà présent', success: false }
+    }
+    
+    return setRoomEquipments([...equipmentIds, equipmentId])
+  }
+
+  const removeEquipment = async (equipmentId: number): Promise<ApiResponse<boolean>> => {
+    return setRoomEquipments(equipmentIds.filter(id => id !== equipmentId))
+  }
+
+  useEffect(() => {
+    fetchRoomEquipments()
+  }, [roomId])
+
+  return {
+    equipmentIds,
+    equipments,
+    loading,
+    error,
+    setRoomEquipments,
+    addEquipment,
+    removeEquipment,
+    fetchRoomEquipments
+  }
+}
+
+// ====================================
+// Hotel Equipment Management Hooks (Simplified)
+// ====================================
+
+// Hook for hotel equipment management (full CRUD)
+export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) => {
+  const [equipments, setEquipments] = useState<HotelEquipment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enableRealTime = false } = options || {}
+
+  const fetchEquipments = async () => {
+    try {
+      if (!hotelId) {
+        setEquipments([])
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('hotel_equipment')
+        .select('*')
+        .eq('hotel_id', hotelId)
+        .eq('est_actif', true)
+        .order('categorie', { ascending: true })
+        .order('ordre_affichage', { ascending: true })
+        .order('nom', { ascending: true })
+
+      if (error) throw error
+      setEquipments(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des équipements')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createEquipment = async (equipmentData: Omit<HotelEquipmentInsert, 'hotel_id'>): Promise<ApiResponse<HotelEquipment>> => {
+    try {
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      const insertData = {
+        ...equipmentData,
+        hotel_id: hotelId
+      }
+
+      const { data, error } = await supabase
+        .from('hotel_equipment')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setEquipments(prev => [...prev, data].sort((a, b) => 
+        a.categorie.localeCompare(b.categorie) || 
+        a.ordre_affichage - b.ordre_affichage ||
+        a.nom.localeCompare(b.nom)
+      ))
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de l\'équipement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateEquipment = async (id: number, updates: HotelEquipmentUpdate): Promise<ApiResponse<HotelEquipment>> => {
+    try {
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('hotel_equipment')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setEquipments(prev => 
+        prev.map(eq => eq.id === id ? data : eq).sort((a, b) => 
+          a.categorie.localeCompare(b.categorie) || 
+          a.ordre_affichage - b.ordre_affichage ||
+          a.nom.localeCompare(b.nom)
+        )
+      )
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de l\'équipement'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteEquipment = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+
+      const { error } = await supabase
+        .from('hotel_equipment')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setEquipments(prev => prev.filter(eq => eq.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de l\'équipement'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  useEffect(() => {
+    fetchEquipments()
+  }, [hotelId])
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !hotelId) return
+
+    const subscription = supabase
+      .channel(`hotel_equipment_${hotelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'hotel_equipment',
+          filter: `hotel_id=eq.${hotelId}`
+        },
+        () => {
+          fetchEquipments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [enableRealTime, hotelId])
+
+  return {
+    equipments,
+    loading,
+    error,
+    fetchEquipments,
+    createEquipment,
+    updateEquipment,
+    deleteEquipment
+  }
+}
+

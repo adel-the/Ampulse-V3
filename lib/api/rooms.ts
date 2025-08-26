@@ -8,22 +8,12 @@ export type RoomUpdate = Updates<'rooms'>
 
 // Utility function to normalize room data for frontend consumption
 const normalizeRoomData = (room: Room): Room => {
-  // Convert amenities objects back to IDs for frontend consumption
-  // If amenities contains objects with equipment_id, extract the IDs
-  // Otherwise keep the original array
-  const processedAmenities = room.amenities ? (Array.isArray(room.amenities) ? room.amenities.map((amenity: any) => {
-    if (amenity && typeof amenity === 'object' && amenity.equipment_id) {
-      return amenity.equipment_id;
-    }
-    return amenity;
-  }).filter(Boolean) : []) : [];
-
   return {
     ...room,
     // Ensure images is always an array
     images: room.images || [],
-    // Use type assertion to handle the amenities conversion
-    amenities: processedAmenities as any,
+    // Ensure equipment_ids is always an array
+    equipment_ids: room.equipment_ids || [],
     // Provide default values for optional fields
     floor: room.floor ?? 0,
     is_smoking: room.is_smoking ?? false,
@@ -40,19 +30,9 @@ const prepareRoomData = (data: any): any => {
     images: data.images ? (Array.isArray(data.images) ? data.images.map((img: any) => 
       typeof img === 'string' ? { url: img } : img
     ) : []) : [],
-    // Convert amenities array to proper format for database
-    // If it's an array of numbers (equipment IDs), convert to objects with id
-    // If it's an array of strings (equipment names), convert to objects with name
-    // If it's already objects, keep as is
-    amenities: data.amenities ? (Array.isArray(data.amenities) ? data.amenities.map((amenity: any) => {
-      if (typeof amenity === 'number') {
-        return { equipment_id: amenity };
-      } else if (typeof amenity === 'string') {
-        return { name: amenity };
-      } else {
-        return amenity;
-      }
-    }) : []) : [],
+    // Ensure equipment_ids is an array of numbers
+    equipment_ids: data.equipment_ids ? (Array.isArray(data.equipment_ids) ? 
+      data.equipment_ids.filter((id: any) => typeof id === 'number') : []) : [],
   }
 }
 

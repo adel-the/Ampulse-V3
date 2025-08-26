@@ -7,8 +7,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { useAvailableRoomEquipments } from '@/hooks/useSupabase';
-import type { Equipment } from '@/lib/supabase';
+import { useHotelEquipmentCRUD } from '@/hooks/useSupabase';
+import type { HotelEquipment } from '@/lib/supabase';
 
 interface RoomFormData {
   id?: number;
@@ -23,7 +23,7 @@ interface RoomFormData {
   bed_type?: string;
   view_type?: string;
   is_smoking?: boolean;
-  amenities?: number[];
+  equipment_ids?: number[];
   images?: string[];
   notes?: string;
 }
@@ -57,7 +57,7 @@ export default function RoomFormModal({
     bed_type: 'double',
     view_type: '',
     is_smoking: false,
-    amenities: [],
+    equipment_ids: [],
     images: [],
     notes: ''
   });
@@ -76,10 +76,10 @@ export default function RoomFormModal({
   ];
 
   // Charger les équipements disponibles pour l'hôtel de cette chambre
-  const { equipments, loading: equipmentsLoading } = useAvailableRoomEquipments(formData.hotel_id);
+  const { equipments, loading: equipmentsLoading } = useHotelEquipmentCRUD(formData.hotel_id);
 
   // Fonction pour récupérer l'icône appropriée pour un équipement
-  const getEquipmentIcon = (equipment: Equipment) => {
+  const getEquipmentIcon = (equipment: HotelEquipment) => {
     const iconName = equipment.icone?.toLowerCase();
     const categoryName = equipment.categorie?.toLowerCase();
     
@@ -141,7 +141,7 @@ export default function RoomFormModal({
         ...prev,
         ...initialData,
         // Assurons-nous que les champs tableaux sont toujours définis
-        amenities: initialData.amenities || prev.amenities || [],
+        equipment_ids: initialData.equipment_ids || prev.equipment_ids || [],
         images: initialData.images || prev.images || []
       }));
     }
@@ -197,18 +197,18 @@ export default function RoomFormModal({
   };
 
   // Gérer les équipements (maintenant avec des IDs)
-  const handleAmenityToggle = (equipmentId: number) => {
+  const handleEquipmentToggle = (equipmentId: number) => {
     setFormData(prev => {
-      const currentAmenities = prev.amenities || [];
-      if (currentAmenities.includes(equipmentId)) {
+      const currentEquipment = prev.equipment_ids || [];
+      if (currentEquipment.includes(equipmentId)) {
         return {
           ...prev,
-          amenities: currentAmenities.filter(id => id !== equipmentId)
+          equipment_ids: currentEquipment.filter(id => id !== equipmentId)
         };
       } else {
         return {
           ...prev,
-          amenities: [...currentAmenities, equipmentId]
+          equipment_ids: [...currentEquipment, equipmentId]
         };
       }
     });
@@ -483,8 +483,8 @@ export default function RoomFormModal({
                         <label key={equipment.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
                           <input
                             type="checkbox"
-                            checked={formData.amenities?.includes(equipment.id) || false}
-                            onChange={() => handleAmenityToggle(equipment.id)}
+                            checked={formData.equipment_ids?.includes(equipment.id) || false}
+                            onChange={() => handleEquipmentToggle(equipment.id)}
                             className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                           <IconComponent className="h-4 w-4 text-gray-500" />
