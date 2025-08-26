@@ -1041,6 +1041,94 @@ export interface Database {
           updated_at?: string
         }
       }
+      hotel_equipments: {
+        Row: {
+          id: number
+          hotel_id: number
+          equipment_id: number
+          est_disponible: boolean
+          est_gratuit: boolean
+          prix_supplement: number | null
+          description_specifique: string | null
+          horaires_disponibilite: Record<string, unknown> | null
+          conditions_usage: string | null
+          date_ajout: string
+          date_derniere_maj: string
+          notes_internes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          hotel_id: number
+          equipment_id: number
+          est_disponible?: boolean
+          est_gratuit?: boolean
+          prix_supplement?: number | null
+          description_specifique?: string | null
+          horaires_disponibilite?: Record<string, unknown> | null
+          conditions_usage?: string | null
+          date_ajout?: string
+          date_derniere_maj?: string
+          notes_internes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          hotel_id?: number
+          equipment_id?: number
+          est_disponible?: boolean
+          est_gratuit?: boolean
+          prix_supplement?: number | null
+          description_specifique?: string | null
+          horaires_disponibilite?: Record<string, unknown> | null
+          conditions_usage?: string | null
+          date_ajout?: string
+          date_derniere_maj?: string
+          notes_internes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      room_equipments: {
+        Row: {
+          id: number
+          room_id: number
+          equipment_id: number
+          est_disponible: boolean
+          est_fonctionnel: boolean
+          date_installation: string
+          date_derniere_verification: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          room_id: number
+          equipment_id: number
+          est_disponible?: boolean
+          est_fonctionnel?: boolean
+          date_installation?: string
+          date_derniere_verification?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          room_id?: number
+          equipment_id?: number
+          est_disponible?: boolean
+          est_fonctionnel?: boolean
+          date_installation?: string
+          date_derniere_verification?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -1083,6 +1171,28 @@ export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 export type Equipment = Tables<'equipments'>
 export type EquipmentInsert = Inserts<'equipments'>
 export type EquipmentUpdate = Updates<'equipments'>
+export type HotelEquipment = Tables<'hotel_equipments'>
+export type HotelEquipmentInsert = Inserts<'hotel_equipments'>
+export type HotelEquipmentUpdate = Updates<'hotel_equipments'>
+export type RoomEquipment = Tables<'room_equipments'>
+export type RoomEquipmentInsert = Inserts<'room_equipments'>
+export type RoomEquipmentUpdate = Updates<'room_equipments'>
+
+// Extended types with relationships
+export interface EquipmentWithHotelInfo extends Equipment {
+  hotel_equipment?: HotelEquipment
+  is_available_in_hotel?: boolean
+  is_free?: boolean
+  supplement_price?: number | null
+}
+
+export interface HotelEquipmentWithDetails extends HotelEquipment {
+  equipment?: Equipment
+}
+
+export interface RoomEquipmentWithDetails extends RoomEquipment {
+  equipment?: Equipment
+}
 
 // Simplified client types
 export interface ClientWithDetails extends Client {

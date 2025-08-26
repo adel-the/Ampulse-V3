@@ -7,7 +7,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { useEquipments } from '@/hooks/useSupabase';
+import { useAvailableRoomEquipments } from '@/hooks/useSupabase';
 import type { Equipment } from '@/lib/supabase';
 
 interface RoomFormData {
@@ -75,9 +75,8 @@ export default function RoomFormModal({
     { value: 'Studio', label: 'Studio', capacity: 2, basePrice: 55 }
   ];
 
-  // Charger les équipements depuis la base de données
-  const equipmentFilters = useMemo(() => ({ est_actif: true }), []);
-  const { equipments, loading: equipmentsLoading } = useEquipments(equipmentFilters);
+  // Charger les équipements disponibles pour l'hôtel de cette chambre
+  const { equipments, loading: equipmentsLoading } = useAvailableRoomEquipments(formData.hotel_id);
 
   // Fonction pour récupérer l'icône appropriée pour un équipement
   const getEquipmentIcon = (equipment: Equipment) => {
@@ -503,7 +502,10 @@ export default function RoomFormModal({
                 {!equipmentsLoading && equipments.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <Settings className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p>Aucun équipement disponible</p>
+                    <p>Aucun équipement disponible pour cet hôtel</p>
+                    <p className="text-sm mt-1">
+                      Les équipements doivent d'abord être ajoutés à l'hôtel avant d'être assignés aux chambres.
+                    </p>
                   </div>
                 )}
               </CardContent>

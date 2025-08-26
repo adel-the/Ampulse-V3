@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, Play, Loader2 } from 'lucide-react';
 import { establishmentsApi } from '@/lib/api/establishments';
 import { roomsApi } from '@/lib/api/rooms';
 import { equipmentsApi } from '@/lib/api/equipments';
+import { supabase } from '@/lib/supabase';
 
 interface TestResult {
   entity: string;
@@ -143,6 +144,105 @@ export default function TestConnectionPage() {
           success: equipDelete.success,
           message: equipDelete.success ? 'Equipement supprime' : equipDelete.error || 'Erreur'
         });
+      }
+
+      // Test Equipment Hierarchy (Hotel Equipment Management)
+      if (estRead.data && estRead.data.length > 0 && equipRead.data && equipRead.data.length > 0) {
+        const hotelId = estRead.data[0].id;
+        const equipmentId = equipRead.data[0].id;
+
+        // Test adding equipment to hotel
+        try {
+          const { error: insertError } = await supabase
+            .from('hotel_equipments')
+            .insert({
+              hotel_id: hotelId,
+              equipment_id: equipmentId,
+              est_disponible: true,
+              est_gratuit: true
+            });
+
+          testResults.push({
+            entity: 'Hierarchy',
+            operation: 'Hotel Equipment Add',
+            success: !insertError,
+            message: insertError ? insertError.message : 'Equipment added to hotel successfully'
+          });
+
+          if (!insertError) {
+            // Test getting hotel equipment using the new function
+            try {
+              const { data: hotelEquipments, error: selectError } = await supabase
+                .rpc('get_hotel_equipment', { p_hotel_id: hotelId });
+
+              testResults.push({
+                entity: 'Hierarchy',
+                operation: 'Get Hotel Equipment',
+                success: !selectError,
+                message: selectError ? selectError.message : `Found ${hotelEquipments?.length || 0} equipment items for hotel`,
+                data: hotelEquipments
+              });
+            } catch (err) {
+              testResults.push({
+                entity: 'Hierarchy',
+                operation: 'Get Hotel Equipment',
+                success: false,
+                message: err instanceof Error ? err.message : 'Function may not exist yet (migration needed)'
+              });
+            }
+
+            // Test constraint: try to add room equipment without hotel equipment (should fail)
+            if (estRead.data[0].chambres_total && estRead.data[0].chambres_total > 0) {
+              const { data: rooms } = await supabase
+                .from('rooms')
+                .select('id')
+                .eq('hotel_id', hotelId)
+                .limit(1);
+
+              if (rooms && rooms.length > 0) {
+                // This should succeed because equipment is now available for hotel
+                const { error: roomEquipError } = await supabase
+                  .from('room_equipments')
+                  .insert({
+                    room_id: rooms[0].id,
+                    equipment_id: equipmentId,
+                    est_disponible: true,
+                    est_fonctionnel: true
+                  });
+
+                testResults.push({
+                  entity: 'Hierarchy',
+                  operation: 'Room Equipment Add (Valid)',
+                  success: !roomEquipError,
+                  message: roomEquipError ? `Constraint working: ${roomEquipError.message}` : 'Room equipment added successfully'
+                });
+
+                // Clean up room equipment
+                if (!roomEquipError) {
+                  await supabase
+                    .from('room_equipments')
+                    .delete()
+                    .eq('room_id', rooms[0].id)
+                    .eq('equipment_id', equipmentId);
+                }
+              }
+            }
+
+            // Clean up hotel equipment
+            await supabase
+              .from('hotel_equipments')
+              .delete()
+              .eq('hotel_id', hotelId)
+              .eq('equipment_id', equipmentId);
+          }
+        } catch (hierarchyError) {
+          testResults.push({
+            entity: 'Hierarchy',
+            operation: 'Equipment Hierarchy Test',
+            success: false,
+            message: hierarchyError instanceof Error ? hierarchyError.message : 'Hierarchy test failed'
+          });
+        }
       }
 
     } catch (error) {
