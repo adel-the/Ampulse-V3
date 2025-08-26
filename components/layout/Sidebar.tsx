@@ -31,7 +31,15 @@ interface SidebarProps {
     statistiques: boolean;
     notifications: boolean;
   };
-  selectedHotel?: { id: number; nom: string } | null;
+  selectedHotel?: { 
+    id: number; 
+    nom: string;
+    adresse?: string;
+    ville?: string;
+    codePostal?: string;
+    statut?: string;
+    gestionnaire?: string;
+  } | null;
 }
 
 export default function Sidebar({ activeTab, onTabChange, features, selectedHotel }: SidebarProps) {
@@ -216,7 +224,7 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
                 {selectedHotel ? selectedHotel.nom : 'SoliReserve'}
               </h1>
               <p className="text-xs text-gray-600 truncate">
-                {selectedHotel ? 'Gestion hôtelière sociale' : 'Sélectionnez un établissement'}
+                {selectedHotel ? (selectedHotel.ville || selectedHotel.adresse || 'Gestion hôtelière sociale') : 'Sélectionnez un établissement'}
               </p>
             </div>
             <Button

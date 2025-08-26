@@ -486,7 +486,7 @@ export default function Home() {
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
           features={features}
-          selectedHotel={selectedHotel ? { id: selectedHotel, nom: hotels.find(h => h.id === selectedHotel)?.nom || '' } : null}
+          selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null}
         />
         <main className="flex-1 p-6">
           {renderMainContent()}

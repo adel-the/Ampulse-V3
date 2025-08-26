@@ -6,7 +6,12 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Plus, Building2, MapPin, Edit2, Trash2, Check } from 'lucide-react';
 import type { Establishment } from '@/lib/api/establishments';
 
-export default function EstablishmentsSection() {
+interface EstablishmentsSectionProps {
+  onEstablishmentSelect?: (establishment: Establishment) => void;
+  currentSelectedId?: number | null;
+}
+
+export default function EstablishmentsSection({ onEstablishmentSelect, currentSelectedId }: EstablishmentsSectionProps) {
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,14 +24,36 @@ export default function EstablishmentsSection() {
     loadEstablishments();
   }, []);
 
+  // Synchroniser avec l'ID s\u00e9lectionn\u00e9 globalement
+  useEffect(() => {
+    if (currentSelectedId && establishments.length > 0) {
+      const selected = establishments.find(e => e.id === currentSelectedId);
+      if (selected && selected.id !== selectedEstablishment?.id) {
+        setSelectedEstablishment(selected);
+      }
+    }
+  }, [currentSelectedId, establishments]);
+
   const loadEstablishments = async () => {
     try {
       setLoading(true);
       const response = await establishmentsApi.getEstablishments();
       if (response.success && response.data) {
         setEstablishments(response.data);
-        if (response.data.length > 0 && !selectedEstablishment) {
-          setSelectedEstablishment(response.data[0]);
+        // Si un ID est sélectionné globalement, le sélectionner
+        if (currentSelectedId) {
+          const selected = response.data.find(e => e.id === currentSelectedId);
+          if (selected) {
+            setSelectedEstablishment(selected);
+          }
+        } else if (response.data.length > 0 && !selectedEstablishment) {
+          // Sinon, sélectionner le premier par défaut
+          const firstEstablishment = response.data[0];
+          setSelectedEstablishment(firstEstablishment);
+          // Notifier le composant parent
+          if (onEstablishmentSelect) {
+            onEstablishmentSelect(firstEstablishment);
+          }
         }
       }
     } catch (error) {
@@ -40,6 +67,10 @@ export default function EstablishmentsSection() {
   const handleSelectEstablishment = (establishment: Establishment) => {
     setSelectedEstablishment(establishment);
     setShowForm(false);
+    // Call the parent callback to update the global selected hotel
+    if (onEstablishmentSelect) {
+      onEstablishmentSelect(establishment);
+    }
   };
 
   const handleAddNew = () => {
@@ -133,6 +164,10 @@ export default function EstablishmentsSection() {
         setShowForm(false);
         if (response.data) {
           setSelectedEstablishment(response.data);
+          // Also call the parent callback when creating/updating
+          if (onEstablishmentSelect) {
+            onEstablishmentSelect(response.data);
+          }
         }
       } else {
         console.error('Erreur de l\'API:', response.error);

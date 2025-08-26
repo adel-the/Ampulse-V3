@@ -781,60 +781,156 @@ export interface Database {
         Row: {
           id: number
           nom: string
-          prenom: string
+          prenom: string | null
           email: string | null
           telephone: string | null
           adresse: string | null
           ville: string | null
           code_postal: string | null
-          date_naissance: string | null
-          numero_secu: string | null
-          situation_familiale: string | null
-          nombre_enfants: number
-          revenus: number | null
-          prestations: string[] | null
-          prix_uniques: Record<string, unknown> | null
-          notes: string | null
+          type_id: number
+          statut: 'actif' | 'inactif' | 'prospect'
+          numero_client: string | null
+          raison_sociale: string | null
+          siret: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: number
           nom: string
-          prenom: string
+          prenom?: string | null
           email?: string | null
           telephone?: string | null
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          date_naissance?: string | null
-          numero_secu?: string | null
-          situation_familiale?: string | null
-          nombre_enfants?: number
-          revenus?: number | null
-          prestations?: string[] | null
-          prix_uniques?: Record<string, unknown> | null
-          notes?: string | null
+          type_id?: number
+          statut?: 'actif' | 'inactif' | 'prospect'
+          numero_client?: string | null
+          raison_sociale?: string | null
+          siret?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: number
           nom?: string
-          prenom?: string
+          prenom?: string | null
           email?: string | null
           telephone?: string | null
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          date_naissance?: string | null
-          numero_secu?: string | null
-          situation_familiale?: string | null
-          nombre_enfants?: number
-          revenus?: number | null
-          prestations?: string[] | null
-          prix_uniques?: Record<string, unknown> | null
-          notes?: string | null
+          type_id?: number
+          statut?: 'actif' | 'inactif' | 'prospect'
+          numero_client?: string | null
+          raison_sociale?: string | null
+          siret?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      referents: {
+        Row: {
+          id: number
+          client_id: number
+          nom: string
+          prenom: string | null
+          fonction: string | null
+          telephone: string | null
+          email: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          client_id: number
+          nom: string
+          prenom?: string | null
+          fonction?: string | null
+          telephone?: string | null
+          email?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          client_id?: number
+          nom?: string
+          prenom?: string | null
+          fonction?: string | null
+          telephone?: string | null
+          email?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      conventions_tarifaires: {
+        Row: {
+          id: number
+          client_id: number
+          date_debut: string | null
+          date_fin: string | null
+          reduction_pourcentage: number | null
+          forfait_mensuel: number | null
+          conditions: string | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          client_id: number
+          date_debut?: string | null
+          date_fin?: string | null
+          reduction_pourcentage?: number | null
+          forfait_mensuel?: number | null
+          conditions?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          client_id?: number
+          date_debut?: string | null
+          date_fin?: string | null
+          reduction_pourcentage?: number | null
+          forfait_mensuel?: number | null
+          conditions?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      client_types: {
+        Row: {
+          id: number
+          nom: string
+          description: string | null
+          icone: string | null
+          couleur: string | null
+          ordre: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          nom: string
+          description?: string | null
+          icone?: string | null
+          couleur?: string | null
+          ordre?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          nom?: string
+          description?: string | null
+          icone?: string | null
+          couleur?: string | null
+          ordre?: number
           created_at?: string
           updated_at?: string
         }
@@ -981,9 +1077,90 @@ export type DocumentTemplate = Tables<'document_templates'>
 export type Document = Tables<'documents'>
 export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
+export type ClientType = Tables<'client_types'>
+export type Referent = Tables<'referents'>
+export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 export type Equipment = Tables<'equipments'>
 export type EquipmentInsert = Inserts<'equipments'>
 export type EquipmentUpdate = Updates<'equipments'>
+
+// Simplified client types
+export interface ClientWithDetails extends Client {
+  type?: ClientType
+  referents?: Referent[]
+  conventions?: ConventionTarifaire[]
+}
+
+export interface ClientFormData {
+  // Basic info (essential only)
+  nom: string
+  prenom?: string
+  raison_sociale?: string
+  siret?: string
+  email?: string
+  telephone?: string
+  adresse?: string
+  code_postal?: string
+  ville?: string
+  type_id?: number
+  statut?: 'actif' | 'inactif' | 'prospect'
+  
+  // Billing information
+  mode_paiement?: 'virement' | 'cheque' | 'especes' | 'carte'
+  delai_paiement?: number
+  taux_tva?: number
+  
+  // Referent data
+  referent_nom?: string
+  referent_prenom?: string
+  referent_telephone?: string
+  referent_email?: string
+  referent_fonction?: string
+  
+  // Convention data (only for non-Particulier)
+  convention_date_debut?: string
+  convention_date_fin?: string
+  convention_reduction_pourcentage?: number
+  convention_forfait_mensuel?: number
+  convention_conditions?: string
+  convention_active?: boolean
+}
+
+export interface ClientSearchResult {
+  id: number
+  numero_client: string
+  nom_complet: string
+  type_nom: string
+  email?: string
+  telephone?: string
+  ville?: string
+  statut: string
+  date_creation: string
+}
+
+export interface ClientStatistics {
+  total_clients: number
+  clients_actifs: number
+  nouveaux_ce_mois: number
+}
+
+// Simplified referent and convention form data
+export interface ReferentFormData {
+  nom: string
+  prenom?: string
+  fonction?: string
+  telephone?: string
+  email?: string
+}
+
+export interface ConventionFormData {
+  date_debut?: string
+  date_fin?: string
+  reduction_pourcentage?: number
+  forfait_mensuel?: number
+  conditions?: string
+  active: boolean
+}
 
 // Room-specific types for API responses
 export interface RoomAvailabilityCheck {

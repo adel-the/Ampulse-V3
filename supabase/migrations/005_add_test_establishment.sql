@@ -28,7 +28,7 @@ INSERT INTO public.hotels (
     type_etablissement,
     user_owner_id
 ) VALUES (
-    'Hôtel de Test',
+    'Résidence de Développement',
     '123 Rue de Test',
     'Paris',
     '75001',
@@ -44,7 +44,7 @@ INSERT INTO public.hotels (
     '01 98 76 54 32',
     'directeur@hotel-test.fr',
     50,
-    'Hôtel de test pour le développement',
+    'Établissement de démonstration pour le développement',
     'hotel',
     '00000000-0000-0000-0000-000000000000'::UUID
 ) ON CONFLICT (siret) DO NOTHING;
@@ -74,7 +74,7 @@ FROM
     public.hotels h,
     generate_series(1, 10)
 WHERE 
-    h.nom = 'Hôtel de Test'
+    h.nom = 'Résidence de Développement'
     AND NOT EXISTS (
         SELECT 1 FROM public.rooms r 
         WHERE r.hotel_id = h.id 

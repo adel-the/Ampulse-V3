@@ -21,6 +21,7 @@ import ModificationHistory from '../features/ModificationHistory';
 import EstablishmentsSection from '../features/EstablishmentsSection';
 import RoomsSection from '../features/RoomsSection';
 import EquipmentsSection from '../features/EquipmentsSection';
+import ClientsSection from '../features/ClientsSection';
 
 interface ParametresPageProps {
   features: {
@@ -251,7 +252,15 @@ export default function ParametresPage({
         );
         
       case 'etablissement':
-        return <EstablishmentsSection />;
+        return (
+          <EstablishmentsSection 
+            currentSelectedId={selectedHotel}
+            onEstablishmentSelect={(establishment) => {
+              // Update the global selected hotel when user selects an establishment
+              onHotelSelect(establishment.id);
+            }}
+          />
+        );
          
                case 'chambres':
           return <RoomsSection />;
@@ -260,12 +269,7 @@ export default function ParametresPage({
           return <EquipmentsSection />;
          
                case 'clients':
-          return (
-            <OperateursTable
-              operateurs={operateurs || []}
-              onOperateurSelect={onOperateurSelect || (() => {})}
-            />
-          );
+          return <ClientsSection />;
          
                case 'utilisateurs':
           return (

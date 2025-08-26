@@ -137,7 +137,7 @@ async function createTestHotels(userId) {
     
     const hotelData = [
       {
-        nom: 'Hotel Test Luxury',
+        nom: 'Résidence de Test Premium',
         adresse: '123 Rue de la Paix',
         ville: 'Paris',
         code_postal: '75001',

@@ -15,6 +15,12 @@ import type {
   Document,
   Notification,
   Client,
+  ClientType,
+  ClientWithDetails,
+  ClientSearchResult,
+  ClientStatistics,
+  Referent,
+  ConventionTarifaire,
   Equipment,
   EquipmentInsert,
   EquipmentUpdate,
@@ -1153,6 +1159,520 @@ export const useEquipments = (filters?: EquipmentFilters, options?: HookOptions)
     createEquipment, 
     updateEquipment, 
     deleteEquipment
+  }
+}
+
+// Hook pour les clients
+export const useClients = (options?: HookOptions) => {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enableRealTime = false, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchClients = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('nom')
+
+      if (error) throw error
+      setClients(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des clients')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createClient = async (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Client>> => {
+    try {
+      setError(null)
+      const clientData = {
+        ...client,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('clients')
+        .insert(clientData)
+        .select()
+        .single()
+
+      if (error) throw error
+      setClients(prev => [...prev, data].sort((a, b) => a.nom.localeCompare(b.nom)))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création du client'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateClient = async (id: number, updates: Partial<Client>): Promise<ApiResponse<Client>> => {
+    try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('clients')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setClients(prev => prev.map(client => client.id === id ? data : client))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du client'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteClient = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+
+      // Check for active reservations first
+      const { data: reservations, error: checkError } = await supabase
+        .from('reservations')
+        .select('id')
+        .eq('usager_id', id) // Assuming clients are linked as usagers in reservations
+        .in('statut', ['CONFIRMEE', 'EN_COURS'])
+        .limit(1)
+
+      if (checkError) {
+        console.warn('Could not check reservations before deletion:', checkError)
+      } else if (reservations && reservations.length > 0) {
+        throw new Error('Impossible de supprimer un client avec des réservations actives')
+      }
+
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setClients(prev => prev.filter(client => client.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression du client'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const getClientById = (id: number): Client | undefined => {
+    return clients.find(client => client.id === id)
+  }
+
+  const searchClients = async (searchTerm?: string, typeId?: number, statut?: string): Promise<ApiResponse<ClientSearchResult[]>> => {
+    try {
+      setError(null)
+      
+      const { data, error } = await supabase
+        .rpc('search_simple_clients', {
+          p_search_term: searchTerm || '',
+          p_type_id: typeId || null,
+          p_statut: statut || null,
+          p_limit: 100
+        })
+
+      if (error) throw error
+      return { data: data || [], error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la recherche des clients'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const getClientWithDetails = async (id: number): Promise<ApiResponse<ClientWithDetails>> => {
+    try {
+      setError(null)
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .select(`
+          *,
+          type:client_types(*),
+          referents(*),
+          conventions:conventions_tarifaires(*)
+        `)
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des détails du client'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const getClientStatistics = async (): Promise<ApiResponse<ClientStatistics>> => {
+    try {
+      setError(null)
+      
+      const { data, error } = await supabase
+        .rpc('get_simple_client_statistics')
+
+      if (error) throw error
+      return { data: data?.[0] || null, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des statistiques'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const getClientTypes = async (): Promise<ApiResponse<ClientType[]>> => {
+    try {
+      setError(null)
+      
+      const { data, error } = await supabase
+        .from('client_types')
+        .select('*')
+        .order('ordre')
+
+      if (error) throw error
+      return { data: data || [], error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des types de clients'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const getBasicClientStatistics = () => {
+    const total = clients.length
+    const activeClients = clients.filter(c => c.statut === 'actif').length
+    const thisMonth = new Date()
+    thisMonth.setDate(1)
+    thisMonth.setHours(0, 0, 0, 0)
+    const nouveauxCeMois = clients.filter(c => new Date(c.created_at) >= thisMonth).length
+
+    return {
+      total_clients: total,
+      clients_actifs: activeClients,
+      nouveaux_ce_mois: nouveauxCeMois
+    }
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime) return
+
+    const channel = supabase
+      .channel('clients')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'clients'
+        },
+        (payload) => {
+          console.log('Real-time client update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setClients(prev => {
+                if (!prev.some(c => c.id === payload.new.id)) {
+                  const newClients = [...prev, payload.new as Client]
+                  return newClients.sort((a, b) => a.nom.localeCompare(b.nom))
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setClients(prev => prev.map(client => 
+                client.id === payload.new.id ? payload.new as Client : client
+              ))
+              break
+            case 'DELETE':
+              setClients(prev => prev.filter(client => client.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchClients, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchClients()
+  }, [])
+
+  return { 
+    clients, 
+    loading, 
+    error, 
+    fetchClients, 
+    createClient, 
+    updateClient, 
+    deleteClient,
+    getClientById,
+    searchClients,
+    getClientWithDetails,
+    getClientStatistics,
+    getClientTypes,
+    getBasicClientStatistics
+  }
+}
+
+// Hook pour les référents
+export const useReferents = (clientId?: number) => {
+  const [referents, setReferents] = useState<Referent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchReferents = async () => {
+    if (!clientId) {
+      setReferents([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('referents')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('nom')
+
+      if (error) throw error
+      setReferents(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des référents')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createReferent = async (referent: Omit<Referent, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Referent>> => {
+    try {
+      setError(null)
+      const referentData = {
+        ...referent,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('referents')
+        .insert(referentData)
+        .select()
+        .single()
+
+      if (error) throw error
+      setReferents(prev => [...prev, data].sort((a, b) => a.nom.localeCompare(b.nom)))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création du référent'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateReferent = async (id: number, updates: Partial<Referent>): Promise<ApiResponse<Referent>> => {
+    try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('referents')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setReferents(prev => prev.map(ref => ref.id === id ? data : ref))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du référent'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteReferent = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+      
+      const { error } = await supabase
+        .from('referents')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setReferents(prev => prev.filter(ref => ref.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression du référent'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  useEffect(() => {
+    fetchReferents()
+  }, [clientId])
+
+  return {
+    referents,
+    loading,
+    error,
+    fetchReferents,
+    createReferent,
+    updateReferent,
+    deleteReferent
+  }
+}
+
+// Hook pour les conventions tarifaires
+export const useConventions = (clientId?: number) => {
+  const [conventions, setConventions] = useState<ConventionTarifaire[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchConventions = async () => {
+    if (!clientId) {
+      setConventions([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('conventions_tarifaires')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('date_debut', { ascending: false })
+
+      if (error) throw error
+      setConventions(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des conventions')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createConvention = async (convention: Omit<ConventionTarifaire, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<ConventionTarifaire>> => {
+    try {
+      setError(null)
+      const conventionData = {
+        ...convention,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('conventions_tarifaires')
+        .insert(conventionData)
+        .select()
+        .single()
+
+      if (error) throw error
+      setConventions(prev => [data, ...prev])
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la convention'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateConvention = async (id: number, updates: Partial<ConventionTarifaire>): Promise<ApiResponse<ConventionTarifaire>> => {
+    try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('conventions_tarifaires')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setConventions(prev => prev.map(conv => conv.id === id ? data : conv))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la convention'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteConvention = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+      
+      const { error } = await supabase
+        .from('conventions_tarifaires')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setConventions(prev => prev.filter(conv => conv.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la convention'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  useEffect(() => {
+    fetchConventions()
+  }, [clientId])
+
+  return {
+    conventions,
+    loading,
+    error,
+    fetchConventions,
+    createConvention,
+    updateConvention,
+    deleteConvention
   }
 }
 
