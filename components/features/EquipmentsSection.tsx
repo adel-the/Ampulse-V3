@@ -1,462 +1,616 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { equipmentsApi, type Equipment } from '@/lib/api/equipments';
-import { useNotifications } from '@/hooks/useNotifications';
-import { Plus, Edit2, Trash2, Filter, Search, Tag, Eye, EyeOff, Wifi, Tv, Coffee, Car, Home, Users, MapPin, Wrench, Clock, Utensils, Bath, Wind, Thermometer, Shield, Music, Baby, Gamepad2, Dumbbell, Waves } from 'lucide-react';
+import { Plus, Edit2, Trash2, Filter, Search, Wifi, Tv, Coffee, Car, Home, Users, Shield, Settings, X, Save, Building2, Check } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import EquipmentFormModal from '../modals/EquipmentFormModal';
+import { useHotelEquipmentCRUD } from '@/hooks/useSupabase';
+import { establishmentsApi } from '@/lib/api/establishments';
+import { useNotifications } from '@/hooks/useNotifications';
+import type { HotelEquipment, HotelEquipmentInsert } from '@/lib/supabase';
+import type { Establishment } from '@/lib/api/establishments';
 
-// Mapping des icônes
-const iconMap = {
-  Wifi, Tv, Coffee, Car, Home, Users, MapPin, Wrench, Clock, Utensils, 
-  Bath, Wind, Thermometer, Shield, Music, Baby, Gamepad2, Dumbbell, Waves
-};
-
-interface EquipmentFormData extends Partial<Equipment> {
-  // Extension du type pour le formulaire
-}
+// Equipment categories with French labels and colors
+const EQUIPMENT_CATEGORIES = [
+  { value: 'connectivity', label: 'Connectivité', color: 'bg-blue-100 text-blue-800', icon: Wifi },
+  { value: 'multimedia', label: 'Multimédia', color: 'bg-purple-100 text-purple-800', icon: Tv },
+  { value: 'comfort', label: 'Confort', color: 'bg-green-100 text-green-800', icon: Home },
+  { value: 'services', label: 'Services', color: 'bg-orange-100 text-orange-800', icon: Coffee },
+  { value: 'security', label: 'Sécurité', color: 'bg-red-100 text-red-800', icon: Shield },
+  { value: 'wellness', label: 'Bien-être', color: 'bg-pink-100 text-pink-800', icon: Users },
+  { value: 'accessibility', label: 'Accessibilité', color: 'bg-indigo-100 text-indigo-800', icon: Users },
+  { value: 'general', label: 'Général', color: 'bg-gray-100 text-gray-800', icon: Settings }
+];
 
 export default function EquipmentsSection() {
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Hotel selection state
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
+  const [loadingHotels, setLoadingHotels] = useState(true);
+
+  // Modal and form state
   const [showModal, setShowModal] = useState(false);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<HotelEquipment | null>(null);
+  const [formData, setFormData] = useState<Partial<HotelEquipmentInsert>>({
+    nom: '',
+    description: '',
+    categorie: 'general',
+    icone: '',
+    couleur: '',
+    est_premium: false,
+    est_actif: true,
+    ordre_affichage: 0
+  });
+
+  // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterActive, setFilterActive] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterPremium, setFilterPremium] = useState('all');
+  const [filterActive, setFilterActive] = useState('active');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+
   const { addNotification } = useNotifications();
 
-  // Types d'équipements disponibles
-  const equipmentTypes = [
-    { value: 'amenity', label: 'Équipement' },
-    { value: 'facility', label: 'Installation' },
-    { value: 'service', label: 'Service' },
-    { value: 'safety', label: 'Sécurité' },
-    { value: 'accessibility', label: 'Accessibilité' },
-    { value: 'technology', label: 'Technologie' },
-    { value: 'other', label: 'Autre' }
-  ];
+  // Load hotel equipments using the hook
+  const {
+    equipments,
+    loading: loadingEquipments,
+    error: equipmentsError,
+    createEquipment,
+    updateEquipment,
+    deleteEquipment
+  } = useHotelEquipmentCRUD(selectedHotelId || undefined);
 
+  // Load establishments on mount
   useEffect(() => {
-    loadEquipments();
+    loadEstablishments();
   }, []);
 
-  const loadEquipments = async () => {
+  const loadEstablishments = async () => {
     try {
-      setLoading(true);
-      const response = await equipmentsApi.getEquipments();
+      setLoadingHotels(true);
+      const response = await establishmentsApi.getEstablishments();
       if (response.success && response.data) {
-        setEquipments(response.data);
-      } else {
-        console.error('Erreur:', response.error);
-        addNotification('error', response.error || 'Erreur lors du chargement des équipements');
+        setEstablishments(response.data);
+        // Auto-select first hotel if available
+        if (response.data.length > 0 && !selectedHotelId) {
+          setSelectedHotelId(response.data[0].id);
+        }
       }
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
-      addNotification('error', 'Erreur lors du chargement des équipements');
+      console.error('Erreur lors du chargement des établissements:', error);
+      addNotification('error', 'Erreur lors du chargement des établissements');
     } finally {
-      setLoading(false);
+      setLoadingHotels(false);
     }
   };
 
-  const handleAddNew = () => {
-    setEditingEquipment(null);
-    setShowModal(true);
+  // Get equipment icon
+  const getEquipmentIcon = (equipment: HotelEquipment) => {
+    const category = EQUIPMENT_CATEGORIES.find(c => c.value === equipment.categorie);
+    return category ? category.icon : Settings;
   };
 
-  const handleEdit = (equipment: Equipment) => {
-    setEditingEquipment(equipment);
-    setShowModal(true);
-  };
-
-  const handleDelete = async (equipment: Equipment) => {
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer l'équipement "${equipment.nom}" ?\n\nCette action est irréversible.`;
-    if (!confirm(confirmMessage)) return;
-
-    try {
-      setLoading(true);
-      const response = await equipmentsApi.deleteEquipment(equipment.id);
-      
-      if (response.success) {
-        addNotification('success', `Équipement "${equipment.nom}" supprimé avec succès`);
-        await loadEquipments();
-      } else {
-        console.error('Erreur de l\'API:', response.error);
-        addNotification('error', response.error || 'Erreur lors de la suppression');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      addNotification('error', 'Erreur lors de la suppression');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleActive = async (equipment: Equipment) => {
-    try {
-      const response = await equipmentsApi.updateEquipment(equipment.id, {
-        est_actif: !equipment.est_actif
-      });
-      
-      if (response.success) {
-        addNotification(
-          'success',
-          `Équipement ${equipment.est_actif ? 'désactivé' : 'activé'} avec succès`
-        );
-        await loadEquipments();
-      } else {
-        console.error('Erreur de l\'API:', response.error);
-        addNotification('error', response.error || 'Erreur lors de la modification');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la modification:', error);
-      addNotification('error', 'Erreur lors de la modification');
-    }
-  };
-
-  const handleModalSubmit = async (data: any) => {
-    setModalLoading(true);
-    
-    try {
-      // Mapper les données du formulaire vers le format de la base de données
-      const dbData = {
-        nom: data.name,
-        categorie: data.category,
-        description: data.description,
-        icone: data.icon,
-        est_actif: data.is_active,
-        ordre_affichage: data.display_order
-      };
-      
-      let response;
-      
-      if (editingEquipment?.id) {
-        // Mise à jour
-        response = await equipmentsApi.updateEquipment(editingEquipment.id, dbData);
-      } else {
-        // Création
-        response = await equipmentsApi.createEquipment(dbData);
-      }
-
-      if (response.success) {
-        addNotification(
-          'success',
-          editingEquipment 
-            ? `Équipement "${data.name}" modifié avec succès` 
-            : `Équipement "${data.name}" créé avec succès`
-        );
-        await loadEquipments();
-        setShowModal(false);
-        setEditingEquipment(null);
-      } else {
-        console.error('Erreur de l\'API:', response.error);
-        addNotification('error', response.error || 'Erreur lors de la sauvegarde');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      addNotification('error', 'Erreur lors de la sauvegarde');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // Filtrer les équipements
+  // Filter equipments
   const filteredEquipments = equipments.filter(equipment => {
-    // Filtre par terme de recherche
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesName = equipment.nom.toLowerCase().includes(searchLower);
-      const matchesDescription = equipment.description?.toLowerCase().includes(searchLower);
-      const matchesCategory = equipment.categorie?.toLowerCase().includes(searchLower);
-      
-      if (!matchesName && !matchesDescription && !matchesCategory) return false;
+    // Search filter
+    if (searchTerm && !equipment.nom.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (!equipment.description || !equipment.description.toLowerCase().includes(searchTerm.toLowerCase()))) {
+      return false;
     }
-    
-    // Filtre par catégorie
-    if (filterCategory && equipment.categorie !== filterCategory) return false;
-    
-    // Filtre par statut actif
-    if (filterActive === 'active' && !equipment.est_actif) return false;
-    if (filterActive === 'inactive' && equipment.est_actif) return false;
-    
+
+    // Category filter
+    if (filterCategory !== 'all' && equipment.categorie !== filterCategory) {
+      return false;
+    }
+
+    // Premium filter
+    if (filterPremium === 'premium' && !equipment.est_premium) {
+      return false;
+    }
+    if (filterPremium === 'standard' && equipment.est_premium) {
+      return false;
+    }
+
+    // Active filter
+    if (filterActive === 'active' && !equipment.est_actif) {
+      return false;
+    }
+    if (filterActive === 'inactive' && equipment.est_actif) {
+      return false;
+    }
+
     return true;
   });
 
-  // Obtenir les catégories uniques
-  const uniqueCategories = Array.from(new Set(
-    equipments.map(e => e.categorie).filter(Boolean)
-  )).sort();
+  // Group equipments by category
+  const equipmentsByCategory = filteredEquipments.reduce((acc, equipment) => {
+    const category = equipment.categorie || 'general';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(equipment);
+    return acc;
+  }, {} as Record<string, HotelEquipment[]>);
 
-  // Statistiques
+  // Calculate statistics
   const stats = {
     total: equipments.length,
     active: equipments.filter(e => e.est_actif).length,
-    inactive: equipments.filter(e => !e.est_actif).length,
-    byCategory: equipments.reduce((acc, e) => {
-      acc[e.categorie] = (acc[e.categorie] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
+    premium: equipments.filter(e => e.est_premium).length,
+    categories: Object.keys(equipmentsByCategory).length
   };
 
-  // Fonction pour obtenir l'icône
-  const getIcon = (iconName: string) => {
-    const IconComponent = iconMap[iconName as keyof typeof iconMap] || Home;
-    return IconComponent;
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!selectedHotelId) {
+      addNotification('error', 'Veuillez sélectionner un hôtel');
+      return;
+    }
+
+    if (!formData.nom?.trim()) {
+      addNotification('error', 'Le nom de l\'équipement est obligatoire');
+      return;
+    }
+
+    try {
+      let response;
+      if (editingEquipment) {
+        // Update existing equipment
+        response = await updateEquipment(editingEquipment.id, formData);
+      } else {
+        // Create new equipment
+        response = await createEquipment(formData as Omit<HotelEquipmentInsert, 'hotel_id'>);
+      }
+
+      if (response.success) {
+        addNotification('success', editingEquipment ? 'Équipement modifié avec succès' : 'Équipement créé avec succès');
+        handleCloseModal();
+      } else {
+        addNotification('error', response.error || 'Une erreur est survenue');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      addNotification('error', 'Erreur lors de la sauvegarde de l\'équipement');
+    }
   };
+
+  // Handle edit
+  const handleEdit = (equipment: HotelEquipment) => {
+    setEditingEquipment(equipment);
+    setFormData({
+      nom: equipment.nom,
+      description: equipment.description,
+      categorie: equipment.categorie,
+      icone: equipment.icone,
+      couleur: equipment.couleur,
+      est_premium: equipment.est_premium,
+      est_actif: equipment.est_actif,
+      ordre_affichage: equipment.ordre_affichage
+    });
+    setShowModal(true);
+  };
+
+  // Handle delete
+  const handleDelete = async (equipment: HotelEquipment) => {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer "${equipment.nom}" ?`)) {
+      try {
+        const response = await deleteEquipment(equipment.id);
+        if (response.success) {
+          addNotification('success', 'Équipement supprimé avec succès');
+        } else {
+          addNotification('error', response.error || 'Erreur lors de la suppression');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        addNotification('error', 'Erreur lors de la suppression de l\'équipement');
+      }
+    }
+  };
+
+  // Handle toggle active
+  const handleToggleActive = async (equipment: HotelEquipment) => {
+    try {
+      const response = await updateEquipment(equipment.id, {
+        est_actif: !equipment.est_actif
+      });
+      if (response.success) {
+        addNotification('success', equipment.est_actif ? 'Équipement désactivé' : 'Équipement activé');
+      } else {
+        addNotification('error', response.error || 'Erreur lors du changement de statut');
+      }
+    } catch (error) {
+      console.error('Erreur lors du changement de statut:', error);
+      addNotification('error', 'Erreur lors du changement de statut');
+    }
+  };
+
+  // Open add modal
+  const openAddModal = () => {
+    setEditingEquipment(null);
+    setFormData({
+      nom: '',
+      description: '',
+      categorie: 'general',
+      icone: '',
+      couleur: '',
+      est_premium: false,
+      est_actif: true,
+      ordre_affichage: 0
+    });
+    setShowModal(true);
+  };
+
+  // Close modal
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingEquipment(null);
+    setFormData({
+      nom: '',
+      description: '',
+      categorie: 'general',
+      icone: '',
+      couleur: '',
+      est_premium: false,
+      est_actif: true,
+      ordre_affichage: 0
+    });
+  };
+
+  // Loading state
+  if (loadingHotels) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Chargement des hôtels...</span>
+      </div>
+    );
+  }
+
+  // No hotels available
+  if (establishments.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun établissement disponible</h3>
+        <p className="text-gray-600">Veuillez créer un établissement avant de gérer les équipements</p>
+      </Card>
+    );
+  }
 
   return (
     <div>
       {/* Header Section */}
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Équipements et services</h1>
-        <Button onClick={handleAddNew} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Ajouter un équipement
-        </Button>
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Gestion des équipements</h1>
+            <p className="text-sm text-gray-600 mt-1">Gérez les équipements disponibles par établissement</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Hotel selector */}
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Établissement :</Label>
+              <select
+                value={selectedHotelId || ''}
+                onChange={(e) => setSelectedHotelId(Number(e.target.value))}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {establishments.map(hotel => (
+                  <option key={hotel.id} value={hotel.id}>
+                    {hotel.nom} - {hotel.ville}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button onClick={openAddModal} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Ajouter un équipement
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm text-gray-600">Total</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
-              <Tag className="h-8 w-8 text-blue-600" />
+              <Settings className="h-8 w-8 text-gray-400" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Actifs</p>
+                <p className="text-sm text-gray-600">Actifs</p>
                 <p className="text-2xl font-bold text-green-600">{stats.active}</p>
               </div>
-              <Eye className="h-8 w-8 text-green-600" />
+              <Check className="h-8 w-8 text-green-400" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Inactifs</p>
-                <p className="text-2xl font-bold text-gray-600">{stats.inactive}</p>
+                <p className="text-sm text-gray-600">Premium</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.premium}</p>
               </div>
-              <EyeOff className="h-8 w-8 text-gray-600" />
+              <Shield className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Types</p>
-                <p className="text-2xl font-bold text-purple-600">{Object.keys(stats.byCategory).length}</p>
+                <p className="text-sm text-gray-600">Catégories</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.categories}</p>
               </div>
-              <Filter className="h-8 w-8 text-purple-600" />
+              <Filter className="h-8 w-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filtres et recherche */}
+      {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Barre de recherche */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
                   type="text"
                   placeholder="Rechercher un équipement..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  className="pl-10"
                 />
               </div>
-              
-              {/* Filtre par type */}
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Tous les types</option>
-                  {equipmentTypes.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Filtre par catégorie */}
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Toutes les catégories</option>
-                {uniqueCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+            </div>
 
-              {/* Filtre par statut */}
-              <select
-                value={filterActive}
-                onChange={(e) => setFilterActive(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            {/* Category filter */}
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes les catégories</option>
+              {EQUIPMENT_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+            </select>
+
+            {/* Premium filter */}
+            <select
+              value={filterPremium}
+              onChange={(e) => setFilterPremium(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les types</option>
+              <option value="premium">Premium</option>
+              <option value="standard">Standard</option>
+            </select>
+
+            {/* Active filter */}
+            <select
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="active">Actifs</option>
+              <option value="inactive">Inactifs</option>
+            </select>
+
+            {/* View mode toggle */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === 'cards' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('cards')}
               >
-                <option value="all">Tous les statuts</option>
-                <option value="active">Actifs seulement</option>
-                <option value="inactive">Inactifs seulement</option>
-              </select>
+                Cartes
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                Tableau
+              </Button>
             </div>
           </div>
-          
-          {/* Résultats de filtrage */}
-          {(searchTerm || filterType || filterCategory || filterActive !== 'all') && (
-            <div className="mt-4 text-sm text-gray-600">
-              {filteredEquipments.length} équipement{filteredEquipments.length > 1 ? 's' : ''} trouvé{filteredEquipments.length > 1 ? 's' : ''}
-              {searchTerm && ` pour "${searchTerm}"`}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Liste des équipements - Format tableau */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500">Chargement des équipements...</p>
-            </div>
-          ) : filteredEquipments.length === 0 ? (
-            <div className="text-center py-12">
-              <Tag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun équipement trouvé</h3>
-              <p className="text-gray-500 mb-4">
-                {equipments.length === 0 
-                  ? "Commencez par ajouter votre premier équipement" 
-                  : "Aucun équipement ne correspond aux critères de recherche"}
-              </p>
-              {equipments.length === 0 && (
-                <Button onClick={handleAddNew} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Ajouter un équipement
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Équipement
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Catégorie
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredEquipments.map((equipment) => {
-                    const IconComponent = getIcon(equipment.icone || 'Home');
-                    const categoryLabel = equipment.categorie || 'general';
-                    
-                    return (
-                      <tr key={equipment.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg border ${equipment.est_actif ? 'bg-blue-50 border-blue-200' : 'bg-gray-100 border-gray-200'}`}>
-                              <IconComponent className={`h-4 w-4 ${equipment.est_actif ? 'text-blue-600' : 'text-gray-400'}`} />
+      {/* Equipment display */}
+      {loadingEquipments ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Chargement des équipements...</span>
+        </div>
+      ) : equipmentsError ? (
+        <Card className="p-8 text-center">
+          <p className="text-red-600">Erreur lors du chargement des équipements: {equipmentsError}</p>
+        </Card>
+      ) : filteredEquipments.length === 0 ? (
+        <Card className="p-8 text-center">
+          <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun équipement trouvé</h3>
+          <p className="text-gray-600">
+            {equipments.length === 0
+              ? 'Cliquez sur "Ajouter un équipement" pour commencer'
+              : 'Modifiez vos filtres pour voir plus de résultats'}
+          </p>
+        </Card>
+      ) : viewMode === 'cards' ? (
+        // Cards view grouped by category
+        <div className="space-y-6">
+          {Object.entries(equipmentsByCategory).map(([category, items]) => {
+            const categoryInfo = EQUIPMENT_CATEGORIES.find(c => c.value === category) ||
+              { value: category, label: category, color: 'bg-gray-100 text-gray-800', icon: Settings };
+            const IconComponent = categoryInfo.icon;
+
+            return (
+              <Card key={category}>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <IconComponent className="h-5 w-5" />
+                    {categoryInfo.label}
+                    <Badge className={categoryInfo.color}>{items.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {items.map(equipment => {
+                      const EquipIcon = getEquipmentIcon(equipment);
+                      return (
+                        <div
+                          key={equipment.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg ${
+                            equipment.est_actif ? 'hover:bg-gray-50' : 'bg-gray-100 opacity-60'
+                          } transition-colors`}
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`p-2 ${equipment.est_actif ? 'bg-gray-100' : 'bg-gray-200'} rounded-lg`}>
+                              <EquipIcon className="h-5 w-5 text-gray-600" />
                             </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900 flex items-center gap-2">
                                 {equipment.nom}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Ordre: {equipment.ordre_affichage}
-                              </div>
+                                {equipment.est_premium && (
+                                  <Badge className="bg-yellow-100 text-yellow-800" variant="secondary">
+                                    Premium
+                                  </Badge>
+                                )}
+                                {!equipment.est_actif && (
+                                  <Badge variant="secondary">Inactif</Badge>
+                                )}
+                              </p>
+                              {equipment.description && (
+                                <p className="text-sm text-gray-500 line-clamp-1">{equipment.description}</p>
+                              )}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="outline" className="text-xs">
-                            {categoryLabel}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {equipment.categorie || '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-600 max-w-xs truncate">
-                            {equipment.description || '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={equipment.est_actif ? 'default' : 'secondary'}
-                              className={equipment.est_actif ? 'bg-green-100 text-green-700 hover:bg-green-200' : ''}
-                            >
-                              {equipment.est_actif ? 'Actif' : 'Inactif'}
-                            </Badge>
-                            <button
+                          <div className="flex items-center gap-1">
+                            <Button
                               onClick={() => handleToggleActive(equipment)}
-                              className="text-xs text-blue-600 hover:text-blue-800"
+                              size="sm"
+                              variant="ghost"
                               title={equipment.est_actif ? 'Désactiver' : 'Activer'}
                             >
-                              {equipment.est_actif ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(equipment)}
-                            >
-                              <Edit2 className="h-3 w-3" />
+                              <Check className={`h-4 w-4 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
                             </Button>
                             <Button
-                              variant="outline"
+                              onClick={() => handleEdit(equipment)}
                               size="sm"
-                              onClick={() => handleDelete(equipment)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              variant="ghost"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Edit2 className="h-4 w-4 text-gray-600" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(equipment)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        // Table view
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEquipments.map(equipment => {
+                    const categoryInfo = EQUIPMENT_CATEGORIES.find(c => c.value === equipment.categorie) ||
+                      { value: equipment.categorie, label: equipment.categorie, color: 'bg-gray-100 text-gray-800' };
+                    const EquipIcon = getEquipmentIcon(equipment);
+
+                    return (
+                      <tr key={equipment.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <EquipIcon className="h-4 w-4 text-gray-600" />
+                            <span className="font-medium">{equipment.nom}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className={categoryInfo.color}>{categoryInfo.label}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-600 line-clamp-1">
+                            {equipment.description || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {equipment.est_premium ? (
+                            <Badge className="bg-yellow-100 text-yellow-800">Premium</Badge>
+                          ) : (
+                            <Badge variant="secondary">Standard</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {equipment.est_actif ? (
+                            <Badge className="bg-green-100 text-green-800">Actif</Badge>
+                          ) : (
+                            <Badge variant="secondary">Inactif</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              onClick={() => handleToggleActive(equipment)}
+                              size="sm"
+                              variant="ghost"
+                              title={equipment.est_actif ? 'Désactiver' : 'Activer'}
+                            >
+                              <Check className={`h-4 w-4 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
+                            </Button>
+                            <Button
+                              onClick={() => handleEdit(equipment)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <Edit2 className="h-4 w-4 text-gray-600" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(equipment)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
                             </Button>
                           </div>
                         </td>
@@ -466,22 +620,131 @@ export default function EquipmentsSection() {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Modal de formulaire */}
-      <EquipmentFormModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditingEquipment(null);
-        }}
-        onSubmit={handleModalSubmit}
-        initialData={editingEquipment || {}}
-        isEditing={!!editingEquipment}
-        loading={modalLoading}
-      />
+      {/* Modal for add/edit */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-xl font-semibold">
+                {editingEquipment ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
+              </h2>
+              <Button
+                onClick={handleCloseModal}
+                variant="ghost"
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Nom */}
+              <div>
+                <Label htmlFor="nom">Nom *</Label>
+                <Input
+                  id="nom"
+                  value={formData.nom}
+                  onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                  placeholder="Ex: WiFi Gratuit"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Description de l'équipement"
+                  rows={3}
+                />
+              </div>
+
+              {/* Catégorie */}
+              <div>
+                <Label htmlFor="categorie">Catégorie</Label>
+                <select
+                  id="categorie"
+                  value={formData.categorie}
+                  onChange={(e) => setFormData({ ...formData, categorie: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {EQUIPMENT_CATEGORIES.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Icône */}
+              <div>
+                <Label htmlFor="icone">Icône (nom)</Label>
+                <Input
+                  id="icone"
+                  value={formData.icone}
+                  onChange={(e) => setFormData({ ...formData, icone: e.target.value })}
+                  placeholder="Ex: wifi, tv, coffee"
+                />
+              </div>
+
+              {/* Premium */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="est_premium"
+                  checked={formData.est_premium}
+                  onChange={(e) => setFormData({ ...formData, est_premium: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <Label htmlFor="est_premium" className="cursor-pointer">
+                  Équipement premium
+                </Label>
+              </div>
+
+              {/* Actif */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="est_actif"
+                  checked={formData.est_actif}
+                  onChange={(e) => setFormData({ ...formData, est_actif: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <Label htmlFor="est_actif" className="cursor-pointer">
+                  Équipement actif
+                </Label>
+              </div>
+
+              {/* Ordre d'affichage */}
+              <div>
+                <Label htmlFor="ordre">Ordre d'affichage</Label>
+                <Input
+                  id="ordre"
+                  type="number"
+                  value={formData.ordre_affichage}
+                  onChange={(e) => setFormData({ ...formData, ordre_affichage: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 border-t flex justify-end gap-3">
+              <Button onClick={handleCloseModal} variant="outline">
+                Annuler
+              </Button>
+              <Button onClick={handleSubmit} className="flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                {editingEquipment ? 'Enregistrer' : 'Ajouter'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

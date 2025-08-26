@@ -4,200 +4,145 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
-import { Alert, AlertDescription } from '../ui/alert';
-import { Search, Plus, Users, Building, UserCheck, Filter, Eye, Edit, Trash2, MoreVertical } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useClients } from '../../hooks/useSupabase';
-import AddClientForm from './AddClientForm';
+import { Search, Plus, Users, Building, UserCheck, Filter, Eye, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, FileText, Download, MoreVertical, RefreshCcw } from 'lucide-react';
+import { clientsApi, type ClientWithRelations } from '@/lib/api/clients';
+import { useNotifications } from '@/hooks/useNotifications';
+import type { Client, ClientType } from '@/lib/supabase';
+import ClientEditModal from '../modals/ClientEditModal';
 import ConfirmationDialog from '../ui/confirmation-dialog';
-import type { ClientType, ClientWithDetails, ClientSearchResult as ClientSearchResultType, Client } from '../../lib/supabase';
-
-// Types pour les clients avec des informations complètes
-interface ClientSearchResult {
-  id: number;
-  numero_client: string;
-  nom_complet: string;
-  type_nom: string;
-  type_id: number;
-  email?: string;
-  telephone?: string;
-  ville?: string;
-  statut: string;
-  nombre_reservations: number;
-  montant_total_reservations?: number;
-  date_creation: string;
-  raison_sociale?: string;
-}
 
 interface ClientStats {
-  total_clients: number;
-  clients_actifs: number;
-  nouveaux_ce_mois: number;
+  total: number;
+  actifs: number;
+  inactifs: number;
+  prospects: number;
+  archives: number;
   particuliers: number;
   entreprises: number;
   associations: number;
 }
 
 export default function ClientsSection() {
-  const { clients: rawClients, loading, error, getBasicClientStatistics, searchClients: searchClientsHook, updateClient, deleteClient } = useClients();
-  const [clients, setClients] = useState<ClientSearchResult[]>([]);
-  const [stats, setStats] = useState<ClientStats | null>(null);
+  const { addNotification } = useNotifications();
+  const [clients, setClients] = useState<Client[]>([]);
   const [clientTypes, setClientTypes] = useState<ClientType[]>([]);
+  const [stats, setStats] = useState<ClientStats>({
+    total: 0,
+    actifs: 0,
+    inactifs: 0,
+    prospects: 0,
+    archives: 0,
+    particuliers: 0,
+    entreprises: 0,
+    associations: 0
+  });
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState('list');
-  const [selectedTypeForForm, setSelectedTypeForForm] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   
-  // New state for edit and delete functionality
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [deletingClient, setDeletingClient] = useState<ClientSearchResult | null>(null);
+  // Modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientWithRelations | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Load client types and search clients
-  useEffect(() => {
-    loadClientTypes();
-  }, []);
-
-  const loadClientTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('client_types')
-        .select('*')
-        .order('ordre');
-
-      if (error) throw error;
-      setClientTypes(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des types de clients:', error);
-    }
-  };
-
-  const searchClients = async () => {
-    try {
-      // Use the hook's searchClients method if available, or fallback to simple clients fetch
-      if (searchClientsHook) {
-        const result = await searchClientsHook(searchTerm, selectedType, selectedStatus);
-        if (result.success && result.data) {
-          setClients(result.data);
-          return;
-        }
-      }
-      
-      // Fallback to search_simple_clients function
-      const { data, error } = await supabase
-        .rpc('search_simple_clients', {
-          p_search_term: searchTerm || '',
-          p_type_id: selectedType,
-          p_statut: selectedStatus || null,
-          p_limit: 50
-        });
-
-      if (error) throw error;
-      setClients(data || []);
-    } catch (error) {
-      console.error('Erreur lors de la recherche des clients:', error);
-      // If search fails, try to load basic clients as fallback
-      if (rawClients && rawClients.length > 0) {
-        const mappedClients = rawClients.map(client => ({
-          id: client.id,
-          numero_client: client.numero_client || `C${client.id.toString().padStart(6, '0')}`,
-          nom_complet: client.type_id === 1 ? `${client.nom} ${client.prenom || ''}`.trim() : (client.raison_sociale || client.nom),
-          type_nom: 'Client', // Placeholder
-          type_id: client.type_id || 1,
-          email: client.email,
-          telephone: client.telephone,
-          ville: client.ville,
-          statut: client.statut || 'actif',
-          nombre_reservations: 0,
-          montant_total_reservations: 0,
-          date_creation: client.created_at || new Date().toISOString(),
-          raison_sociale: client.raison_sociale
-        }));
-        setClients(mappedClients);
-      }
-    }
-  };
-
-  const loadStatistics = async () => {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_client_statistics');
-
-      if (error) throw error;
-      const statistics = data?.[0] || null;
-      setStats({
-        total_clients: statistics?.total_clients || 0,
-        clients_actifs: statistics?.clients_actifs || 0,
-        nouveaux_ce_mois: statistics?.nouveaux_ce_mois || 0,
-        particuliers: 0,
-        entreprises: 0,
-        associations: 0
-      });
-    } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
-    }
-  };
 
   // Load data on mount
   useEffect(() => {
-    searchClients();
-    loadStatistics();
-  }, [searchTerm, selectedType, selectedStatus]);
+    loadClientTypes();
+    loadClients();
+  }, []);
 
-  const handleSearch = () => {
-    searchClients();
-  };
-
-  // New handlers for CRUD operations
-  const handleEditClient = async (client: ClientSearchResult) => {
-    try {
-      // Fetch full client details from the database
-      const { data: fullClient, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', client.id)
-        .single();
-
-      if (error) throw error;
-      
-      setEditingClient(fullClient);
-      setSelectedTypeForForm(null); // Reset type form selection
-      setActiveTab('add');
-    } catch (error) {
-      console.error('Erreur lors du chargement du client:', error);
-      alert('Erreur lors du chargement du client');
+  // Load client types
+  const loadClientTypes = async () => {
+    const response = await clientsApi.getClientTypes();
+    if (response.success && response.data) {
+      setClientTypes(response.data);
     }
   };
 
-  const handleDeleteClient = (client: ClientSearchResult) => {
+  // Load clients
+  const loadClients = async () => {
+    setLoading(true);
+    try {
+      const response = await clientsApi.searchClients(searchTerm, selectedType || undefined, selectedStatus);
+      if (response.success && response.data) {
+        setClients(response.data);
+        calculateStats(response.data);
+      } else {
+        addNotification('error', response.error || 'Erreur lors du chargement des clients');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate statistics
+  const calculateStats = (clientList: Client[]) => {
+    const newStats: ClientStats = {
+      total: clientList.length,
+      actifs: clientList.filter(c => c.statut === 'actif').length,
+      inactifs: clientList.filter(c => c.statut === 'inactif').length,
+      prospects: clientList.filter(c => c.statut === 'prospect').length,
+      archives: clientList.filter(c => c.statut === 'archive').length,
+      particuliers: clientList.filter(c => c.type_id === 1).length,
+      entreprises: clientList.filter(c => c.type_id === 2).length,
+      associations: clientList.filter(c => c.type_id === 3).length
+    };
+    setStats(newStats);
+  };
+
+  // Handle search
+  const handleSearch = () => {
+    loadClients();
+  };
+
+  // Handle create new client
+  const handleCreateClient = () => {
+    setSelectedClient(null);
+    setShowEditModal(true);
+  };
+
+  // Handle edit client
+  const handleEditClient = async (client: Client) => {
+    setLoading(true);
+    try {
+      const response = await clientsApi.getClientWithRelations(client.id);
+      if (response.success && response.data) {
+        setSelectedClient(response.data);
+        setShowEditModal(true);
+      } else {
+        addNotification('error', response.error || 'Erreur lors du chargement du client');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle delete client
+  const handleDeleteClient = (client: Client) => {
     setDeletingClient(client);
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteClient = async () => {
-    if (!deletingClient || !deleteClient) return;
-    
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!deletingClient) return;
+
+    setDeleteLoading(true);
     try {
-      setDeleteLoading(true);
-      const result = await deleteClient(deletingClient.id);
-      
-      if (result.success) {
-        // Remove client from local state
-        setClients(prev => prev.filter(c => c.id !== deletingClient.id));
-        alert('Client supprimé avec succès !');
-        // Refresh statistics
-        loadStatistics();
+      const response = await clientsApi.deleteClient(deletingClient.id);
+      if (response.success) {
+        addNotification('success', 'Client supprimé avec succès');
+        loadClients();
       } else {
-        alert('Erreur lors de la suppression: ' + result.error);
+        addNotification('error', response.error || 'Erreur lors de la suppression');
       }
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression du client');
     } finally {
       setDeleteLoading(false);
       setShowDeleteConfirm(false);
@@ -205,361 +150,418 @@ export default function ClientsSection() {
     }
   };
 
-  const handleClientAdded = (client: Client) => {
-    // Refresh the client list and statistics
-    searchClients();
-    loadStatistics();
-    
-    // Reset editing state
-    setEditingClient(null);
-    setSelectedTypeForForm(null);
-    
-    // Show success message
-    const message = editingClient ? 'Client modifié avec succès !' : 'Client ajouté avec succès !';
-    alert(message);
-    
-    // Go back to list
-    setActiveTab('list');
+  // Handle modal success
+  const handleModalSuccess = () => {
+    loadClients();
   };
 
-  const handleCancelEdit = () => {
-    setEditingClient(null);
-    setSelectedTypeForForm(null);
-    setActiveTab('list');
+  // Get client type info
+  const getClientType = (typeId: number) => {
+    return clientTypes.find(t => t.id === typeId);
   };
 
-  const getStatusBadgeColor = (status: string) => {
+  // Get status color
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'actif': return 'bg-green-100 text-green-800';
       case 'inactif': return 'bg-gray-100 text-gray-800';
-      case 'prospect': return 'bg-blue-100 text-blue-800';
+      case 'prospect': return 'bg-yellow-100 text-yellow-800';
+      case 'archive': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getTypeIcon = (typeName: string) => {
-    switch (typeName) {
-      case 'Particulier': return <UserCheck className="h-5 w-5 text-blue-600" />;
-      case 'Entreprise': return <Building className="h-5 w-5 text-green-600" />;
-      case 'Association': return <Users className="h-5 w-5 text-purple-600" />;
-      default: return <UserCheck className="h-5 w-5 text-gray-600" />;
+  // Get client display name
+  const getClientDisplayName = (client: Client) => {
+    if (client.type_id === 1) {
+      return `${client.prenom || ''} ${client.nom || ''}`.trim();
     }
+    return client.raison_sociale || client.nom || '';
   };
 
-  const getTypeIconById = (typeId: number) => {
-    const type = clientTypes.find(t => t.id === typeId);
-    return getTypeIcon(type?.nom || 'Particulier');
+  // Get type icon
+  const getTypeIcon = (typeId: number) => {
+    switch (typeId) {
+      case 1: return User;
+      case 2: return Building;
+      case 3: return Users;
+      default: return User;
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* En-tête avec statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Total Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_clients || 0}</div>
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total clients</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </div>
+                <Users className="h-8 w-8 text-gray-400" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Actifs</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.actifs}</p>
+                </div>
+                <UserCheck className="h-8 w-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Entreprises</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.entreprises}</p>
+                </div>
+                <Building className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Associations</p>
+                  <p className="text-2xl font-bold text-amber-600">{stats.associations}</p>
+                </div>
+                <Users className="h-8 w-8 text-amber-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Actifs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats?.clients_actifs || 0}</div>
-          </CardContent>
-        </Card>
+        {/* Header and Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Rechercher par nom, email, téléphone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              className="pl-10"
+            />
+          </div>
+          
+          <select
+            value={selectedType || ''}
+            onChange={(e) => setSelectedType(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tous les types</option>
+            {clientTypes.map(type => (
+              <option key={type.id} value={type.id}>{type.nom}</option>
+            ))}
+          </select>
+          
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tous les statuts</option>
+            <option value="actif">Actif</option>
+            <option value="inactif">Inactif</option>
+            <option value="prospect">Prospect</option>
+            <option value="archive">Archivé</option>
+          </select>
+          
+          <Button onClick={handleSearch} variant="outline">
+            <Filter className="h-4 w-4 mr-2" />
+            Filtrer
+          </Button>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Nouveaux</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats?.nouveaux_ce_mois || 0}</div>
-            <div className="text-xs text-gray-500">ce mois</div>
-          </CardContent>
-        </Card>
+          <Button onClick={loadClients} variant="outline">
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Actualiser
+          </Button>
+          
+          <Button onClick={handleCreateClient}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau client
+          </Button>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Particuliers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-600">{stats?.particuliers || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Entreprises</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">{stats?.entreprises || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Associations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats?.associations || 0}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Onglets de gestion */}
-      <Tabs value={activeTab} onValueChange={(value) => {
-        if (value === 'list') {
-          // Clear editing state when going back to list
-          setEditingClient(null);
-          setSelectedTypeForForm(null);
-        }
-        setActiveTab(value);
-      }}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="list" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Liste des Clients
-          </TabsTrigger>
-          <TabsTrigger value="add" className="flex items-center gap-2">
-            {editingClient ? <Edit className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {editingClient ? 'Modifier le Client' : 'Ajouter un Client'}
-          </TabsTrigger>
+        {/* Tabs */}
+        <TabsList>
+          <TabsTrigger value="list">Liste des clients</TabsTrigger>
+          <TabsTrigger value="create">Créer un client</TabsTrigger>
         </TabsList>
 
-        {/* Onglet Liste des Clients */}
-        <TabsContent value="list" className="space-y-4">
-          {/* Filtres de recherche */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Rechercher des Clients
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="search">Recherche</Label>
-                  <Input
-                    id="search"
-                    placeholder="Nom, prénom, email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="type">Type de Client</Label>
-                  <select
-                    id="type"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={selectedType || ''}
-                    onChange={(e) => setSelectedType(e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">Tous les types</option>
-                    {clientTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.nom}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="status">Statut</Label>
-                  <select
-                    id="status"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                  >
-                    <option value="">Tous les statuts</option>
-                    <option value="actif">Actif</option>
-                    <option value="inactif">Inactif</option>
-                    <option value="prospect">Prospect</option>
-                  </select>
-                </div>
-                
-                <div className="flex items-end">
-                  <Button onClick={handleSearch} className="w-full">
-                    <Search className="h-4 w-4 mr-2" />
-                    Rechercher
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* List Tab */}
+        <TabsContent value="list">
+          {/* View mode toggle */}
+          <div className="flex justify-end mb-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                Tableau
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                Cartes
+              </Button>
+            </div>
+          </div>
 
-          {/* Liste des clients */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Résultats ({clients.length})
-                </CardTitle>
-                <Button size="sm" onClick={() => setActiveTab('add')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouveau Client
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {(loading) ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-2 text-gray-500">Chargement des clients...</p>
-                </div>
-              ) : clients.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun client trouvé</h3>
-                  <p className="text-gray-500 mb-4">
-                    {searchTerm ? 'Aucun client ne correspond à vos critères de recherche.' : 'Commencez par ajouter votre premier client.'}
-                  </p>
-                  <Button onClick={() => setActiveTab('add')}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter un Client
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {clients.map(client => (
-                    <div
-                      key={client.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          {getTypeIcon(client.type_nom)}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{client.nom_complet}</div>
-                          <div className="text-sm text-gray-500">
-                            {client.numero_client} • {client.type_nom}
-                          </div>
-                          {client.email && (
-                            <div className="text-sm text-gray-500">{client.email}</div>
-                          )}
-                          {client.ville && (
-                            <div className="text-sm text-gray-400">{client.ville}</div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">
-                            Créé le {new Date(client.date_creation).toLocaleDateString('fr-FR')}
-                          </div>
-                        </div>
-                        
-                        <Badge className={getStatusBadgeColor(client.statut)}>
-                          {client.statut}
-                        </Badge>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleEditClient(client)}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:border-blue-300"
-                          >
-                            <Edit className="h-3 w-3" />
-                            Modifier
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleDeleteClient(client)}
-                            className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:border-red-300"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Supprimer
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Onglet Ajouter un Client */}
-        <TabsContent value="add" className="space-y-6">
-          {/* Sélection rapide du type */}
-          {!selectedTypeForForm && !editingClient && (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">Chargement des clients...</span>
+            </div>
+          ) : clients.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun client trouvé</h3>
+              <p className="text-gray-600">Modifiez vos filtres ou créez un nouveau client</p>
+            </Card>
+          ) : viewMode === 'table' ? (
+            // Table view
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5" />
-                  Choisir le type de client
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {clientTypes.map((type) => (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => setSelectedTypeForForm(type.id)}
-                      className="p-6 border-2 border-dashed rounded-lg text-center hover:border-primary transition-all duration-200"
-                      style={{ 
-                        borderColor: type.couleur || '#6B7280',
-                        color: type.couleur || '#374151'
-                      }}
-                    >
-                      <div className="mb-2">{getTypeIcon(type.nom)}</div>
-                      <h3 className="font-medium text-lg">{type.nom}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{type.description}</p>
-                    </button>
-                  ))}
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Localisation</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date création</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clients.map(client => {
+                        const type = getClientType(client.type_id || 1);
+                        const TypeIcon = getTypeIcon(client.type_id || 1);
+                        
+                        return (
+                          <tr key={client.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className="font-medium">{getClientDisplayName(client)}</p>
+                                <p className="text-xs text-gray-500">{client.numero_client}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <TypeIcon className="h-4 w-4 text-gray-600" />
+                                <span className="text-sm">{type?.nom}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="space-y-1 text-sm">
+                                {client.email && (
+                                  <div className="flex items-center gap-1">
+                                    <Mail className="h-3 w-3 text-gray-400" />
+                                    <span className="text-gray-600">{client.email}</span>
+                                  </div>
+                                )}
+                                {client.telephone && (
+                                  <div className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-gray-400" />
+                                    <span className="text-gray-600">{client.telephone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {(client.ville || client.code_postal) && (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <MapPin className="h-3 w-3 text-gray-400" />
+                                  <span className="text-gray-600">
+                                    {client.code_postal} {client.ville}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge className={getStatusColor(client.statut || 'actif')}>
+                                {client.statut || 'actif'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-600">
+                                {client.created_at && new Date(client.created_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditClient(client)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditClient(client)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteClient(client)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Formulaire d'ajout/modification */}
-          {(selectedTypeForForm || editingClient) && (
-            <AddClientForm
-              clientTypes={clientTypes}
-              preSelectedType={selectedTypeForForm || editingClient?.type_id}
-              client={editingClient}
-              onClientAdded={handleClientAdded}
-              onCancel={handleCancelEdit}
-            />
+          ) : (
+            // Grid view
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {clients.map(client => {
+                const type = getClientType(client.type_id || 1);
+                const TypeIcon = getTypeIcon(client.type_id || 1);
+                
+                return (
+                  <Card key={client.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-full bg-gray-100`}>
+                            <TypeIcon className="h-4 w-4 text-gray-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base">{getClientDisplayName(client)}</CardTitle>
+                            <p className="text-xs text-gray-500">{client.numero_client}</p>
+                          </div>
+                        </div>
+                        <Badge className={getStatusColor(client.statut || 'actif')}>
+                          {client.statut || 'actif'}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-sm space-y-2">
+                        {client.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-3 w-3 text-gray-400" />
+                            <span className="text-gray-600 truncate">{client.email}</span>
+                          </div>
+                        )}
+                        {client.telephone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-3 w-3 text-gray-400" />
+                            <span className="text-gray-600">{client.telephone}</span>
+                          </div>
+                        )}
+                        {(client.ville || client.code_postal) && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-3 w-3 text-gray-400" />
+                            <span className="text-gray-600">
+                              {client.code_postal} {client.ville}
+                            </span>
+                          </div>
+                        )}
+                        {client.siret && (
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-3 w-3 text-gray-400" />
+                            <span className="text-gray-600">SIRET: {client.siret}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t">
+                        <span className="text-xs text-gray-500">
+                          Créé le {client.created_at && new Date(client.created_at).toLocaleDateString('fr-FR')}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditClient(client)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteClient(client)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
 
+        {/* Create Tab */}
+        <TabsContent value="create">
+          <Card className="p-8 text-center">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Créer un nouveau client</h3>
+            <p className="text-gray-600 mb-4">
+              Ajoutez un nouveau client à votre base de données
+            </p>
+            <Button onClick={handleCreateClient}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau client
+            </Button>
+          </Card>
+        </TabsContent>
       </Tabs>
-      
-      {/* Confirmation Dialog for Delete */}
-      <ConfirmationDialog
-        isOpen={showDeleteConfirm}
-        title="Supprimer le client"
-        message={`Êtes-vous sûr de vouloir supprimer le client "${deletingClient?.nom_complet}" ? Cette action est irréversible.`}
-        confirmText="Supprimer"
-        cancelText="Annuler"
-        onConfirm={confirmDeleteClient}
-        onCancel={() => {
-          setShowDeleteConfirm(false);
-          setDeletingClient(null);
-        }}
-        type="danger"
-        loading={deleteLoading}
+
+      {/* Client Edit Modal */}
+      <ClientEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        client={selectedClient}
+        clientTypes={clientTypes}
+        onSuccess={handleModalSuccess}
       />
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && deletingClient && (
+        <ConfirmationDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={confirmDelete}
+          title="Supprimer le client"
+          message={`Êtes-vous sûr de vouloir supprimer le client "${getClientDisplayName(deletingClient)}" ? Cette action est irréversible.`}
+          confirmText="Supprimer"
+          cancelText="Annuler"
+          variant="danger"
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }

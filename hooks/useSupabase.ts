@@ -2308,7 +2308,6 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
         .from('hotel_equipment')
         .select('*')
         .eq('hotel_id', hotelId)
-        .eq('est_actif', true)
         .order('categorie', { ascending: true })
         .order('ordre_affichage', { ascending: true })
         .order('nom', { ascending: true })

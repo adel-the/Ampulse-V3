@@ -12,8 +12,8 @@ interface ConfirmationDialogProps {
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
-  onCancel: () => void;
-  type?: 'danger' | 'warning' | 'info';
+  onClose: () => void;
+  variant?: 'danger' | 'warning' | 'info';
   loading?: boolean;
 }
 
@@ -24,14 +24,14 @@ export default function ConfirmationDialog({
   confirmText = 'Confirmer',
   cancelText = 'Annuler',
   onConfirm,
-  onCancel,
-  type = 'danger',
+  onClose,
+  variant = 'danger',
   loading = false
 }: ConfirmationDialogProps) {
   if (!isOpen) return null;
 
   const getTypeStyles = () => {
-    switch (type) {
+    switch (variant) {
       case 'danger':
         return {
           iconColor: 'text-red-600',
@@ -69,7 +69,7 @@ export default function ConfirmationDialog({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={onCancel}
+                onClick={onClose}
                 disabled={loading}
                 className="h-6 w-6 p-0"
               >
@@ -83,7 +83,7 @@ export default function ConfirmationDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={onCancel}
+                onClick={onClose}
                 disabled={loading}
               >
                 {cancelText}

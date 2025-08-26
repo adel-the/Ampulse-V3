@@ -77,6 +77,17 @@ export default function RoomFormModal({
 
   // Charger les équipements disponibles pour l'hôtel de cette chambre
   const { equipments, loading: equipmentsLoading } = useHotelEquipmentCRUD(formData.hotel_id);
+  
+  // Filtrer et organiser les équipements actifs par catégorie
+  const equipmentsByCategory = useMemo(() => {
+    const activeEquipments = equipments.filter(eq => eq.est_actif);
+    return activeEquipments.reduce((acc, equipment) => {
+      const category = equipment.categorie || 'general';
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(equipment);
+      return acc;
+    }, {} as Record<string, HotelEquipment[]>);
+  }, [equipments]);
 
   // Fonction pour récupérer l'icône appropriée pour un équipement
   const getEquipmentIcon = (equipment: HotelEquipment) => {
@@ -467,7 +478,10 @@ export default function RoomFormModal({
             {/* Équipements */}
             <Card>
               <CardHeader>
-                <CardTitle>Équipements et services</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Équipements et services de la chambre
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {equipmentsLoading ? (
@@ -475,36 +489,69 @@ export default function RoomFormModal({
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                     <span className="ml-2 text-gray-600">Chargement des équipements...</span>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {equipments.map(equipment => {
-                      const IconComponent = getEquipmentIcon(equipment);
+                ) : Object.keys(equipmentsByCategory).length > 0 ? (
+                  <div className="space-y-6">
+                    {Object.entries(equipmentsByCategory).map(([category, categoryEquipments]) => {
+                      // Labels des catégories
+                      const categoryLabels: Record<string, string> = {
+                        connectivity: '🌐 Connectivité',
+                        multimedia: '📺 Multimédia',
+                        comfort: '🛏️ Confort',
+                        services: '☕ Services',
+                        security: '🔒 Sécurité',
+                        wellness: '💆 Bien-être',
+                        accessibility: '♿ Accessibilité',
+                        general: '⚙️ Général'
+                      };
+                      
                       return (
-                        <label key={equipment.id} className="flex items-center space-x-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={formData.equipment_ids?.includes(equipment.id) || false}
-                            onChange={() => handleEquipmentToggle(equipment.id)}
-                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <IconComponent className="h-4 w-4 text-gray-500" />
-                          <div className="flex flex-col">
-                            <span className="text-sm text-gray-700">{equipment.nom}</span>
-                            {equipment.est_premium && (
-                              <span className="text-xs text-blue-600 font-medium">Premium</span>
-                            )}
+                        <div key={category}>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                            {categoryLabels[category] || category}
+                          </h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {categoryEquipments.map(equipment => {
+                              const IconComponent = getEquipmentIcon(equipment);
+                              return (
+                                <label 
+                                  key={equipment.id} 
+                                  className="flex items-start space-x-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                  title={equipment.description || equipment.nom}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.equipment_ids?.includes(equipment.id) || false}
+                                    onChange={() => handleEquipmentToggle(equipment.id)}
+                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                                  />
+                                  <IconComponent className="h-4 w-4 text-gray-500 flex-shrink-0 mt-0.5" />
+                                  <div className="flex flex-col flex-1 min-w-0">
+                                    <span className="text-sm text-gray-700 truncate">
+                                      {equipment.nom}
+                                    </span>
+                                    {equipment.est_premium && (
+                                      <span className="text-xs text-amber-600 font-medium">Premium</span>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })}
                           </div>
-                        </label>
+                        </div>
                       );
                     })}
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-gray-500">
+                        {formData.equipment_ids?.length || 0} équipement(s) sélectionné(s)
+                      </p>
+                    </div>
                   </div>
-                )}
-                {!equipmentsLoading && equipments.length === 0 && (
+                ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Settings className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                     <p>Aucun équipement disponible pour cet hôtel</p>
                     <p className="text-sm mt-1">
-                      Les équipements doivent d'abord être ajoutés à l'hôtel avant d'être assignés aux chambres.
+                      Les équipements doivent d'abord être ajoutés à l'hôtel dans la section Paramètres → Équipements.
                     </p>
                   </div>
                 )}
