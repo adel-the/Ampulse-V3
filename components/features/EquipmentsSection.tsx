@@ -48,10 +48,8 @@ export default function EquipmentsSection() {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterPremium, setFilterPremium] = useState('all');
   const [filterActive, setFilterActive] = useState('active');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   const { addNotification } = useNotifications();
 
@@ -103,19 +101,6 @@ export default function EquipmentsSection() {
       return false;
     }
 
-    // Category filter
-    if (filterCategory !== 'all' && equipment.categorie !== filterCategory) {
-      return false;
-    }
-
-    // Premium filter
-    if (filterPremium === 'premium' && !equipment.est_premium) {
-      return false;
-    }
-    if (filterPremium === 'standard' && equipment.est_premium) {
-      return false;
-    }
-
     // Active filter
     if (filterActive === 'active' && !equipment.est_actif) {
       return false;
@@ -127,21 +112,6 @@ export default function EquipmentsSection() {
     return true;
   });
 
-  // Group equipments by category
-  const equipmentsByCategory = filteredEquipments.reduce((acc, equipment) => {
-    const category = equipment.categorie || 'general';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(equipment);
-    return acc;
-  }, {} as Record<string, HotelEquipment[]>);
-
-  // Calculate statistics
-  const stats = {
-    total: equipments.length,
-    active: equipments.filter(e => e.est_actif).length,
-    premium: equipments.filter(e => e.est_premium).length,
-    categories: Object.keys(equipmentsByCategory).length
-  };
 
   // Handle form submission
   const handleSubmit = async () => {
@@ -315,77 +285,50 @@ export default function EquipmentsSection() {
 
 
       {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Rechercher un équipement..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Category filter */}
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Toutes les catégories</option>
-              {EQUIPMENT_CATEGORIES.map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
-              ))}
-            </select>
-
-            {/* Premium filter */}
-            <select
-              value={filterPremium}
-              onChange={(e) => setFilterPremium(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les types</option>
-              <option value="premium">Premium</option>
-              <option value="standard">Standard</option>
-            </select>
-
-            {/* Active filter */}
-            <select
-              value={filterActive}
-              onChange={(e) => setFilterActive(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actifs</option>
-              <option value="inactive">Inactifs</option>
-            </select>
-
-            {/* View mode toggle */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-              >
-                Cartes
-              </Button>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                Tableau
-              </Button>
-            </div>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        {/* Search */}
+        <div className="flex-1 min-w-[200px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Rechercher un équipement..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Active filter */}
+        <select
+          value={filterActive}
+          onChange={(e) => setFilterActive(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Tous</option>
+          <option value="active">Actifs</option>
+          <option value="inactive">Inactifs</option>
+        </select>
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            Tableau
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('cards')}
+          >
+            Liste
+          </Button>
+        </div>
+      </div>
 
       {/* Equipment display */}
       {loadingEquipments ? (
@@ -407,163 +350,91 @@ export default function EquipmentsSection() {
               : 'Modifiez vos filtres pour voir plus de résultats'}
           </p>
         </Card>
-      ) : viewMode === 'cards' ? (
-        // Cards view grouped by category
-        <div className="space-y-6">
-          {Object.entries(equipmentsByCategory).map(([category, items]) => {
-            const categoryInfo = EQUIPMENT_CATEGORIES.find(c => c.value === category) ||
-              { value: category, label: category, color: 'bg-gray-100 text-gray-800', icon: Settings };
-            const IconComponent = categoryInfo.icon;
-
-            return (
-              <Card key={category}>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <IconComponent className="h-5 w-5" />
-                    {categoryInfo.label}
-                    <Badge className={categoryInfo.color}>{items.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.map(equipment => {
-                      const EquipIcon = getEquipmentIcon(equipment);
-                      return (
-                        <div
-                          key={equipment.id}
-                          className={`flex items-center justify-between p-3 border rounded-lg ${
-                            equipment.est_actif ? 'hover:bg-gray-50' : 'bg-gray-100 opacity-60'
-                          } transition-colors`}
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`p-2 ${equipment.est_actif ? 'bg-gray-100' : 'bg-gray-200'} rounded-lg`}>
-                              <EquipIcon className="h-5 w-5 text-gray-600" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900 flex items-center gap-2">
-                                {equipment.nom}
-                                {equipment.est_premium && (
-                                  <Badge className="bg-yellow-100 text-yellow-800" variant="secondary">
-                                    Premium
-                                  </Badge>
-                                )}
-                                {!equipment.est_actif && (
-                                  <Badge variant="secondary">Inactif</Badge>
-                                )}
-                              </p>
-                              {equipment.description && (
-                                <p className="text-sm text-gray-500 line-clamp-1">{equipment.description}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              onClick={() => handleToggleActive(equipment)}
-                              size="sm"
-                              variant="ghost"
-                              title={equipment.est_actif ? 'Désactiver' : 'Activer'}
-                            >
-                              <Check className={`h-4 w-4 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
-                            </Button>
-                            <Button
-                              onClick={() => handleEdit(equipment)}
-                              size="sm"
-                              variant="ghost"
-                            >
-                              <Edit2 className="h-4 w-4 text-gray-600" />
-                            </Button>
-                            <Button
-                              onClick={() => handleDelete(equipment)}
-                              size="sm"
-                              variant="ghost"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        // Table view
+      ) : viewMode === 'table' ? (
+        // Compact table view
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">Icône</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Statut</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Premium</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredEquipments.map(equipment => {
-                    const categoryInfo = EQUIPMENT_CATEGORIES.find(c => c.value === equipment.categorie) ||
-                      { value: equipment.categorie, label: equipment.categorie, color: 'bg-gray-100 text-gray-800' };
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredEquipments.map((equipment, index) => {
                     const EquipIcon = getEquipmentIcon(equipment);
-
                     return (
-                      <tr key={equipment.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-3">
+                      <tr 
+                        key={equipment.id} 
+                        className={`hover:bg-gray-50 ${
+                          equipment.est_actif ? '' : 'bg-gray-50 opacity-60'
+                        }`}
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                          {index + 1}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <EquipIcon className="h-4 w-4 text-gray-600" />
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <EquipIcon className="h-4 w-4 text-gray-600" />
-                            <span className="font-medium">{equipment.nom}</span>
+                            <span className={`text-sm font-medium ${
+                              equipment.est_actif ? 'text-gray-900' : 'text-gray-500'
+                            }`}>
+                              {equipment.nom}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <Badge className={categoryInfo.color}>{categoryInfo.label}</Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-600 line-clamp-1">
-                            {equipment.description || '-'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {equipment.est_premium ? (
-                            <Badge className="bg-yellow-100 text-yellow-800">Premium</Badge>
-                          ) : (
-                            <Badge variant="secondary">Standard</Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 whitespace-nowrap">
                           {equipment.est_actif ? (
-                            <Badge className="bg-green-100 text-green-800">Actif</Badge>
+                            <Badge className="bg-green-100 text-green-800 text-xs">Actif</Badge>
                           ) : (
-                            <Badge variant="secondary">Inactif</Badge>
+                            <Badge variant="secondary" className="text-xs">Inactif</Badge>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {equipment.est_premium ? (
+                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">Oui</Badge>
+                          ) : (
+                            <span className="text-xs text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               onClick={() => handleToggleActive(equipment)}
                               size="sm"
                               variant="ghost"
+                              className="h-7 w-7 p-0"
                               title={equipment.est_actif ? 'Désactiver' : 'Activer'}
                             >
-                              <Check className={`h-4 w-4 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
+                              <Check className={`h-3.5 w-3.5 ${
+                                equipment.est_actif ? 'text-green-600' : 'text-gray-400'
+                              }`} />
                             </Button>
                             <Button
                               onClick={() => handleEdit(equipment)}
                               size="sm"
                               variant="ghost"
+                              className="h-7 w-7 p-0"
+                              title="Modifier"
                             >
-                              <Edit2 className="h-4 w-4 text-gray-600" />
+                              <Edit2 className="h-3.5 w-3.5 text-gray-600" />
                             </Button>
                             <Button
                               onClick={() => handleDelete(equipment)}
                               size="sm"
                               variant="ghost"
+                              className="h-7 w-7 p-0"
+                              title="Supprimer"
                             >
-                              <Trash2 className="h-4 w-4 text-red-600" />
+                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
                             </Button>
                           </div>
                         </td>
@@ -572,6 +443,68 @@ export default function EquipmentsSection() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        // Simple flat list view
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-1">
+              {filteredEquipments.map((equipment, index) => {
+                const EquipIcon = getEquipmentIcon(equipment);
+                return (
+                  <div
+                    key={equipment.id}
+                    className={`flex items-center justify-between py-1.5 px-2 rounded ${
+                      equipment.est_actif ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-60'
+                    } transition-colors`}
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-xs text-gray-400 w-6">{index + 1}</span>
+                      <EquipIcon className="h-3.5 w-3.5 text-gray-500" />
+                      <span className={`text-sm ${equipment.est_actif ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {equipment.nom}
+                      </span>
+                      {equipment.est_premium && (
+                        <Badge className="bg-yellow-100 text-yellow-800 text-xs py-0 px-1" variant="secondary">
+                          Premium
+                        </Badge>
+                      )}
+                      {!equipment.est_actif && (
+                        <Badge variant="secondary" className="text-xs py-0 px-1">Inactif</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        onClick={() => handleToggleActive(equipment)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        title={equipment.est_actif ? 'Désactiver' : 'Activer'}
+                      >
+                        <Check className={`h-3 w-3 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
+                      </Button>
+                      <Button
+                        onClick={() => handleEdit(equipment)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                      >
+                        <Edit2 className="h-3 w-3 text-gray-600" />
+                      </Button>
+                      <Button
+                        onClick={() => handleDelete(equipment)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                      >
+                        <Trash2 className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
