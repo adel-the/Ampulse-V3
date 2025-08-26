@@ -213,7 +213,7 @@ export default function RoomsSection() {
     if (!editingRoom) {
       // Pour une nouvelle chambre, inclure l'hôtel sélectionné
       return { 
-        hotel_id: selectedHotelId || hotels[0]?.id || 1,
+        hotel_id: selectedHotelId || establishments[0]?.id || 1,
         equipment_ids: [], 
         images: [] 
       };
