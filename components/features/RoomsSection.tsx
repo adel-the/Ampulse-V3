@@ -16,10 +16,13 @@ interface RoomFormData extends Partial<Room> {
   equipment_ids?: number[];
 }
 
-export default function RoomsSection() {
+interface RoomsSectionProps {
+  selectedHotelId: number | null;
+}
+
+export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -55,9 +58,6 @@ export default function RoomsSection() {
       const response = await establishmentsApi.getEstablishments();
       if (response.success && response.data) {
         setEstablishments(response.data);
-        if (response.data.length > 0 && !selectedHotelId) {
-          setSelectedHotelId(response.data[0].id);
-        }
       }
     } catch (error) {
       console.error('Erreur lors du chargement des etablissements:', error);
@@ -272,22 +272,17 @@ export default function RoomsSection() {
   return (
     <div>
       {/* Header Section */}
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Gestion des chambres</h1>
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Hôtel :</label>
-          <select
-            value={selectedHotelId || 'all'}
-            onChange={(e) => setSelectedHotelId(e.target.value === 'all' ? null : Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Tous les hôtels ({rooms.length} chambres)</option>
-            {establishments.map(hotel => (
-              <option key={hotel.id} value={hotel.id}>
-                {hotel.nom} - {hotel.ville}
-              </option>
-            ))}
-          </select>
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-semibold text-gray-900">Gestion des chambres</h1>
+          <div className="text-sm text-gray-600">
+            {selectedHotelId ? (
+              establishments.find(h => h.id === selectedHotelId)?.nom || 'Hôtel inconnu'
+            ) : (
+              'Aucun hôtel sélectionné'
+            )}
+            {' '}({rooms.length} chambres)
+          </div>
         </div>
       </div>
 

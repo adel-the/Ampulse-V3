@@ -26,10 +26,13 @@ const EQUIPMENT_CATEGORIES = [
   { value: 'general', label: 'Général', color: 'bg-gray-100 text-gray-800', icon: Settings }
 ];
 
-export default function EquipmentsSection() {
+interface EquipmentsSectionProps {
+  selectedHotelId: number | null;
+}
+
+export default function EquipmentsSection({ selectedHotelId }: EquipmentsSectionProps) {
   // Hotel selection state
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
   const [loadingHotels, setLoadingHotels] = useState(true);
 
   // Modal and form state
@@ -74,10 +77,6 @@ export default function EquipmentsSection() {
       const response = await establishmentsApi.getEstablishments();
       if (response.success && response.data) {
         setEstablishments(response.data);
-        // Auto-select first hotel if available
-        if (response.data.length > 0 && !selectedHotelId) {
-          setSelectedHotelId(response.data[0].id);
-        }
       }
     } catch (error) {
       console.error('Erreur lors du chargement des établissements:', error);
@@ -239,13 +238,13 @@ export default function EquipmentsSection() {
     );
   }
 
-  // No hotels available
-  if (establishments.length === 0) {
+  // No hotel selected
+  if (!selectedHotelId) {
     return (
       <Card className="p-8 text-center">
         <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun établissement disponible</h3>
-        <p className="text-gray-600">Veuillez créer un établissement avant de gérer les équipements</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun hôtel sélectionné</h3>
+        <p className="text-gray-600">Veuillez sélectionner un hôtel pour gérer ses équipements</p>
       </Card>
     );
   }
@@ -257,25 +256,17 @@ export default function EquipmentsSection() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Gestion des équipements</h1>
-            <p className="text-sm text-gray-600 mt-1">Gérez les équipements disponibles par établissement</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Gérez les équipements disponibles pour {' '}
+              {selectedHotelId ? (
+                establishments.find(h => h.id === selectedHotelId)?.nom || 'Hôtel inconnu'
+              ) : (
+                'aucun hôtel sélectionné'
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Hotel selector */}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm">Établissement :</Label>
-              <select
-                value={selectedHotelId || ''}
-                onChange={(e) => setSelectedHotelId(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {establishments.map(hotel => (
-                  <option key={hotel.id} value={hotel.id}>
-                    {hotel.nom} - {hotel.ville}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Button onClick={openAddModal} className="flex items-center gap-2">
+            <Button onClick={openAddModal} className="flex items-center gap-2" disabled={!selectedHotelId}>
               <Plus className="h-4 w-4" />
               Ajouter un équipement
             </Button>
