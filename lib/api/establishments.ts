@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { supabaseAdmin } from '../supabase'
 import type { Hotel, Inserts, Updates } from '../supabase'
 
 // Type alias for better clarity
@@ -36,7 +36,7 @@ export const establishmentsApi = {
     offset?: number
   }): Promise<ApiListResponse<Establishment>> {
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from('hotels')
         .select('*', { count: 'exact' })
 
@@ -99,7 +99,7 @@ export const establishmentsApi = {
    */
   async getEstablishment(id: number): Promise<ApiResponse<Establishment>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotels')
         .select('*')
         .eq('id', id)
@@ -136,7 +136,7 @@ export const establishmentsApi = {
     rooms?: any[]
   }>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotels')
         .select(`
           *,
@@ -181,7 +181,7 @@ export const establishmentsApi = {
       
       try {
         // Essayer d'obtenir l'utilisateur actuel, mais ne pas échouer si pas connecté
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser();
         if (user && !authError) {
           userId = user.id;
         }
@@ -205,7 +205,7 @@ export const establishmentsApi = {
       // Remove fields that don't exist in the table
       delete (establishmentData as any).is_active; // is_active doesn't exist, we use statut instead
 
-      const { data: establishment, error } = await supabase
+      const { data: establishment, error } = await supabaseAdmin
         .from('hotels')
         .insert(establishmentData)
         .select()
@@ -249,7 +249,7 @@ export const establishmentsApi = {
       // Remove is_active if present (we use statut instead)
       delete (updateData as any).is_active;
 
-      const { data: establishment, error } = await supabase
+      const { data: establishment, error } = await supabaseAdmin
         .from('hotels')
         .update(updateData)
         .eq('id', id)
@@ -287,7 +287,7 @@ export const establishmentsApi = {
     try {
       if (hardDelete) {
         // Hard delete - actually remove from database
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('hotels')
           .delete()
           .eq('id', id)
@@ -302,7 +302,7 @@ export const establishmentsApi = {
         }
       } else {
         // Soft delete - set statut to INACTIF
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from('hotels')
           .update({ 
             statut: 'INACTIF',
@@ -351,11 +351,11 @@ export const establishmentsApi = {
       // This would ideally use a stored procedure or RPC function
       // For now, we'll gather data from multiple queries
       const [roomsResult, reservationsResult] = await Promise.all([
-        supabase
+        supabaseAdmin
           .from('rooms')
           .select('statut')
           .eq('hotel_id', id),
-        supabase
+        supabaseAdmin
           .from('reservations')
           .select('statut, prix')
           .eq('hotel_id', id)
@@ -419,7 +419,7 @@ export const establishmentsApi = {
    */
   async searchEstablishments(query: string, limit = 10): Promise<ApiListResponse<Establishment>> {
     try {
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabaseAdmin
         .from('hotels')
         .select('*', { count: 'exact' })
         .or(`nom.ilike.%${query}%,ville.ilike.%${query}%,adresse.ilike.%${query}%`)
@@ -458,7 +458,7 @@ export const establishmentsApi = {
   async toggleEstablishmentStatus(id: number): Promise<ApiResponse<Establishment>> {
     try {
       // First get current status
-      const { data: current, error: fetchError } = await supabase
+      const { data: current, error: fetchError } = await supabaseAdmin
         .from('hotels')
         .select('statut')
         .eq('id', id)

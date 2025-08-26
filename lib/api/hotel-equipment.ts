@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabaseAdmin } from '../supabase';
 import type { HotelEquipment, HotelEquipmentInsert, HotelEquipmentUpdate } from '../supabase';
 
 export interface HotelEquipmentResponse {
@@ -17,7 +17,7 @@ export const hotelEquipmentApi = {
   // Get all equipment for a specific hotel
   async getEquipmentByHotel(hotelId: number): Promise<HotelEquipmentResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .select('*')
         .eq('hotel_id', hotelId)
@@ -41,7 +41,7 @@ export const hotelEquipmentApi = {
   // Get all equipment for all hotels (admin view)
   async getAllEquipment(): Promise<HotelEquipmentResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .select('*')
         .order('hotel_id', { ascending: true })
@@ -64,7 +64,7 @@ export const hotelEquipmentApi = {
   // Get single equipment by ID
   async getEquipmentById(id: number): Promise<HotelEquipmentSingleResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .select('*')
         .eq('id', id)
@@ -85,7 +85,7 @@ export const hotelEquipmentApi = {
   // Create new equipment
   async createEquipment(equipment: HotelEquipmentInsert): Promise<HotelEquipmentSingleResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .insert(equipment)
         .select()
@@ -106,7 +106,7 @@ export const hotelEquipmentApi = {
   // Update equipment
   async updateEquipment(id: number, updates: HotelEquipmentUpdate): Promise<HotelEquipmentSingleResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .update(updates)
         .eq('id', id)
@@ -128,7 +128,7 @@ export const hotelEquipmentApi = {
   // Delete equipment
   async deleteEquipment(id: number): Promise<{ error: string | null; success: boolean }> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('hotel_equipment')
         .delete()
         .eq('id', id);
@@ -148,7 +148,7 @@ export const hotelEquipmentApi = {
   // Toggle equipment active status
   async toggleActive(id: number, isActive: boolean): Promise<HotelEquipmentSingleResponse> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .update({ est_actif: isActive })
         .eq('id', id)
@@ -170,7 +170,7 @@ export const hotelEquipmentApi = {
   // Search equipment
   async searchEquipment(hotelId: number | null, searchTerm: string, category?: string, isPremium?: boolean): Promise<HotelEquipmentResponse> {
     try {
-      let query = supabase.from('hotel_equipment').select('*');
+      let query = supabaseAdmin.from('hotel_equipment').select('*');
 
       if (hotelId) {
         query = query.eq('hotel_id', hotelId);

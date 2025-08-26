@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { supabaseAdmin } from '../supabase'
 import type { Tables, Inserts, Updates } from '../supabase'
 
 // Type aliases for better clarity
@@ -40,7 +40,7 @@ export const equipmentsApi = {
     offset?: number
   }): Promise<ApiListResponse<Equipment>> {
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from('equipments')
         .select('*', { count: 'exact' })
         
@@ -100,7 +100,7 @@ export const equipmentsApi = {
    */
   async getEquipment(id: number): Promise<ApiResponse<Equipment>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('equipments')
         .select('*')
         .eq('id', id)
@@ -143,7 +143,7 @@ export const equipmentsApi = {
         updated_at: new Date().toISOString()
       }
 
-      const { data: equipment, error } = await supabase
+      const { data: equipment, error } = await supabaseAdmin
         .from('equipments')
         .insert(equipmentData)
         .select()
@@ -183,7 +183,7 @@ export const equipmentsApi = {
         updated_at: new Date().toISOString()
       }
 
-      const { data: equipment, error } = await supabase
+      const { data: equipment, error } = await supabaseAdmin
         .from('equipments')
         .update(updateData)
         .eq('id', id)
@@ -219,7 +219,7 @@ export const equipmentsApi = {
    */
   async deleteEquipment(id: number): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('equipments')
         .delete()
         .eq('id', id)
@@ -256,7 +256,7 @@ export const equipmentsApi = {
    */
   async searchEquipments(query: string, limit = 10): Promise<ApiListResponse<Equipment>> {
     try {
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabaseAdmin
         .from('equipments')
         .select('*', { count: 'exact' })
         .or(`name.ilike.%${query}%,description.ilike.%${query}%`)

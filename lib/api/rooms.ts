@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { supabaseAdmin } from '../supabase'
 import type { Tables, Inserts, Updates } from '../supabase'
 
 // Type alias for better clarity
@@ -85,7 +85,7 @@ export const roomsApi = {
     offset?: number
   }): Promise<ApiListResponse<Room>> {
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from('rooms')
         .select('*', { count: 'exact' })
       
@@ -160,7 +160,7 @@ export const roomsApi = {
    */
   async getRoomsByCategory(hotelId: number, category: string): Promise<ApiListResponse<Room>> {
     try {
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabaseAdmin
         .from('rooms')
         .select('*', { count: 'exact' })
         .eq('hotel_id', hotelId)
@@ -208,7 +208,7 @@ export const roomsApi = {
    */
   async getRoom(id: number): Promise<ApiResponse<Room>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('rooms')
         .select('*')
         .eq('id', id)
@@ -255,7 +255,7 @@ export const roomsApi = {
         updated_at: new Date().toISOString()
       }
 
-      const { data: room, error } = await supabase
+      const { data: room, error } = await supabaseAdmin
         .from('rooms')
         .insert(roomData)
         .select()
@@ -297,7 +297,7 @@ export const roomsApi = {
         updated_at: new Date().toISOString()
       }
 
-      const { data: room, error } = await supabase
+      const { data: room, error } = await supabaseAdmin
         .from('rooms')
         .update(updateData)
         .eq('id', id)
@@ -334,7 +334,7 @@ export const roomsApi = {
   async deleteRoom(id: number): Promise<ApiResponse<boolean>> {
     try {
       // Check if there are active reservations for this room
-      const { data: reservations, error: checkError } = await supabase
+      const { data: reservations, error: checkError } = await supabaseAdmin
         .from('reservations')
         .select('id')
         .eq('room_id', id)
@@ -353,7 +353,7 @@ export const roomsApi = {
       }
 
       // Proceed with deletion
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('rooms')
         .delete()
         .eq('id', id)
@@ -397,7 +397,7 @@ export const roomsApi = {
     potential_revenue: number
   }>> {
     try {
-      const { data: rooms, error } = await supabase
+      const { data: rooms, error } = await supabaseAdmin
         .from('rooms')
         .select('*')
         .eq('hotel_id', hotelId)
@@ -486,7 +486,7 @@ export const roomsApi = {
    */
   async searchRooms(hotelId: number, query: string, limit = 10): Promise<ApiListResponse<Room>> {
     try {
-      const { data, error, count } = await supabase
+      const { data, error, count } = await supabaseAdmin
         .from('rooms')
         .select('*', { count: 'exact' })
         .eq('hotel_id', hotelId)
@@ -537,7 +537,7 @@ export const roomsApi = {
         updateData.last_cleaned = new Date().toISOString()
       }
 
-      const { data: room, error } = await supabase
+      const { data: room, error } = await supabaseAdmin
         .from('rooms')
         .update(updateData)
         .eq('id', id)
@@ -585,7 +585,7 @@ export const roomsApi = {
   }>> {
     try {
       // First check if room exists and is not in maintenance
-      const { data: room, error: roomError } = await supabase
+      const { data: room, error: roomError } = await supabaseAdmin
         .from('rooms')
         .select('id, statut, hotel_id')
         .eq('id', roomId)
@@ -614,7 +614,7 @@ export const roomsApi = {
       }
 
       // Check for conflicting reservations
-      const { data: conflictingReservations, error: resError } = await supabase
+      const { data: conflictingReservations, error: resError } = await supabaseAdmin
         .from('reservations')
         .select('id, date_arrivee, date_depart, statut')
         .eq('room_id', roomId)
@@ -667,7 +667,7 @@ export const roomsApi = {
   ): Promise<ApiListResponse<Room>> {
     try {
       // First get all rooms for the hotel
-      const { data: allRooms, error: roomsError } = await supabase
+      const { data: allRooms, error: roomsError } = await supabaseAdmin
         .from('rooms')
         .select('*')
         .eq('hotel_id', hotelId)
@@ -692,7 +692,7 @@ export const roomsApi = {
       }
 
       // Check for conflicting reservations
-      const { data: reservations, error: resError } = await supabase
+      const { data: reservations, error: resError } = await supabaseAdmin
         .from('reservations')
         .select('room_id')
         .eq('hotel_id', hotelId)

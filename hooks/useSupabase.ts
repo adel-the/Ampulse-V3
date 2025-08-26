@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import type { 
   Hotel, 
@@ -672,7 +672,7 @@ export const useRooms = (hotelId?: number, options?: {
         return []
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .select('*')
         .in('id', room.equipment_ids)
@@ -1209,7 +1209,7 @@ export const useClients = (options?: HookOptions) => {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .select('*')
         .order('nom')
@@ -1232,7 +1232,7 @@ export const useClients = (options?: HookOptions) => {
         updated_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .insert(clientData)
         .select()
@@ -1256,7 +1256,7 @@ export const useClients = (options?: HookOptions) => {
         updated_at: new Date().toISOString()
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .update(updateData)
         .eq('id', id)
@@ -1291,7 +1291,7 @@ export const useClients = (options?: HookOptions) => {
         throw new Error('Impossible de supprimer un client avec des réservations actives')
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('clients')
         .delete()
         .eq('id', id)
@@ -1314,7 +1314,7 @@ export const useClients = (options?: HookOptions) => {
     try {
       setError(null)
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .rpc('search_simple_clients', {
           p_search_term: searchTerm || '',
           p_type_id: typeId || null,
@@ -1335,7 +1335,7 @@ export const useClients = (options?: HookOptions) => {
     try {
       setError(null)
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .select(`
           *,
@@ -1359,7 +1359,7 @@ export const useClients = (options?: HookOptions) => {
     try {
       setError(null)
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .rpc('get_simple_client_statistics')
 
       if (error) throw error
@@ -1375,7 +1375,7 @@ export const useClients = (options?: HookOptions) => {
     try {
       setError(null)
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('client_types')
         .select('*')
         .order('ordre')
@@ -2304,7 +2304,7 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .select('*')
         .eq('hotel_id', hotelId)
@@ -2333,7 +2333,7 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
         hotel_id: hotelId
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .insert(insertData)
         .select()
@@ -2359,7 +2359,7 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
     try {
       setError(null)
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('hotel_equipment')
         .update(updates)
         .eq('id', id)
@@ -2388,7 +2388,7 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
     try {
       setError(null)
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('hotel_equipment')
         .delete()
         .eq('id', id)

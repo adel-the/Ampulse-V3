@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabaseAdmin } from '../supabase';
 import type { Client, ClientType, Referent, ConventionTarifaire } from '../supabase';
 
 export interface ClientWithRelations extends Client {
@@ -73,7 +73,7 @@ export const clientsApi = {
   // Récupérer tous les clients
   async getClients(): Promise<ApiResponse<Client[]>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .select('*')
         .order('nom', { ascending: true });
@@ -89,7 +89,7 @@ export const clientsApi = {
   // Récupérer un client avec toutes ses relations
   async getClientWithRelations(id: number): Promise<ApiResponse<ClientWithRelations>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .select(`
           *,
@@ -111,7 +111,7 @@ export const clientsApi = {
   // Rechercher des clients
   async searchClients(searchTerm?: string, typeId?: number, statut?: string): Promise<ApiResponse<Client[]>> {
     try {
-      let query = supabase.from('clients').select('*');
+      let query = supabaseAdmin.from('clients').select('*');
 
       if (searchTerm) {
         query = query.or(`nom.ilike.%${searchTerm}%,prenom.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,raison_sociale.ilike.%${searchTerm}%`);
@@ -147,7 +147,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .insert(insertData)
         .select()
@@ -169,7 +169,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('clients')
         .update(updateData)
         .eq('id', id)
@@ -188,7 +188,7 @@ export const clientsApi = {
   async deleteClient(id: number): Promise<ApiResponse<boolean>> {
     try {
       // Vérifier s'il y a des réservations actives
-      const { data: reservations, error: checkError } = await supabase
+      const { data: reservations, error: checkError } = await supabaseAdmin
         .from('reservations')
         .select('id')
         .eq('client_id', id)
@@ -204,7 +204,7 @@ export const clientsApi = {
         };
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('clients')
         .delete()
         .eq('id', id);
@@ -220,7 +220,7 @@ export const clientsApi = {
   // Récupérer les types de clients
   async getClientTypes(): Promise<ApiResponse<ClientType[]>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('client_types')
         .select('*')
         .order('ordre', { ascending: true });
@@ -238,7 +238,7 @@ export const clientsApi = {
   // Récupérer les référents d'un client
   async getReferents(clientId: number): Promise<ApiResponse<Referent[]>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('referents')
         .select('*')
         .eq('client_id', clientId)
@@ -262,7 +262,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('referents')
         .insert(insertData)
         .select()
@@ -284,7 +284,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('referents')
         .update(updateData)
         .eq('id', id)
@@ -302,7 +302,7 @@ export const clientsApi = {
   // Supprimer un référent
   async deleteReferent(id: number): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('referents')
         .delete()
         .eq('id', id);
@@ -320,7 +320,7 @@ export const clientsApi = {
   // Récupérer les conventions d'un client
   async getConventions(clientId: number): Promise<ApiResponse<ConventionTarifaire[]>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('conventions_tarifaires')
         .select('*')
         .eq('client_id', clientId)
@@ -344,7 +344,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('conventions_tarifaires')
         .insert(insertData)
         .select()
@@ -366,7 +366,7 @@ export const clientsApi = {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('conventions_tarifaires')
         .update(updateData)
         .eq('id', id)
@@ -384,7 +384,7 @@ export const clientsApi = {
   // Supprimer une convention
   async deleteConvention(id: number): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('conventions_tarifaires')
         .delete()
         .eq('id', id);
@@ -402,7 +402,7 @@ export const clientsApi = {
   // Récupérer les statistiques des clients
   async getClientStatistics(): Promise<ApiResponse<any>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .rpc('get_simple_client_statistics');
 
       if (error) throw error;
