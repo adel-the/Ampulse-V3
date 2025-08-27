@@ -434,12 +434,18 @@ export interface Database {
           hotel_id: number
           date_arrivee: string
           date_depart: string
-          statut: 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
+          statut: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur: string
           prix: number
           duree: number
           operateur_id: number | null
           notes: string | null
+          reservation_number: string | null
+          adults_count: number
+          children_count: number
+          room_rate: number | null
+          total_amount: number | null
+          special_requests: string | null
           created_at: string
           updated_at: string
         }
@@ -450,12 +456,18 @@ export interface Database {
           hotel_id: number
           date_arrivee: string
           date_depart: string
-          statut?: 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
+          statut?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur: string
           prix: number
           duree: number
           operateur_id?: number | null
           notes?: string | null
+          reservation_number?: string | null
+          adults_count?: number
+          children_count?: number
+          room_rate?: number | null
+          total_amount?: number | null
+          special_requests?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -466,12 +478,18 @@ export interface Database {
           hotel_id?: number
           date_arrivee?: string
           date_depart?: string
-          statut?: 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
+          statut?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur?: string
           prix?: number
           duree?: number
           operateur_id?: number | null
           notes?: string | null
+          reservation_number?: string | null
+          adults_count?: number
+          children_count?: number
+          room_rate?: number | null
+          total_amount?: number | null
+          special_requests?: string | null
           created_at?: string
           updated_at?: string
         }

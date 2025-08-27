@@ -205,6 +205,15 @@ export default function AvailabilitySearchPage({
     }
   };
 
+  // Handle reservation creation success
+  const handleReservationCreated = () => {
+    // Optionally refresh the search results or show success message
+    // For now, we just trigger a re-search to update availability
+    if (searchCriteria) {
+      handleSearch(searchCriteria);
+    }
+  };
+
   // Retry search
   const handleRetrySearch = () => {
     if (searchCriteria) {
@@ -276,6 +285,7 @@ export default function AvailabilitySearchPage({
           criteria={searchCriteria}
           isLoading={isSearching}
           onRoomSelect={handleRoomSelect}
+          onReservationCreated={handleReservationCreated}
         />
       )}
 

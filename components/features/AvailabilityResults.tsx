@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Room, RoomCategory, Hotel as HotelType, HotelEquipment } from '@/lib/supabase';
 import { AvailabilitySearchCriteria } from './AvailabilitySearchForm';
+import CreateReservationModal from '../modals/CreateReservationModal';
 
 export interface AvailableRoom extends Room {
   category?: RoomCategory;
@@ -38,6 +39,7 @@ interface AvailabilityResultsProps {
   criteria: AvailabilitySearchCriteria;
   isLoading?: boolean;
   onRoomSelect?: (room: AvailableRoom) => void;
+  onReservationCreated?: () => void;
   className?: string;
 }
 
@@ -109,9 +111,12 @@ export default function AvailabilityResults({
   criteria,
   isLoading = false,
   onRoomSelect,
+  onReservationCreated,
   className = ''
 }: AvailabilityResultsProps) {
   const [groupBy, setGroupBy] = useState<'category' | 'price' | 'hotel'>('category');
+  const [selectedRoom, setSelectedRoom] = useState<AvailableRoom | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Calculate number of nights
   const nights = criteria.checkInDate && criteria.checkOutDate
@@ -128,6 +133,24 @@ export default function AvailabilityResults({
   const groupedResults = groupResults(enrichedResults, groupBy);
   const totalResults = results.length;
   const availableResults = results.filter(r => r.isAvailable).length;
+
+  // Handle room selection for reservation
+  const handleRoomSelect = (room: AvailableRoom) => {
+    setSelectedRoom(room);
+    setIsModalOpen(true);
+    onRoomSelect?.(room);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedRoom(null);
+  };
+
+  // Handle reservation success
+  const handleReservationSuccess = () => {
+    onReservationCreated?.();
+  };
 
   if (isLoading) {
     return (
@@ -317,7 +340,7 @@ export default function AvailabilityResults({
 
                   {/* Select Button */}
                   <Button
-                    onClick={() => onRoomSelect?.(room)}
+                    onClick={() => handleRoomSelect(room)}
                     disabled={!room.isAvailable}
                     className="w-full"
                   >
@@ -329,6 +352,17 @@ export default function AvailabilityResults({
           </div>
         </div>
       ))}
+
+      {/* Reservation Modal */}
+      {selectedRoom && (
+        <CreateReservationModal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          roomData={selectedRoom}
+          searchCriteria={criteria}
+          onSuccess={handleReservationSuccess}
+        />
+      )}
     </div>
   );
 }
