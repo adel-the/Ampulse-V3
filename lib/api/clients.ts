@@ -244,31 +244,71 @@ export const clientsApi = {
   // Supprimer un client
   async deleteClient(id: number): Promise<ApiResponse<boolean>> {
     try {
-      // Vérifier s'il y a des réservations actives
-      const { data: reservations, error: checkError } = await supabaseAdmin
-        .from('reservations')
+      console.log('=== DELETE CLIENT DEBUG ===');
+      console.log('Attempting to delete client with ID:', id);
+      
+      // First check if there are any referents to delete
+      const { data: referents, error: referentsCheckError } = await supabaseAdmin
+        .from('referents')
         .select('id')
-        .eq('client_id', id)
-        .limit(1);
-
-      if (checkError) throw checkError;
-
-      if (reservations && reservations.length > 0) {
-        return { 
-          data: false, 
-          error: 'Impossible de supprimer ce client car il a des réservations', 
-          success: false 
-        };
+        .eq('client_id', id);
+      
+      if (referentsCheckError) {
+        console.error('Error checking referents:', referentsCheckError);
+      } else if (referents && referents.length > 0) {
+        console.log(`Found ${referents.length} referents to delete first`);
+        // Delete referents first
+        const { error: deleteReferentsError } = await supabaseAdmin
+          .from('referents')
+          .delete()
+          .eq('client_id', id);
+        
+        if (deleteReferentsError) {
+          console.error('Error deleting referents:', deleteReferentsError);
+          throw deleteReferentsError;
+        }
+        console.log('Successfully deleted referents');
+      }
+      
+      // Check if there are any conventions to delete
+      const { data: conventions, error: conventionsCheckError } = await supabaseAdmin
+        .from('conventions_tarifaires')
+        .select('id')
+        .eq('client_id', id);
+      
+      if (conventionsCheckError) {
+        console.error('Error checking conventions:', conventionsCheckError);
+      } else if (conventions && conventions.length > 0) {
+        console.log(`Found ${conventions.length} conventions to delete first`);
+        // Delete conventions first
+        const { error: deleteConventionsError } = await supabaseAdmin
+          .from('conventions_tarifaires')
+          .delete()
+          .eq('client_id', id);
+        
+        if (deleteConventionsError) {
+          console.error('Error deleting conventions:', deleteConventionsError);
+          throw deleteConventionsError;
+        }
+        console.log('Successfully deleted conventions');
       }
 
+      // Now delete the client
+      console.log('Deleting client...');
       const { error } = await supabaseAdmin
         .from('clients')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting client:', error);
+        throw error;
+      }
+      
+      console.log('Successfully deleted client with ID:', id);
       return { data: true, error: null, success: true };
     } catch (error) {
+      console.error('Full delete error:', error);
       const message = error instanceof Error ? error.message : 'Erreur lors de la suppression du client';
       return { data: false, error: message, success: false };
     }
