@@ -31,21 +31,9 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
   const [modalLoading, setModalLoading] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('tous');
-  const [filterType, setFilterType] = useState<string>('tous');
   const [filterCategory, setFilterCategory] = useState<string>('tous');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const { addNotification } = useNotifications();
-
-  // Types de chambres disponibles
-  const roomTypes = [
-    { value: 'Simple', label: 'Chambre Simple', capacity: 1, basePrice: 45 },
-    { value: 'Double', label: 'Chambre Double', capacity: 2, basePrice: 65 },
-    { value: 'Twin', label: 'Chambre Twin', capacity: 2, basePrice: 65 },
-    { value: 'Familiale', label: 'Chambre Familiale', capacity: 4, basePrice: 85 },
-    { value: 'Suite', label: 'Suite', capacity: 2, basePrice: 120 },
-    { value: 'PMR', label: 'Chambre PMR', capacity: 2, basePrice: 55 },
-    { value: 'Studio', label: 'Studio', capacity: 2, basePrice: 55 }
-  ];
 
   // La liste des équipements est maintenant gérée par hôtel via hotel_equipment
 
@@ -154,7 +142,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
         const createData = {
           hotel_id: selectedHotelId || 1,
           numero: data.numero,
-          type: data.type,
           prix: data.prix,
           statut: data.statut || 'disponible',
           description: data.description,
@@ -261,9 +248,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
     // Filtrer par statut
     if (filterStatus !== 'tous' && room.statut !== filterStatus) return false;
     
-    // Filtrer par type
-    if (filterType !== 'tous' && room.type !== filterType) return false;
-    
     // Filtrer par catégorie
     if (filterCategory !== 'tous') {
       const categoryId = parseInt(filterCategory);
@@ -274,10 +258,9 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesNumber = room.numero.toLowerCase().includes(searchLower);
-      const matchesType = room.type.toLowerCase().includes(searchLower);
       const matchesDescription = room.description?.toLowerCase().includes(searchLower);
       
-      if (!matchesNumber && !matchesType && !matchesDescription) return false;
+      if (!matchesNumber && !matchesDescription) return false;
     }
     
     return true;
@@ -340,18 +323,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                 </select>
               </div>
               
-              {/* Filtre par type */}
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="tous">Tous les types</option>
-                {roomTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-              
               {/* Filtre par catégorie */}
               <select
                 value={filterCategory}
@@ -374,7 +345,7 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
           </div>
           
           {/* Résultats de filtrage */}
-          {(searchTerm || filterStatus !== 'tous' || filterType !== 'tous' || filterCategory !== 'tous') && (
+          {(searchTerm || filterStatus !== 'tous' || filterCategory !== 'tous') && (
             <div className="mt-4 text-sm text-gray-600">
               {filteredRooms.length} chambre{filteredRooms.length > 1 ? 's' : ''} trouvée{filteredRooms.length > 1 ? 's' : ''}
               {searchTerm && ` pour "${searchTerm}"`}
@@ -416,9 +387,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                       Numéro
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Catégorie
                     </th>
                     {!selectedHotelId && (
@@ -450,12 +418,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                         <div className="text-sm font-medium text-gray-900">
                           {room.numero}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{room.type}</div>
-                        {room.bed_type && (
-                          <div className="text-xs text-gray-500">{room.bed_type}</div>
-                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">

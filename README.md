@@ -4,6 +4,27 @@
 
 SoliReserve Enhanced est une application web moderne de gestion hôtelière développée avec Next.js 14, TypeScript, Tailwind CSS et Supabase. Elle permet la gestion complète des réservations, des chambres, des clients et des opérateurs sociaux.
 
+## 🚀 Démarrage Rapide
+
+### Configuration Locale (Recommandée)
+
+1. **Démarrage automatique** :
+   ```powershell
+   .\start-local.ps1
+   ```
+   
+2. **Démarrage manuel** - Voir le guide détaillé : [SUPABASE_LOCAL_SETUP.md](./SUPABASE_LOCAL_SETUP.md)
+
+3. **Arrêter les services** :
+   ```powershell
+   .\stop-local.ps1
+   ```
+
+### URLs d'accès
+- **Application** : http://localhost:3000
+- **Supabase Studio** : http://127.0.0.1:15433
+- **API Supabase** : http://127.0.0.1:15421
+
 ## ✨ Fonctionnalités principales
 
 ### 🏨 Gestion des établissements

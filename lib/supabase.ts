@@ -236,7 +236,6 @@ export interface Database {
           id: number
           hotel_id: number
           numero: string
-          type: string
           prix: number
           statut: 'disponible' | 'occupee' | 'maintenance'
           description: string | null
@@ -258,7 +257,6 @@ export interface Database {
           id?: number
           hotel_id: number
           numero: string
-          type: string
           prix: number
           statut?: 'disponible' | 'occupee' | 'maintenance'
           description?: string | null
@@ -280,7 +278,6 @@ export interface Database {
           id?: number
           hotel_id?: number
           numero?: string
-          type?: string
           prix?: number
           statut?: 'disponible' | 'occupee' | 'maintenance'
           description?: string | null
@@ -1278,7 +1275,6 @@ export interface RoomAvailabilityCheck {
 
 export interface RoomFilters {
   statut?: 'disponible' | 'occupee' | 'maintenance'
-  type?: string
   floor?: number
   bed_type?: string
   view_type?: string

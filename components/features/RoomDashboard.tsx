@@ -8,6 +8,7 @@ import { roomsApi } from '@/lib/api/rooms';
 import { establishmentsApi } from '@/lib/api/establishments';
 import type { Room } from '@/lib/api/rooms';
 import type { Establishment } from '@/lib/api/establishments';
+import { useRoomCategories } from '@/hooks/useSupabase';
 import { 
   Building2, 
   Bed, 
@@ -57,6 +58,7 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
   const [rooms, setRooms] = useState<Room[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
+  const { categories: roomCategories } = useRoomCategories();
 
   useEffect(() => {
     loadData();
@@ -96,14 +98,22 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
     revenuePerRoom: rooms.length > 0 ? Math.round(rooms.reduce((sum, r) => sum + Number(r.prix || 0), 0) / rooms.length) : 0
   };
 
+  // Helper to get category name from category_id
+  const getCategoryName = (categoryId: number | null) => {
+    if (!categoryId || !roomCategories) return 'Non défini';
+    const category = roomCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Non défini';
+  };
+
   // Calculer les catégories de chambres réelles
   const roomTypeStats = rooms.reduce((acc, room) => {
-    if (!acc[room.type]) {
-      acc[room.type] = { total: 0, occupied: 0 };
+    const categoryName = getCategoryName(room.category_id);
+    if (!acc[categoryName]) {
+      acc[categoryName] = { total: 0, occupied: 0 };
     }
-    acc[room.type].total++;
+    acc[categoryName].total++;
     if (room.statut === 'occupee') {
-      acc[room.type].occupied++;
+      acc[categoryName].occupied++;
     }
     return acc;
   }, {} as Record<string, { total: number; occupied: number }>);
@@ -131,7 +141,7 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
     .map(room => ({
       id: room.id,
       numero: room.numero,
-      type: room.type,
+      categoryName: getCategoryName(room.category_id),
       floor: room.floor ? `${room.floor}ème` : 'RDC',
       occupancy: room.statut === 'occupee' ? 100 : 0,
       revenue: Number(room.prix),
@@ -257,7 +267,7 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
                     </div>
                     <div>
                       <div className="font-medium text-gray-900">Chambre {room.numero}</div>
-                      <div className="text-sm text-gray-500">{room.type} - {room.floor}</div>
+                      <div className="text-sm text-gray-500">{room.categoryName} - {room.floor}</div>
                     </div>
                   </div>
                   <div className="text-right">

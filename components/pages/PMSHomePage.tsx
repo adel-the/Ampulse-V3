@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import { useRoomCategories } from '@/hooks/useSupabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -38,7 +39,8 @@ interface Room {
   id: number;
   numero: string;
   nom: string;
-  type: string;
+  category_id: number | null;
+  category_name: string;
   capacite: number;
   prix_base: number;
   equipements: string[];
@@ -60,6 +62,15 @@ const PMSHomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const { categories: roomCategories } = useRoomCategories();
+  
+  // Helper to get category name from category_id
+  const getCategoryName = (categoryId: number | null) => {
+    if (!categoryId || !roomCategories) return 'Non défini';
+    const category = roomCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Non défini';
+  };
+  
   const [reservationModal, setReservationModal] = useState<{
     isOpen: boolean;
     room: Room | null;
@@ -82,14 +93,8 @@ const PMSHomePage: React.FC = () => {
     roomType: ''
   });
 
-  // Types de chambres disponibles
-  const ROOM_TYPES = [
-    'Chambre Simple',
-    'Chambre Double', 
-    'Chambre Familiale',
-    'Suite',
-    'Chambre Adaptée'
-  ];
+  // Types de chambres disponibles (dynamique depuis la base de données)
+  const ROOM_TYPES = roomCategories ? roomCategories.map(cat => ({ id: cat.id, name: cat.name })) : [];
 
   // Équipements avec icônes
   const getEquipmentIcon = (equipment: string) => {
@@ -116,12 +121,23 @@ const PMSHomePage: React.FC = () => {
       setLoading(true);
       
       // Simulation de données si Supabase échoue
+      const defaultCategories = [
+        { id: 1, name: 'Simple' },
+        { id: 2, name: 'Double' },
+        { id: 3, name: 'Familiale' },
+        { id: 4, name: 'Suite' },
+        { id: 5, name: 'Adaptée' }
+      ];
+      
+      const categories = roomCategories || defaultCategories;
+      
       const mockRooms: Room[] = [
         {
           id: 1,
           numero: '101',
           nom: 'Chambre Simple Standard',
-          type: 'Chambre Simple',
+          category_id: categories[0]?.id || 1,
+          category_name: categories[0]?.name || 'Simple',
           capacite: 1,
           prix_base: 45,
           equipements: ['WiFi', 'TV', 'Salle de bain privée'],
@@ -132,7 +148,8 @@ const PMSHomePage: React.FC = () => {
           id: 2,
           numero: '102',
           nom: 'Chambre Double Confort',
-          type: 'Chambre Double',
+          category_id: categories[1]?.id || 2,
+          category_name: categories[1]?.name || 'Double',
           capacite: 2,
           prix_base: 65,
           equipements: ['WiFi', 'TV', 'Climatisation', 'Mini-bar'],
@@ -143,7 +160,8 @@ const PMSHomePage: React.FC = () => {
           id: 3,
           numero: '103',
           nom: 'Chambre Familiale Plus',
-          type: 'Chambre Familiale',
+          category_id: categories[2]?.id || 3,
+          category_name: categories[2]?.name || 'Familiale',
           capacite: 4,
           prix_base: 85,
           equipements: ['WiFi', 'TV', 'Climatisation', 'Balcon'],
@@ -154,7 +172,8 @@ const PMSHomePage: React.FC = () => {
           id: 4,
           numero: '201',
           nom: 'Suite Luxe',
-          type: 'Suite',
+          category_id: categories[3]?.id || 4,
+          category_name: categories[3]?.name || 'Suite',
           capacite: 2,
           prix_base: 120,
           equipements: ['WiFi', 'TV', 'Climatisation', 'Mini-bar', 'Balcon'],
@@ -165,7 +184,8 @@ const PMSHomePage: React.FC = () => {
           id: 5,
           numero: '104',
           nom: 'Chambre Adaptée PMR',
-          type: 'Chambre Adaptée',
+          category_id: categories[4]?.id || 5,
+          category_name: categories[4]?.name || 'Adaptée',
           capacite: 2,
           prix_base: 55,
           equipements: ['WiFi', 'TV', 'Accès PMR', 'Salle de bain privée'],
@@ -176,7 +196,8 @@ const PMSHomePage: React.FC = () => {
           id: 6,
           numero: '105',
           nom: 'Chambre Double Vue Jardin',
-          type: 'Chambre Double',
+          category_id: categories[1]?.id || 2,
+          category_name: categories[1]?.name || 'Double',
           capacite: 2,
           prix_base: 75,
           equipements: ['WiFi', 'TV', 'Climatisation', 'Balcon', 'Mini-bar'],
@@ -189,14 +210,15 @@ const PMSHomePage: React.FC = () => {
         // Tentative de récupération depuis Supabase
         const { data, error } = await supabase
           .from('rooms')
-          .select('*')
+          .select('*, room_categories(name)')
           .eq('statut', 'disponible');
 
         if (data && data.length > 0) {
-          // S'assurer que tous les rooms ont un tableau d'équipements
+          // S'assurer que tous les rooms ont un tableau d'équipements et category_name
           const roomsWithEquipments = data.map(room => ({
             ...room,
-            equipements: room.equipements || ['WiFi', 'TV', 'Salle de bain privée']
+            equipements: room.equipements || ['WiFi', 'TV', 'Salle de bain privée'],
+            category_name: room.room_categories?.name || getCategoryName(room.category_id)
           }));
           setRooms(roomsWithEquipments);
           setFilteredRooms(roomsWithEquipments);
@@ -229,7 +251,7 @@ const PMSHomePage: React.FC = () => {
 
     // Filtrer par type de chambre
     if (filters.roomType) {
-      filtered = filtered.filter(room => room.type === filters.roomType);
+      filtered = filtered.filter(room => room.category_name === filters.roomType || room.category_id?.toString() === filters.roomType);
     }
 
     // Filtrer par capacité
@@ -436,7 +458,7 @@ const PMSHomePage: React.FC = () => {
                   >
                     <option value="">Tous les types</option>
                     {ROOM_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type.id} value={type.name}>{type.name}</option>
                     ))}
                   </select>
                 </div>

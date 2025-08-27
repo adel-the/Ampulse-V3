@@ -60,7 +60,6 @@ export const roomsApi = {
    */
   async getRoomsByHotel(hotelId: number, filters?: {
     statut?: 'disponible' | 'occupee' | 'maintenance'
-    type?: string
     floor?: number
     bed_type?: string
     view_type?: string
@@ -76,7 +75,6 @@ export const roomsApi = {
    */
   async getRooms(hotelId?: number, filters?: {
     statut?: 'disponible' | 'occupee' | 'maintenance'
-    type?: string
     floor?: number
     bed_type?: string
     view_type?: string
@@ -97,9 +95,6 @@ export const roomsApi = {
       // Apply filters
       if (filters?.statut) {
         query = query.eq('statut', filters.statut)
-      }
-      if (filters?.type) {
-        query = query.eq('type', filters.type)
       }
       if (filters?.floor !== undefined) {
         query = query.eq('floor', filters.floor)
@@ -156,15 +151,15 @@ export const roomsApi = {
   },
 
   /**
-   * Fetch rooms by category/type for a specific hotel
+   * Fetch rooms by category ID for a specific hotel
    */
-  async getRoomsByCategory(hotelId: number, category: string): Promise<ApiListResponse<Room>> {
+  async getRoomsByCategory(hotelId: number, categoryId: number): Promise<ApiListResponse<Room>> {
     try {
       const { data, error, count } = await supabaseAdmin
         .from('rooms')
         .select('*', { count: 'exact' })
         .eq('hotel_id', hotelId)
-        .eq('type', category)
+        .eq('category_id', categoryId)
         .order('numero')
 
       if (error) {
@@ -438,13 +433,14 @@ export const roomsApi = {
       const totalPrice = rooms.reduce((sum, r) => sum + (Number(r.prix) || 0), 0)
       const averagePrice = totalRooms > 0 ? totalPrice / totalRooms : 0
 
-      const roomsByType: Record<string, number> = {}
+      const roomsByCategory: Record<string, number> = {}
       const roomsByFloor: Record<string, number> = {}
 
       rooms.forEach(room => {
-        // Count by type
-        if (room.type) {
-          roomsByType[room.type] = (roomsByType[room.type] || 0) + 1
+        // Count by category (using category_id, would need category name lookup)
+        if (room.category_id) {
+          const categoryKey = `Category ${room.category_id}`
+          roomsByCategory[categoryKey] = (roomsByCategory[categoryKey] || 0) + 1
         }
 
         // Count by floor
@@ -464,7 +460,7 @@ export const roomsApi = {
           maintenance_rooms: maintenanceRooms,
           occupancy_rate: Math.round(occupancyRate * 100) / 100,
           average_price: Math.round(averagePrice * 100) / 100,
-          rooms_by_type: roomsByType,
+          rooms_by_category: roomsByCategory,
           rooms_by_floor: roomsByFloor,
           potential_revenue: Math.round(potentialRevenue * 100) / 100
         },

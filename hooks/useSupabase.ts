@@ -637,8 +637,8 @@ export const useRooms = (hotelId?: number, options?: {
     return rooms.find(room => room.id === id)
   }
 
-  const getRoomsByType = (type: string): Room[] => {
-    return rooms.filter(room => room.type === type)
+  const getRoomsByCategory = (categoryId: number): Room[] => {
+    return rooms.filter(room => room.category_id === categoryId)
   }
 
   const getAvailableRooms = (): Room[] => {
@@ -652,10 +652,11 @@ export const useRooms = (hotelId?: number, options?: {
     const maintenance = rooms.filter(r => r.statut === 'maintenance').length
     const occupancyRate = total > 0 ? (occupied / total) * 100 : 0
 
-    const roomsByType: Record<string, number> = {}
+    const roomsByCategory: Record<string, number> = {}
     rooms.forEach(room => {
-      if (room.type) {
-        roomsByType[room.type] = (roomsByType[room.type] || 0) + 1
+      if (room.category_id) {
+        const categoryName = getCategoryName ? getCategoryName(room.category_id) : `Category ${room.category_id}`
+        roomsByCategory[categoryName] = (roomsByCategory[categoryName] || 0) + 1
       }
     })
 
@@ -665,7 +666,7 @@ export const useRooms = (hotelId?: number, options?: {
       occupied,
       maintenance,
       occupancyRate: Math.round(occupancyRate * 100) / 100,
-      roomsByType
+      roomsByCategory
     }
   }
 
@@ -766,7 +767,7 @@ export const useRooms = (hotelId?: number, options?: {
     updateRoomStatus,
     checkRoomAvailability,
     getRoomById,
-    getRoomsByType,
+    getRoomsByCategory,
     getAvailableRooms,
     getRoomStatistics,
     getRoomEquipmentDetails

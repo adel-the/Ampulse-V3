@@ -160,7 +160,7 @@ class RoomsCRUDTester {
             const roomData: RoomInsert = {
               hotel_id: hotel.id,
               numero: syntheticRoom.numero,
-              type: syntheticRoom.type,
+              category_id: syntheticRoom.category_id,
               prix: syntheticRoom.prix,
               statut: syntheticRoom.statut,
               description: syntheticRoom.description,
@@ -179,10 +179,10 @@ class RoomsCRUDTester {
               this.createdRooms.push(result.data as Room & { id: number })
               roomsCreated++
 
-              // Track room type distribution
-              const roomType = result.data.type
-              this.testReport.summary.roomTypeDistribution[roomType] = 
-                (this.testReport.summary.roomTypeDistribution[roomType] || 0) + 1
+              // Track room category distribution
+              const categoryName = syntheticRoom.category_name
+              this.testReport.summary.roomTypeDistribution[categoryName] = 
+                (this.testReport.summary.roomTypeDistribution[categoryName] || 0) + 1
 
               // Track rooms per hotel
               this.testReport.summary.roomsPerHotel[hotel.id] = 

@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Hotel, OperateurSocial, Reservation } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { useRoomCategories } from '@/hooks/useSupabase';
 
 interface NewReservationModalProps {
   isOpen: boolean;
@@ -48,6 +49,14 @@ export default function NewReservationModal({
   hotels,
   operateurs
 }: NewReservationModalProps) {
+  const { categories: roomCategories } = useRoomCategories();
+  
+  // Helper to get category name from category_id
+  const getCategoryName = (categoryId: number | null) => {
+    if (!categoryId || !roomCategories) return 'Non défini';
+    const category = roomCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Non défini';
+  };
   const [formData, setFormData] = useState<FormData>({
     usager_nom: '',
     usager_prenom: '',
@@ -260,7 +269,7 @@ export default function NewReservationModal({
           *,
           usagers (nom, prenom, telephone, email),
           hotels (nom, adresse, ville),
-          rooms (numero, type),
+          rooms (numero, category_id),
           operateurs_sociaux (nom, prenom, organisation)
         `)
         .single();
@@ -448,7 +457,7 @@ export default function NewReservationModal({
                       </option>
                       {availableRooms.map((room) => (
                         <option key={room.room_id || room.id} value={room.room_id || room.id}>
-                          Chambre {room.numero} - {room.type} ({room.prix}€/nuit)
+                          Chambre {room.numero} - {getCategoryName(room.category_id)} ({room.prix}€/nuit)
                         </option>
                       ))}
                     </select>

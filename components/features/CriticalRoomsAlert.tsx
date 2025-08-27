@@ -21,7 +21,8 @@ import {
 interface CriticalRoom {
   id: string;
   numero: string;
-  type: string;
+  category_id: number;
+  category_name: string;
   etage: number;
   hotel: string;
   ville: string;
@@ -40,7 +41,8 @@ const getCriticalRooms = (): CriticalRoom[] => {
     {
       id: '1',
       numero: '101',
-      type: 'Simple',
+      category_id: 1,
+      category_name: 'Simple',
       etage: 1,
       hotel: 'Résidence Saint-Martin',
       ville: 'Paris',
@@ -55,7 +57,8 @@ const getCriticalRooms = (): CriticalRoom[] => {
     {
       id: '2',
       numero: '205',
-      type: 'Double',
+      category_id: 2,
+      category_name: 'Double',
       etage: 2,
       hotel: 'Résidence Saint-Martin',
       ville: 'Paris',
@@ -70,7 +73,8 @@ const getCriticalRooms = (): CriticalRoom[] => {
     {
       id: '3',
       numero: '312',
-      type: 'Suite',
+      category_id: 3,
+      category_name: 'Suite',
       etage: 3,
       hotel: 'Résidence Saint-Martin',
       ville: 'Paris',
@@ -85,7 +89,8 @@ const getCriticalRooms = (): CriticalRoom[] => {
     {
       id: '4',
       numero: '108',
-      type: 'Simple',
+      category_id: 1,
+      category_name: 'Simple',
       etage: 1,
       hotel: 'Résidence Saint-Martin',
       ville: 'Paris',
@@ -251,7 +256,7 @@ export default function CriticalRoomsAlert({ maxDisplay = 3, showAll = false }: 
                     <div className="flex items-center space-x-2 mb-2">
                       {getPriorityIcon(room)}
                       <span className="font-medium text-sm">
-                        Chambre {room.numero} ({room.type})
+                        Chambre {room.numero} ({room.category_name})
                       </span>
                       <Badge variant="outline" className="text-xs">
                         {room.priorite.toUpperCase()}

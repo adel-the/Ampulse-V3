@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Reservation, Hotel } from '../../types';
+import { useRoomCategories } from '@/hooks/useSupabase';
+import type { RoomCategory } from '@/lib/supabase';
 
 interface ReservationsCalendarProps {
   reservations: Reservation[];
@@ -59,6 +61,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   const [editStatus, setEditStatus] = useState<RoomStatusType>('available');
   const [editNotes, setEditNotes] = useState<string>('');
   const [roomNumberFilter, setRoomNumberFilter] = useState<string>('');
+  const { categories: roomCategories } = useRoomCategories();
 
   // Navigation dans le calendrier
   const goToPreviousMonth = () => {
@@ -154,12 +157,24 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     };
     
     const count = roomCounts[hotelName] || 20;
-    return Array.from({ length: count }, (_, i) => ({
-      id: `${hotelName}-room-${i + 1}`,
-      numero: `${i + 1}`,
-      type: i < count * 0.3 ? 'Simple' : i < count * 0.7 ? 'Double' : 'Suite',
-      etage: Math.floor(i / 10) + 1
-    }));
+    const defaultCategories = roomCategories || [
+      { id: 1, name: 'Simple', capacity: 1, surface: 18 },
+      { id: 2, name: 'Double', capacity: 2, surface: 25 },
+      { id: 3, name: 'Suite', capacity: 4, surface: 40 }
+    ];
+    
+    return Array.from({ length: count }, (_, i) => {
+      const categoryIndex = i < count * 0.3 ? 0 : i < count * 0.7 ? 1 : 2;
+      const category = defaultCategories[categoryIndex] || defaultCategories[0];
+      
+      return {
+        id: `${hotelName}-room-${i + 1}`,
+        numero: `${i + 1}`,
+        category_id: category.id,
+        category_name: category.name,
+        etage: Math.floor(i / 10) + 1
+      };
+    });
   };
 
   const getReservationsForRoom = (roomId: string, date: Date) => {
@@ -254,13 +269,19 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
   // Obtenir les types de chambres disponibles
   const getRoomTypes = () => {
-    return [
-      { value: 'all', label: 'Tous les types', icon: <Bed className="h-4 w-4" /> },
-      { value: 'simple', label: 'Chambres Simples', icon: <Bed className="h-4 w-4" /> },
-      { value: 'double', label: 'Chambres Doubles', icon: <Bed className="h-4 w-4" /> },
-      { value: 'suite', label: 'Suites', icon: <Bed className="h-4 w-4" /> },
-      { value: 'familiale', label: 'Chambres Familiales', icon: <Bed className="h-4 w-4" /> }
-    ];
+    const types = [{ value: 'all', label: 'Toutes les catégories', icon: <Bed className="h-4 w-4" /> }];
+    
+    if (roomCategories) {
+      roomCategories.forEach(category => {
+        types.push({
+          value: category.id.toString(),
+          label: category.name,
+          icon: <Bed className="h-4 w-4" />
+        });
+      });
+    }
+    
+    return types;
   };
 
   // Filtrer les chambres par type
@@ -270,14 +291,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     if (roomType === 'all') return allRooms;
     
     return allRooms.filter(room => {
-      const roomTypeCheck = room.type.toLowerCase();
-      switch (roomType) {
-        case 'simple': return roomTypeCheck === 'simple';
-        case 'double': return roomTypeCheck === 'double';
-        case 'suite': return roomTypeCheck === 'suite';
-        case 'familiale': return roomTypeCheck === 'familiale';
-        default: return true;
-      }
+      return room.category_id?.toString() === roomType;
     });
   };
 
@@ -570,7 +584,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                         <Bed className="h-4 w-4 text-gray-600" />
                         <div>
                           <div className="font-medium text-sm">{room.numero}</div>
-                          <div className="text-xs text-gray-500">{room.type} - Étage {room.etage}</div>
+                          <div className="text-xs text-gray-500">{room.category_name} - Étage {room.etage}</div>
                         </div>
                       </div>
                       

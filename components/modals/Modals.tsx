@@ -56,7 +56,6 @@ interface AddRoomModalProps {
 export function AddRoomModal({ isOpen, onClose, onSubmit, isLoading }: AddRoomModalProps) {
   const [formData, setFormData] = useState({
     numero: '',
-    type: 'Simple',
     prix: '',
     description: ''
   });
@@ -87,21 +86,6 @@ export function AddRoomModal({ isOpen, onClose, onSubmit, isLoading }: AddRoomMo
               onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
               placeholder="ex: 101"
             />
-          </div>
-          
-          <div>
-            <Label htmlFor="type">Type de chambre</Label>
-            <select
-              id="type"
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Simple">Simple</option>
-              <option value="Double">Double</option>
-              <option value="Familiale">Familiale</option>
-              <option value="Adaptée">Adaptée</option>
-            </select>
           </div>
           
           <div>

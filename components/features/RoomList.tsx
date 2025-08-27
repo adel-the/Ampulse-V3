@@ -39,11 +39,13 @@ import { establishmentsApi } from '@/lib/api/establishments';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { Room as DbRoom, RoomInsert, RoomUpdate } from '@/lib/api/rooms';
 import type { Establishment } from '@/lib/api/establishments';
+import { useRoomCategories } from '@/hooks/useSupabase';
+import type { RoomCategory } from '@/lib/supabase';
 
 interface RoomFormData {
   numero: string;
   floor: number;
-  type: string;
+  category_id: number | null;
   prix: number;
   statut: 'disponible' | 'occupee' | 'maintenance';
   description: string;
@@ -55,27 +57,7 @@ interface RoomFormData {
   notes: string;
 }
 
-const roomCategories = [
-  'Chambre Simple',
-  'Chambre Double', 
-  'Chambre Familiale',
-  'Suite',
-  'Chambre Adaptée',
-  'Chambre Communicante',
-  'Chambre Vue Mer',
-  'Chambre Vue Montagne'
-];
-
-const roomTypes = [
-  'Simple',
-  'Double',
-  'Twin',
-  'Familiale',
-  'Suite',
-  'PMR',
-  'Luxe',
-  'Premium'
-];
+// Room types are now managed through the database room_categories table
 
 const availableCharacteristics = [
   'Lit simple',
@@ -130,6 +112,7 @@ export default function RoomList() {
   const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { addNotification } = useNotifications();
+  const { categories: roomCategories, loading: categoriesLoading } = useRoomCategories();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -144,7 +127,7 @@ export default function RoomList() {
   const [formData, setFormData] = useState<RoomFormData>({
     numero: '',
     floor: 1,
-    type: 'Simple',
+    category_id: null,
     prix: 45,
     statut: 'disponible',
     description: '',
@@ -210,15 +193,23 @@ export default function RoomList() {
   const totalRevenue = rooms.reduce((sum, room) => sum + Number(room.prix || 0), 0);
   const averageOccupancy = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
 
+  // Helper to get category name from category_id
+  const getCategoryName = (categoryId: number | null) => {
+    if (!categoryId || !roomCategories) return 'Non défini';
+    const category = roomCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Non défini';
+  };
+
   // Filtrage
   const filteredRooms = rooms.filter(room => {
+    const categoryName = getCategoryName(room.category_id);
     const matchesSearch = room.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         room.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (room.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (room.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || room.statut === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || room.type === categoryFilter;
+    const matchesCategory = categoryFilter === 'all' || room.category_id?.toString() === categoryFilter;
     
     return matchesSearch && matchesStatus && matchesCategory;
   });
@@ -252,7 +243,7 @@ export default function RoomList() {
     setFormData({
       numero: '',
       floor: 1,
-      type: 'Simple',
+      category_id: roomCategories && roomCategories.length > 0 ? roomCategories[0].id : null,
       prix: 45,
       statut: 'disponible',
       description: '',
@@ -271,12 +262,12 @@ export default function RoomList() {
       return;
     }
 
-    if (formData.numero && formData.type) {
+    if (formData.numero && formData.category_id) {
       try {
         const roomData: RoomInsert = {
           hotel_id: selectedHotelId,
           numero: formData.numero,
-          type: formData.type,
+          category_id: formData.category_id,
           prix: formData.prix,
           statut: formData.statut,
           description: formData.description || null,
@@ -311,11 +302,11 @@ export default function RoomList() {
   const handleUpdateRoom = async () => {
     if (!selectedRoom) return;
 
-    if (formData.numero && formData.type) {
+    if (formData.numero && formData.category_id) {
       try {
         const updateData: RoomUpdate = {
           numero: formData.numero,
-          type: formData.type,
+          category_id: formData.category_id,
           prix: formData.prix,
           statut: formData.statut,
           description: formData.description || null,
@@ -354,7 +345,7 @@ export default function RoomList() {
     setFormData({
       numero: room.numero,
       floor: room.floor || 1,
-      type: room.type,
+      category_id: room.category_id,
       prix: Number(room.prix),
       statut: room.statut || 'disponible',
       description: room.description || '',
@@ -517,9 +508,9 @@ export default function RoomList() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">Tous les types</option>
-              {roomTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
+              <option value="all">Toutes les catégories</option>
+              {roomCategories?.map(category => (
+                <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
             <div className="flex items-center justify-between">
@@ -566,7 +557,7 @@ export default function RoomList() {
                     </Badge>
                   </CardTitle>
                   <p className="text-sm text-gray-600 mt-1">
-                    {room.type} - Étage {room.floor || 0}
+                    {getCategoryName(room.category_id)} - Étage {room.floor || 0}
                   </p>
                 </div>
                 <div className="flex space-x-2">
@@ -595,8 +586,8 @@ export default function RoomList() {
                 {/* Informations de base */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Type:</span>
-                    <div className="font-semibold">{room.type}</div>
+                    <span className="text-gray-500">Catégorie:</span>
+                    <div className="font-semibold">{getCategoryName(room.category_id)}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Prix:</span>
@@ -712,15 +703,16 @@ export default function RoomList() {
                 </div>
 
                 <div>
-                  <Label htmlFor="type">Type *</Label>
+                  <Label htmlFor="category">Catégorie *</Label>
                   <select
-                    id="type"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    id="category"
+                    value={formData.category_id || ''}
+                    onChange={(e) => setFormData({...formData, category_id: Number(e.target.value)})}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   >
-                    {roomTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
+                    <option value="">Sélectionner une catégorie</option>
+                    {roomCategories?.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                 </div>
@@ -783,7 +775,7 @@ export default function RoomList() {
                     <Input
                       id="view_type"
                       value={formData.view_type || ''}
-                      onChange={(e) => setFormData({...formData, vue: e.target.value})}
+                      onChange={(e) => setFormData({...formData, view_type: e.target.value})}
                       placeholder="Jardin, Ville, Mer..."
                     />
                   </div>
@@ -827,7 +819,7 @@ export default function RoomList() {
               </Button>
               <Button 
                 onClick={handleCreateRoom} 
-                disabled={!formData.numero || !formData.type || !formData.type}
+                disabled={!formData.numero || !formData.category_id}
               >
                 <Save className="h-4 w-4 mr-2" />
                 Créer la chambre
@@ -869,62 +861,36 @@ export default function RoomList() {
                       id="edit-etage"
                       type="number"
                       value={formData.floor}
-                      onChange={(e) => setFormData({...formData, etage: Number(e.target.value)})}
+                      onChange={(e) => setFormData({...formData, floor: Number(e.target.value)})}
                       min="0"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="edit-categorie">Catégorie *</Label>
+                  <Label htmlFor="edit-category">Catégorie *</Label>
                   <select
-                    id="edit-categorie"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, categorie: e.target.value})}
+                    id="edit-category"
+                    value={formData.category_id || ''}
+                    onChange={(e) => setFormData({...formData, category_id: Number(e.target.value)})}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   >
-                    {roomCategories.map(category => (
-                      <option key={category} value={category}>{category}</option>
+                    <option value="">Sélectionner une catégorie</option>
+                    {roomCategories?.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <Label htmlFor="edit-type">Type *</Label>
-                  <select
-                    id="edit-type"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    {roomTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-capacite">Capacité</Label>
-                    <Input
-                      id="edit-capacite"
-                      type="number"
-                      value={formData.bed_type}
-                      onChange={(e) => setFormData({...formData, capacite: Number(e.target.value)})}
-                      min="1"
-                      max="10"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-prixBase">Prix de base (€)</Label>
-                    <Input
-                      id="edit-prixBase"
-                      type="number"
-                      value={formData.prix}
-                      onChange={(e) => setFormData({...formData, prixBase: Number(e.target.value)})}
-                      min="0"
-                    />
-                  </div>
+                  <Label htmlFor="edit-prix">Prix par nuit (€)</Label>
+                  <Input
+                    id="edit-prix"
+                    type="number"
+                    value={formData.prix}
+                    onChange={(e) => setFormData({...formData, prix: Number(e.target.value)})}
+                    min="0"
+                  />
                 </div>
 
                 <div>
@@ -953,7 +919,7 @@ export default function RoomList() {
                       id="edit-superficie"
                       type="number"
                       value={formData.room_size || ''}
-                      onChange={(e) => setFormData({...formData, superficie: Number(e.target.value)})}
+                      onChange={(e) => setFormData({...formData, room_size: Number(e.target.value)})}
                       min="0"
                     />
                   </div>
@@ -962,7 +928,7 @@ export default function RoomList() {
                     <Input
                       id="edit-vue"
                       value={formData.view_type || ''}
-                      onChange={(e) => setFormData({...formData, vue: e.target.value})}
+                      onChange={(e) => setFormData({...formData, view_type: e.target.value})}
                       placeholder="Jardin, Ville, Mer..."
                     />
                   </div>
@@ -1006,7 +972,7 @@ export default function RoomList() {
               </Button>
               <Button 
                 onClick={handleUpdateRoom} 
-                disabled={!formData.numero || !formData.type || !formData.type}
+                disabled={!formData.numero || !formData.category_id}
               >
                 <Save className="h-4 w-4 mr-2" />
                 Sauvegarder

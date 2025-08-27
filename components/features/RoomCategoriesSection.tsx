@@ -1,21 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Users, Edit2, Trash2, Home, Check, Ruler } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, Home, Check, Ruler, AlertCircle } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { roomCategoriesApi } from '../../lib/api/roomCategories';
 import type { RoomCategory, RoomCategoryInsert, RoomCategoryUpdate } from '../../lib/supabase';
+
+interface RoomCategoryWithStats extends RoomCategory {
+  room_count?: number;
+}
 
 interface RoomCategoriesSectionProps {
   selectedHotelId: number | null;
 }
 
 export default function RoomCategoriesSection({ selectedHotelId }: RoomCategoriesSectionProps) {
-  const [categories, setCategories] = useState<RoomCategory[]>([]);
+  const [categories, setCategories] = useState<RoomCategoryWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<RoomCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<RoomCategoryWithStats | null>(null);
   const [formData, setFormData] = useState<Partial<RoomCategory>>({
     name: '',
     capacity: 1,
@@ -30,7 +34,7 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const response = await roomCategoriesApi.getCategories();
+      const response = await roomCategoriesApi.getCategoriesWithStats();
       
       if (response.success && response.data) {
         setCategories(response.data);
@@ -45,7 +49,7 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
     }
   };
 
-  const handleSelectCategory = (category: RoomCategory) => {
+  const handleSelectCategory = (category: RoomCategoryWithStats) => {
     setSelectedCategory(category);
   };
 
@@ -59,7 +63,7 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
     setShowForm(true);
   };
 
-  const handleEdit = (category: RoomCategory) => {
+  const handleEdit = (category: RoomCategoryWithStats) => {
     setFormData(category);
     setIsEditing(true);
     setShowForm(true);
@@ -149,6 +153,9 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
     );
   }
 
+  // Check if any category has rooms attached
+  const hasRoomsAttached = categories.some(cat => cat.room_count && cat.room_count > 0);
+
   return (
     <div>
       <div className="mb-6">
@@ -157,6 +164,24 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
           Gérez les différents types de chambres et leurs capacités d'accueil
         </p>
       </div>
+
+      {/* Warning for categories with rooms */}
+      {hasRoomsAttached && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div>
+              <p className="text-sm text-amber-800 font-medium">
+                Certaines catégories ont des chambres rattachées
+              </p>
+              <p className="text-sm text-amber-700 mt-1">
+                Les catégories avec des chambres ne peuvent pas être supprimées. 
+                Vous devez d'abord modifier ou supprimer les chambres rattachées.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Categories List */}
       {!showForm && (
@@ -212,6 +237,12 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
                             <span>Surface: {category.surface} m²</span>
                           </div>
                         )}
+                        {category.room_count !== undefined && category.room_count > 0 && (
+                          <div className="flex items-center gap-2 text-sm text-blue-600">
+                            <Home className="h-3 w-3" />
+                            <span>{category.room_count} chambre{category.room_count > 1 ? 's' : ''} rattachée{category.room_count > 1 ? 's' : ''}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-1 ml-2">
@@ -230,8 +261,15 @@ export default function RoomCategoriesSection({ selectedHotelId }: RoomCategorie
                           e.stopPropagation();
                           handleDelete(category.id);
                         }}
-                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Supprimer"
+                        className={`p-1.5 rounded transition-colors ${
+                          category.room_count && category.room_count > 0
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                        title={category.room_count && category.room_count > 0 
+                          ? `${category.room_count} chambre${category.room_count > 1 ? 's' : ''} rattachée${category.room_count > 1 ? 's' : ''}. Supprimez d'abord les chambres.`
+                          : 'Supprimer'
+                        }
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>

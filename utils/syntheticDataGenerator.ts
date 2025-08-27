@@ -33,7 +33,8 @@ export interface SyntheticHotel {
 
 export interface SyntheticRoom {
   numero: string;
-  type: string;
+  category_id: number;
+  category_name: string;
   prix: number;
   statut: 'disponible' | 'occupee' | 'maintenance';
   description: string;
@@ -87,18 +88,18 @@ const hotelSuffixes = ['Royal', 'Palace', 'Plaza', 'Grand', 'Moderne', 'Élégan
                         'du Parc', 'de la Gare', 'du Centre', 'de la Plage', 'des Voyageurs', 'du Commerce',
                         'Beau Rivage', 'Belle Vue', 'Soleil', 'de France'];
 
-// Room types with realistic pricing
-const roomTypes = [
-  { type: 'Simple', basePrice: 45, capacity: 1, size: 15 },
-  { type: 'Double', basePrice: 65, capacity: 2, size: 20 },
-  { type: 'Twin', basePrice: 65, capacity: 2, size: 20 },
-  { type: 'Triple', basePrice: 85, capacity: 3, size: 25 },
-  { type: 'Familiale', basePrice: 95, capacity: 4, size: 30 },
-  { type: 'Suite', basePrice: 120, capacity: 2, size: 35 },
-  { type: 'Suite Junior', basePrice: 150, capacity: 2, size: 40 },
-  { type: 'Suite Executive', basePrice: 200, capacity: 2, size: 50 },
-  { type: 'PMR', basePrice: 55, capacity: 2, size: 25 },
-  { type: 'Studio', basePrice: 55, capacity: 2, size: 22 }
+// Room categories with realistic pricing
+const roomCategories = [
+  { id: 1, name: 'Simple', basePrice: 45, capacity: 1, size: 15 },
+  { id: 2, name: 'Double', basePrice: 65, capacity: 2, size: 20 },
+  { id: 3, name: 'Twin', basePrice: 65, capacity: 2, size: 20 },
+  { id: 4, name: 'Triple', basePrice: 85, capacity: 3, size: 25 },
+  { id: 5, name: 'Familiale', basePrice: 95, capacity: 4, size: 30 },
+  { id: 6, name: 'Suite', basePrice: 120, capacity: 2, size: 35 },
+  { id: 7, name: 'Suite Junior', basePrice: 150, capacity: 2, size: 40 },
+  { id: 8, name: 'Suite Executive', basePrice: 200, capacity: 2, size: 50 },
+  { id: 9, name: 'PMR', basePrice: 55, capacity: 2, size: 25 },
+  { id: 10, name: 'Studio', basePrice: 55, capacity: 2, size: 22 }
 ];
 
 // Bed types
@@ -176,14 +177,14 @@ export function generateSyntheticHotel(): SyntheticHotel {
 
 // Generate synthetic room data
 export function generateSyntheticRoom(floorCount: number = 5): SyntheticRoom {
-  const roomType = faker.helpers.arrayElement(roomTypes);
+  const roomCategory = faker.helpers.arrayElement(roomCategories);
   const floor = faker.number.int({ min: 0, max: floorCount });
   const roomNumber = `${floor}${faker.string.numeric(2, { allowLeadingZeros: true })}`;
   
   // Price variation based on floor and randomness
   const priceVariation = faker.number.float({ min: 0.8, max: 1.3, precision: 0.01 });
   const floorBonus = floor > 3 ? 1.1 : 1;
-  const finalPrice = Math.round(roomType.basePrice * priceVariation * floorBonus);
+  const finalPrice = Math.round(roomCategory.basePrice * priceVariation * floorBonus);
   
   // Random amenities selection
   const numberOfAmenities = faker.number.int({ min: 3, max: 10 });
@@ -191,15 +192,16 @@ export function generateSyntheticRoom(floorCount: number = 5): SyntheticRoom {
   
   return {
     numero: roomNumber,
-    type: roomType.type,
+    category_id: roomCategory.id,
+    category_name: roomCategory.name,
     prix: finalPrice,
     statut: faker.helpers.weighted(
       ['disponible', 'occupee', 'maintenance'],
       [60, 35, 5]
     ),
-    description: `${roomType.type} ${faker.helpers.arrayElement(['confortable', 'moderne', 'récemment rénovée', 'spacieuse', 'élégante'])}`,
+    description: `${roomCategory.name} ${faker.helpers.arrayElement(['confortable', 'moderne', 'récemment rénovée', 'spacieuse', 'élégante'])}`,
     floor: floor,
-    room_size: roomType.size + faker.number.int({ min: -3, max: 5 }),
+    room_size: roomCategory.size + faker.number.int({ min: -3, max: 5 }),
     bed_type: faker.helpers.arrayElement(bedTypes),
     view_type: faker.helpers.arrayElement(viewTypes),
     is_smoking: faker.datatype.boolean({ probability: 0.1 }),

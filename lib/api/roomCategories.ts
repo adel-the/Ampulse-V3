@@ -95,16 +95,18 @@ export const roomCategoriesApi = {
   async deleteCategory(id: number): Promise<ApiResponse<boolean>> {
     try {
       // Check if category is used by any rooms
-      const { data: rooms, error: checkError } = await supabaseAdmin
+      const { data: rooms, error: checkError, count } = await supabaseAdmin
         .from('rooms')
-        .select('id')
-        .eq('category_id', id)
-        .limit(1);
+        .select('id', { count: 'exact' })
+        .eq('category_id', id);
 
       if (checkError) throw checkError;
 
       if (rooms && rooms.length > 0) {
-        throw new Error('Cette catégorie est utilisée par une ou plusieurs chambres et ne peut pas être supprimée');
+        const roomCount = count || rooms.length;
+        throw new Error(
+          `Impossible de supprimer cette catégorie : ${roomCount} chambre${roomCount > 1 ? 's sont rattachées' : ' est rattachée'} à cette catégorie. Veuillez d'abord modifier ou supprimer ces chambres avant de supprimer la catégorie.`
+        );
       }
 
       const { error } = await supabaseAdmin

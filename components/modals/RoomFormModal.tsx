@@ -15,7 +15,6 @@ interface RoomFormData {
   id?: number;
   hotel_id: number;
   numero: string;
-  type: string;
   prix: number;
   statut: 'disponible' | 'occupee' | 'maintenance';
   description?: string;
@@ -50,7 +49,6 @@ export default function RoomFormModal({
   const [formData, setFormData] = useState<RoomFormData>({
     hotel_id: initialData?.hotel_id || 1,
     numero: initialData?.numero || '',
-    type: initialData?.type || 'Simple',
     prix: initialData?.prix || 45,
     statut: initialData?.statut || 'disponible',
     description: initialData?.description || '',
@@ -61,23 +59,14 @@ export default function RoomFormModal({
     is_smoking: initialData?.is_smoking || false,
     equipment_ids: initialData?.equipment_ids || [],
     images: initialData?.images || [],
-    notes: initialData?.notes || ''
+    notes: initialData?.notes || '',
+    category_id: initialData?.category_id || undefined
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // Types de chambres disponibles
-  const roomTypes = [
-    { value: 'Simple', label: 'Chambre Simple', capacity: 1, basePrice: 45 },
-    { value: 'Double', label: 'Chambre Double', capacity: 2, basePrice: 65 },
-    { value: 'Twin', label: 'Chambre Twin', capacity: 2, basePrice: 65 },
-    { value: 'Familiale', label: 'Chambre Familiale', capacity: 4, basePrice: 85 },
-    { value: 'Suite', label: 'Suite', capacity: 2, basePrice: 120 },
-    { value: 'PMR', label: 'Chambre PMR', capacity: 2, basePrice: 55 },
-    { value: 'Studio', label: 'Studio', capacity: 2, basePrice: 55 }
-  ];
 
   // Charger les équipements disponibles pour l'hôtel de cette chambre
   const { equipments, loading: equipmentsLoading } = useHotelEquipmentCRUD(formData.hotel_id);
@@ -191,10 +180,6 @@ export default function RoomFormModal({
       newErrors.numero = 'Le numéro de chambre est obligatoire';
     }
 
-    if (!formData.type) {
-      newErrors.type = 'Le type de chambre est obligatoire';
-    }
-
     if (formData.prix <= 0) {
       newErrors.prix = 'Le prix doit être supérieur à 0';
     }
@@ -213,18 +198,7 @@ export default function RoomFormModal({
 
   // Gérer les changements de champs
   const handleInputChange = (field: string, value: any) => {
-    if (field === 'type') {
-      const selectedType = roomTypes.find(t => t.value === value);
-      if (selectedType) {
-        setFormData(prev => ({ 
-          ...prev, 
-          [field]: value,
-          prix: selectedType.basePrice 
-        }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     // Effacer l'erreur du champ modifié
     if (errors[field]) {
@@ -315,25 +289,6 @@ export default function RoomFormModal({
                       className={errors.numero ? 'border-red-500' : ''}
                     />
                     {errors.numero && <p className="text-red-500 text-xs mt-1">{errors.numero}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-                      Type de chambre *
-                    </Label>
-                    <select
-                      id="type"
-                      value={formData.type}
-                      onChange={(e) => handleInputChange('type', e.target.value)}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors.type ? 'border-red-500' : ''
-                      }`}
-                    >
-                      {roomTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                    {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
                   </div>
 
                   <div>

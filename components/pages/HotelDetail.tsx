@@ -22,6 +22,8 @@ import {
   Star
 } from 'lucide-react';
 import { Hotel, Room } from '../../types';
+import { useRoomCategories } from '@/hooks/useSupabase';
+import type { RoomCategory } from '@/lib/supabase';
 
 
 
@@ -32,6 +34,15 @@ interface HotelDetailProps {
 }
 
 export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailProps) {
+  const { categories: roomCategories } = useRoomCategories();
+  
+  // Helper to get category name from category_id
+  const getCategoryName = (categoryId: number | null) => {
+    if (!categoryId || !roomCategories) return 'Non défini';
+    const category = roomCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Non défini';
+  };
+  
   const [rooms, setRooms] = useState<Room[]>([
     { id: 1, numero: "101", type: "Simple", prix: 45, statut: "disponible", description: "Chambre simple avec salle de bain", hotelId: hotel.id, capacite: 1, accessibilite: false, dureeMaintenance: 0 },
     { id: 2, numero: "102", type: "Double", prix: 65, statut: "occupee", description: "Chambre double avec salle de bain", hotelId: hotel.id, capacite: 2, accessibilite: false, dureeMaintenance: 0 },
@@ -42,7 +53,7 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false);
   const [newRoom, setNewRoom] = useState({
     numero: '',
-    type: 'simple',
+    category_id: null as number | null,
     prix: '',
     description: ''
   });
@@ -67,10 +78,15 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
 
   const handleAddRoom = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newRoom.category_id) {
+      // Handle case where no category is selected
+      return;
+    }
+    
     const room: Room = {
       id: Date.now(),
       numero: newRoom.numero,
-      type: newRoom.type,
+      type: getCategoryName(newRoom.category_id),
       prix: parseInt(newRoom.prix),
       statut: 'disponible',
       description: newRoom.description,
@@ -80,7 +96,7 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
       dureeMaintenance: 0
     };
     setRooms([...rooms, room]);
-    setNewRoom({ numero: '', type: 'simple', prix: '', description: '' });
+    setNewRoom({ numero: '', category_id: null, prix: '', description: '' });
     setIsAddRoomModalOpen(false);
   };
 
@@ -222,7 +238,7 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Numéro</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Catégorie</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Prix/nuit</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Statut</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Description</th>
@@ -236,7 +252,7 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
                       <div className="font-medium text-gray-900">{room.numero}</div>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="text-sm text-gray-900">{room.type}</div>
+                      <div className="text-sm text-gray-900">{getCategoryName(room.category_id) || room.type}</div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center text-sm font-medium text-gray-900">
@@ -300,17 +316,17 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
               </div>
               
               <div>
-                <Label htmlFor="type">Type de chambre</Label>
+                <Label htmlFor="category">Catégorie de chambre</Label>
                 <select
-                  id="type"
-                  value={newRoom.type}
-                  onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
+                  id="category"
+                  value={newRoom.category_id || ''}
+                  onChange={(e) => setNewRoom({ ...newRoom, category_id: Number(e.target.value) })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                 >
-                  <option value="simple">Simple</option>
-                  <option value="double">Double</option>
-                  <option value="familiale">Familiale</option>
-                  <option value="adapte">Adaptée</option>
+                  <option value="">Sélectionner une catégorie</option>
+                  {roomCategories?.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
                 </select>
               </div>
               
