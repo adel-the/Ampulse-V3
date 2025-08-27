@@ -104,17 +104,27 @@ export default function EstablishmentsSection({ onEstablishmentSelect, currentSe
 
     try {
       console.log('Appel API de suppression...');
-      // Utiliser la suppression hard (true) pour vraiment supprimer
+      // Utiliser la suppression hard (true) pour vraiment supprimer avec cascade
       const response = await establishmentsApi.deleteEstablishment(id, true);
       console.log('Réponse de suppression:', response);
       
-      if (response.success) {
-        addNotification('success', 'Établissement supprimé avec succès');
-        await loadEstablishments();
-        // Sélectionner un autre établissement si celui supprimé était sélectionné
-        if (selectedEstablishment?.id === id) {
-          const remainingEstablishments = establishments.filter(e => e.id !== id);
-          setSelectedEstablishment(remainingEstablishments[0] || null);
+      if (response.success && response.data) {
+        const deletionResult = response.data;
+        
+        if (deletionResult.success) {
+          // Suppression réussie - afficher le message détaillé
+          addNotification('success', deletionResult.message || 'Établissement supprimé avec succès');
+          await loadEstablishments();
+          
+          // Sélectionner un autre établissement si celui supprimé était sélectionné
+          if (selectedEstablishment?.id === id) {
+            const remainingEstablishments = establishments.filter(e => e.id !== id);
+            setSelectedEstablishment(remainingEstablishments[0] || null);
+          }
+        } else {
+          // Suppression bloquée (ex: réservations actives)
+          console.error('Suppression bloquée:', deletionResult.message);
+          addNotification('error', deletionResult.message || 'Suppression impossible');
         }
       } else {
         console.error('Erreur de l\'API:', response.error);

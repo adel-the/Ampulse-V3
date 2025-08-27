@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Edit, Trash2, ToggleLeft, ToggleRight, Building2, MapPin, Phone, Mail, User, Users } from 'lucide-react';
+import DeleteHotelModal from '../modals/DeleteHotelModal';
 import type { Establishment } from '@/lib/api/establishments';
 
 interface EstablishmentCardProps {
@@ -22,6 +23,8 @@ export default function EstablishmentCard({
   onToggleStatus,
   isLoading = false
 }: EstablishmentCardProps) {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isActive = establishment.statut === 'ACTIF';
   const occupancyRate = establishment.chambres_total > 0 
     ? Math.round((establishment.chambres_occupees / establishment.chambres_total) * 100)
@@ -32,8 +35,18 @@ export default function EstablishmentCard({
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'établissement "${establishment.nom}" ?`)) {
-      onDelete(establishment.id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async (hotelId: number) => {
+    setIsDeleting(true);
+    try {
+      await onDelete(hotelId);
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error('Error deleting hotel:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -178,6 +191,15 @@ export default function EstablishmentCard({
           </div>
         )}
       </CardContent>
+
+      {/* Delete confirmation modal */}
+      <DeleteHotelModal
+        hotel={establishment}
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </Card>
   );
 }

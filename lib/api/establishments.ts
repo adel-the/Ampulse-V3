@@ -281,16 +281,61 @@ export const establishmentsApi = {
   },
 
   /**
-   * Delete an establishment (soft delete by setting is_active to false)
+   * Preview what would be deleted when removing a hotel
    */
-  async deleteEstablishment(id: number, hardDelete = false): Promise<ApiResponse<boolean>> {
+  async previewHotelDeletion(id: number): Promise<ApiResponse<{
+    hotel_name: string;
+    rooms_count: number;
+    active_reservations_count: number;
+    can_delete: boolean;
+    deletion_preview: string;
+  }>> {
+    try {
+      const { data, error } = await supabaseAdmin
+        .rpc('preview_hotel_deletion', {
+          p_hotel_id: id
+        })
+
+      if (error) {
+        console.error('Error previewing hotel deletion:', error)
+        return {
+          data: null,
+          error: error.message,
+          success: false
+        }
+      }
+
+      return {
+        data: data?.[0] || null,
+        error: null,
+        success: true
+      }
+    } catch (err) {
+      console.error('Unexpected error previewing hotel deletion:', err)
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : 'Unknown error occurred',
+        success: false
+      }
+    }
+  },
+
+  /**
+   * Delete an establishment with cascade validation
+   */
+  async deleteEstablishment(id: number, hardDelete = false): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    affected_rooms?: number;
+    blocked_reservations?: number;
+  }>> {
     try {
       if (hardDelete) {
-        // Hard delete - actually remove from database
-        const { error } = await supabaseAdmin
-          .from('hotels')
-          .delete()
-          .eq('id', id)
+        // Hard delete - use safe deletion function with cascade validation
+        const { data, error } = await supabaseAdmin
+          .rpc('safe_delete_hotel', {
+            p_hotel_id: id
+          })
 
         if (error) {
           console.error('Error deleting establishment:', error)
@@ -300,8 +345,23 @@ export const establishmentsApi = {
             success: false
           }
         }
+
+        const result = data?.[0]
+        if (!result?.success) {
+          return {
+            data: result,
+            error: result?.message || 'Suppression impossible',
+            success: false
+          }
+        }
+
+        return {
+          data: result,
+          error: null,
+          success: true
+        }
       } else {
-        // Soft delete - set statut to INACTIF
+        // Soft delete - set statut to INACTIF (no cascade needed)
         const { error } = await supabaseAdmin
           .from('hotels')
           .update({ 
@@ -318,12 +378,15 @@ export const establishmentsApi = {
             success: false
           }
         }
-      }
 
-      return {
-        data: true,
-        error: null,
-        success: true
+        return {
+          data: {
+            success: true,
+            message: 'Établissement désactivé avec succès'
+          },
+          error: null,
+          success: true
+        }
       }
     } catch (err) {
       console.error('Unexpected error deleting establishment:', err)
