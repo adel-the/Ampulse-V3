@@ -157,21 +157,36 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     };
     
     const count = roomCounts[hotelName] || 20;
-    const defaultCategories = roomCategories || [
+    const defaultCategories = roomCategories && roomCategories.length > 0 ? roomCategories : [
       { id: 1, name: 'Simple', capacity: 1, surface: 18 },
       { id: 2, name: 'Double', capacity: 2, surface: 25 },
       { id: 3, name: 'Suite', capacity: 4, surface: 40 }
     ];
     
     return Array.from({ length: count }, (_, i) => {
-      const categoryIndex = i < count * 0.3 ? 0 : i < count * 0.7 ? 1 : 2;
-      const category = defaultCategories[categoryIndex] || defaultCategories[0];
+      // Ensure we have at least one category
+      if (defaultCategories.length === 0) {
+        return {
+          id: `${hotelName}-room-${i + 1}`,
+          numero: `${i + 1}`,
+          category_id: 1,
+          category_name: 'Standard',
+          etage: Math.floor(i / 10) + 1
+        };
+      }
+      
+      // Calculate category index based on distribution, ensuring it's within bounds
+      const categoryIndex = Math.min(
+        i < count * 0.3 ? 0 : i < count * 0.7 ? 1 : 2,
+        defaultCategories.length - 1
+      );
+      const category = defaultCategories[categoryIndex];
       
       return {
         id: `${hotelName}-room-${i + 1}`,
         numero: `${i + 1}`,
-        category_id: category.id,
-        category_name: category.name,
+        category_id: category?.id || 1,
+        category_name: category?.name || 'Standard',
         etage: Math.floor(i / 10) + 1
       };
     });
