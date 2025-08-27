@@ -7,6 +7,7 @@ export interface ClientWithRelations extends Client {
 }
 
 export interface ClientFormData {
+  // ===== DATABASE FIELDS (will be sent to Supabase) =====
   // Informations de base
   client_type: ClientCategory;
   nom: string;
@@ -22,25 +23,43 @@ export interface ClientFormData {
   ville?: string;
   code_postal?: string;
   
-  // Informations commerciales (Entreprise/Association)
+  // Commercial/Legal
   siret?: string;
+  
+  // Statut
+  statut?: 'actif' | 'inactif' | 'prospect' | 'archive';
+  
+  // ===== UI-ONLY FIELDS (not sent to database) =====
+  // These fields are used for form display but filtered out before API calls
   secteur_activite?: string;
   nombre_employes?: number;
   numero_agrement?: string;
   nombre_adherents?: number;
-  
-  // Informations personnelles (Particulier)
   nombre_enfants?: number;
-  
-  // Statut et paiement
-  statut?: 'actif' | 'inactif' | 'prospect' | 'archive';
   mode_paiement?: string;
   delai_paiement?: number;
   taux_tva?: number;
   conditions_paiement?: string;
-  
-  // Notes
   notes?: string;
+}
+
+// Database-only interface that matches the exact Supabase schema
+export interface ClientDatabaseData {
+  id?: number;
+  nom: string;
+  prenom?: string | null;
+  email?: string | null;
+  telephone?: string | null;
+  adresse?: string | null;
+  ville?: string | null;
+  code_postal?: string | null;
+  client_type: 'Particulier' | 'Entreprise' | 'Association';
+  statut?: 'actif' | 'inactif' | 'prospect';
+  numero_client?: string | null;
+  raison_sociale?: string | null;
+  siret?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ReferentFormData {
@@ -136,14 +155,31 @@ export const clientsApi = {
   },
 
   // Créer un client
-  async createClient(clientData: ClientFormData): Promise<ApiResponse<Client>> {
+  async createClient(clientData: any): Promise<ApiResponse<Client>> {
     try {
-      // Préparer les données pour l'insertion
-      const insertData = {
-        ...clientData,
+      console.log('=== CLIENTS API DEBUG ===');
+      console.log('Received clientData:', clientData);
+      
+      // Prepare data for insertion - only include fields that exist in database schema
+      const insertData: ClientDatabaseData = {
+        client_type: clientData.client_type,
+        nom: clientData.nom,
+        statut: clientData.statut || 'actif',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+      
+      // Add optional fields only if they have values
+      if (clientData.prenom?.trim()) insertData.prenom = clientData.prenom.trim();
+      if (clientData.email?.trim()) insertData.email = clientData.email.trim();
+      if (clientData.telephone?.trim()) insertData.telephone = clientData.telephone.trim();
+      if (clientData.adresse?.trim()) insertData.adresse = clientData.adresse.trim();
+      if (clientData.ville?.trim()) insertData.ville = clientData.ville.trim();
+      if (clientData.code_postal?.trim()) insertData.code_postal = clientData.code_postal.trim();
+      if (clientData.raison_sociale?.trim()) insertData.raison_sociale = clientData.raison_sociale.trim();
+      if (clientData.siret?.trim()) insertData.siret = clientData.siret.trim();
+
+      console.log('Prepared insertData (database-only fields):', insertData);
 
       const { data, error } = await supabaseAdmin
         .from('clients')
@@ -151,10 +187,33 @@ export const clientsApi = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        throw error;
+      }
+      
+      console.log('Successfully created client:', data);
       return { data, error: null, success: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erreur lors de la création du client';
+      console.error('Full createClient error:', error);
+      let message = 'Erreur lors de la création du client';
+      
+      if (error instanceof Error) {
+        // Provide more specific error messages for common issues
+        if (error.message.includes('duplicate key')) {
+          message = 'Un client avec ces informations existe déjà';
+        } else if (error.message.includes('violates check constraint')) {
+          message = 'Les données saisies ne respectent pas les contraintes';
+        } else if (error.message.includes('column') && error.message.includes('does not exist')) {
+          message = 'Erreur de structure de données (champ inexistant)';
+        } else {
+          message = error.message;
+        }
+      }
+      
       return { data: null, error: message, success: false };
     }
   },

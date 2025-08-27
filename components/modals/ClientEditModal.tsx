@@ -353,26 +353,76 @@ export default function ClientEditModal({
 
     setLoading(true);
     try {
+      // Log the exact form data being sent
+      console.log('=== CLIENT FORM SUBMISSION DEBUG ===');
+      console.log('Full formData:', formData);
+      console.log('Client type:', formData.client_type);
+      console.log('Is new client:', !client?.id);
+      
       let response;
       
       if (client?.id) {
-        // Update existing client
-        response = await clientsApi.updateClient(client.id, formData);
+        // Update existing client - Filter data to only include database fields
+        const filteredUpdateData: any = {
+          client_type: formData.client_type,
+          nom: formData.nom,
+          statut: formData.statut === 'archive' ? 'inactif' : (formData.statut || 'actif')
+        };
+        
+        // Only add optional fields if they have values
+        if (formData.prenom?.trim()) filteredUpdateData.prenom = formData.prenom.trim();
+        if (formData.email?.trim()) filteredUpdateData.email = formData.email.trim();
+        if (formData.telephone?.trim()) filteredUpdateData.telephone = formData.telephone.trim();
+        if (formData.adresse?.trim()) filteredUpdateData.adresse = formData.adresse.trim();
+        if (formData.ville?.trim()) filteredUpdateData.ville = formData.ville.trim();
+        if (formData.code_postal?.trim()) filteredUpdateData.code_postal = formData.code_postal.trim();
+        if (formData.raison_sociale?.trim()) filteredUpdateData.raison_sociale = formData.raison_sociale.trim();
+        if (formData.siret?.trim()) filteredUpdateData.siret = formData.siret.trim();
+        
+        console.log('Updating client with ID:', client.id);
+        console.log('Filtered update data:', filteredUpdateData);
+        response = await clientsApi.updateClient(client.id, filteredUpdateData);
       } else {
-        // Create new client
-        response = await clientsApi.createClient(formData);
+        // Create new client - Filter data to only include database fields
+        const filteredClientData: any = {
+          client_type: formData.client_type,
+          nom: formData.nom,
+          statut: formData.statut === 'archive' ? 'inactif' : (formData.statut || 'actif')
+        };
+        
+        // Only add optional fields if they have values
+        if (formData.prenom?.trim()) filteredClientData.prenom = formData.prenom.trim();
+        if (formData.email?.trim()) filteredClientData.email = formData.email.trim();
+        if (formData.telephone?.trim()) filteredClientData.telephone = formData.telephone.trim();
+        if (formData.adresse?.trim()) filteredClientData.adresse = formData.adresse.trim();
+        if (formData.ville?.trim()) filteredClientData.ville = formData.ville.trim();
+        if (formData.code_postal?.trim()) filteredClientData.code_postal = formData.code_postal.trim();
+        if (formData.raison_sociale?.trim()) filteredClientData.raison_sociale = formData.raison_sociale.trim();
+        if (formData.siret?.trim()) filteredClientData.siret = formData.siret.trim();
+        
+        console.log('Creating new client with formData:', formData);
+        console.log('Filtered client data for DB:', filteredClientData);
+        response = await clientsApi.createClient(filteredClientData);
+        console.log('API Response:', response);
       }
 
       if (response.success) {
+        console.log('Success - Client saved:', response.data);
         addNotification('success', client ? 'Client modifié avec succès' : 'Client créé avec succès');
         onSuccess?.();
         onClose();
       } else {
-        addNotification('error', response.error || 'Une erreur est survenue');
+        console.error('API Error Response:', response);
+        const errorMessage = response.error || 'Une erreur est survenue';
+        console.error('Displaying error to user:', errorMessage);
+        addNotification('error', `Erreur: ${errorMessage}`);
       }
     } catch (error) {
+      console.error('=== FULL ERROR DETAILS ===');
       console.error('Error saving client:', error);
-      addNotification('error', 'Une erreur est survenue lors de l\'enregistrement');
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      addNotification('error', `Erreur lors de l'enregistrement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     } finally {
       setLoading(false);
     }
