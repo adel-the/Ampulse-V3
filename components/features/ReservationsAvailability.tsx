@@ -33,9 +33,14 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
   const [selectedRoomType, setSelectedRoomType] = useState<string>('all');
   const [selectedCharacteristic, setSelectedCharacteristic] = useState<string>('all');
   const [searchRoomNumber, setSearchRoomNumber] = useState<string>('');
+  // Initialiser avec des dates par défaut pour déclencher la recherche automatiquement
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 7);
+  
   const [searchDateRange, setSearchDateRange] = useState({
-    startDate: '',
-    endDate: ''
+    startDate: today.toISOString().split('T')[0],
+    endDate: tomorrow.toISOString().split('T')[0]
   });
   const [searchHotel, setSearchHotel] = useState<string>('all');
   const [numberOfGuests, setNumberOfGuests] = useState<number>(1);
@@ -129,6 +134,16 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
     }
 
     setLoadingRooms(true);
+    console.log('🔍 Recherche de chambres avec paramètres:', {
+      dates: `${searchDateRange.startDate} → ${searchDateRange.endDate}`,
+      hotel: searchHotel,
+      guests: numberOfGuests,
+      roomType: selectedRoomType,
+      characteristic: selectedCharacteristic,
+      roomNumber: searchRoomNumber,
+      rentalMode: rentalMode
+    });
+    
     try {
       // Trouver l'ID de l'hôtel si spécifié
       let hotelId = null;
@@ -151,10 +166,22 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
          });
 
       if (error) {
-        console.error('Erreur lors de la recherche des chambres:', error);
-        // Fallback vers la méthode simulée
-        setAvailableRooms(getSimulatedRooms());
+        console.error('❌ Erreur lors de la recherche des chambres:', error);
+        console.error('Détails de l\'erreur:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        // En cas d'erreur, afficher un tableau vide plutôt que des données simulées
+        setAvailableRooms([]);
       } else if (data && data.length > 0) {
+        console.log(`✅ Base de données a retourné ${data.length} chambres`);
+        // Calculer le nombre de nuits pour le calcul du prix total
+        const startDate = new Date(searchDateRange.startDate);
+        const endDate = new Date(searchDateRange.endDate);
+        const numberOfNights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        
         // Transformer les données pour correspondre au format attendu
         const transformedRooms = data.map((room: any) => ({
           hotel: room.hotel_nom || 'Hôtel',
@@ -177,22 +204,28 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
           filteredRooms = transformedRooms.filter((room: any) => room.capacity >= numberOfGuests);
         }
         
+        console.log(`📊 Après filtrage par capacité: ${filteredRooms.length} chambres disponibles`);
         setAvailableRooms(filteredRooms);
+      } else if (data && data.length === 0) {
+        // Si data est vide, aucune chambre trouvée
+        console.log('⚠️ Aucune chambre trouvée pour ces critères');
+        setAvailableRooms([]);
       } else {
-        // Si pas de données, utiliser les données simulées
-        console.log('Aucune chambre trouvée dans la base de données, utilisation des données simulées');
-        setAvailableRooms(getSimulatedRooms());
+        // Si data est null/undefined
+        console.log('⚠️ Aucune donnée retournée par la base de données');
+        setAvailableRooms([]);
       }
     } catch (error) {
       console.error('Erreur lors de la recherche des chambres:', error);
-      // Fallback vers la méthode simulée
-      setAvailableRooms(getSimulatedRooms());
+      // En cas d'erreur, afficher un tableau vide plutôt que des données simulées
+      setAvailableRooms([]);
     } finally {
       setLoadingRooms(false);
     }
   };
 
-  // Méthode simulée en cas d'erreur avec la base de données
+  // Fonction supprimée - utilisation uniquement de données réelles
+  /* REMOVED getSimulatedRooms
   const getSimulatedRooms = () => {
     const searchStart = new Date(searchDateRange.startDate);
     const searchEnd = new Date(searchDateRange.endDate);
@@ -286,13 +319,14 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
 
     return simulatedRooms;
   };
+  */
 
-  // Effectuer la recherche automatiquement seulement si les dates sont définies
+  // Effectuer la recherche automatiquement quand les dates changent
   useEffect(() => {
     if (searchDateRange.startDate && searchDateRange.endDate) {
       searchAvailableRooms();
     }
-  }, [searchDateRange.startDate, searchDateRange.endDate]);
+  }, [searchDateRange.startDate, searchDateRange.endDate, searchHotel, selectedRoomType, numberOfGuests, selectedCharacteristic, searchRoomNumber]);
 
   // Générer des caractéristiques aléatoires pour les chambres
   const getRandomCharacteristics = () => {
