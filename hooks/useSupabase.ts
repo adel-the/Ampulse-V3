@@ -15,7 +15,8 @@ import type {
   Document,
   Notification,
   Client,
-  ClientType,
+  ClientCategory,
+  CLIENT_TYPES,
   ClientWithDetails,
   ClientSearchResult,
   ClientStatistics,
@@ -1317,7 +1318,7 @@ export const useClients = (options?: HookOptions) => {
       const { data, error } = await supabaseAdmin
         .rpc('search_simple_clients', {
           p_search_term: searchTerm || '',
-          p_type_id: typeId || null,
+          p_client_type: typeId ? (typeId === 1 ? 'Particulier' : typeId === 2 ? 'Entreprise' : 'Association') : null,
           p_statut: statut || null,
           p_limit: 100
         })
@@ -1371,17 +1372,17 @@ export const useClients = (options?: HookOptions) => {
     }
   }
 
-  const getClientTypes = async (): Promise<ApiResponse<ClientType[]>> => {
+  const getClientTypes = async (): Promise<ApiResponse<Array<{id: number, nom: string}>>> => {
     try {
       setError(null)
       
-      const { data, error } = await supabaseAdmin
-        .from('client_types')
-        .select('*')
-        .order('ordre')
-
-      if (error) throw error
-      return { data: data || [], error: null, success: true }
+      // Return static client types for backward compatibility
+      const types = CLIENT_TYPES.map((type, index) => ({
+        id: index + 1,
+        nom: type
+      }));
+      
+      return { data: types, error: null, success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des types de clients'
       setError(errorMessage)

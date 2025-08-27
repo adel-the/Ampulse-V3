@@ -9,26 +9,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { User, Building, Users, CreditCard, Phone, FileText, TestTube, RotateCcw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { ClientType, ClientFormData, Client, ReferentFormData, ConventionFormData } from '../../lib/supabase';
+import { CLIENT_TYPES } from '../../lib/supabase';
+import type { ClientCategory, ClientFormData, Client, ReferentFormData, ConventionFormData } from '../../lib/supabase';
 
 interface AddClientFormProps {
-  clientTypes: ClientType[];
-  preSelectedType?: number | null;
+  preSelectedType?: ClientCategory | null;
   client?: Client | null; // For editing existing client
   onClientAdded?: (client: Client) => void;
   onCancel?: () => void;
   className?: string;
 }
 
-// Types de clients constants (fallback)
-const DEFAULT_CLIENT_TYPES: ClientType[] = [
-  { id: 1, nom: 'Particulier', description: 'Client individuel', icone: 'user', couleur: '#3B82F6', ordre: 1, created_at: '', updated_at: '' },
-  { id: 2, nom: 'Entreprise', description: 'Société commerciale', icone: 'building', couleur: '#10B981', ordre: 2, created_at: '', updated_at: '' },
-  { id: 3, nom: 'Association', description: 'Organisation à but non lucratif', icone: 'users', couleur: '#F59E0B', ordre: 3, created_at: '', updated_at: '' }
-];
 
 export default function AddClientForm({ 
-  clientTypes = DEFAULT_CLIENT_TYPES, 
   preSelectedType,
   client, // The client to edit (if any)
   onClientAdded,
@@ -36,10 +29,10 @@ export default function AddClientForm({
   className = ''
 }: AddClientFormProps) {
   const [loading, setLoading] = useState(false);
-  const [selectedType, setSelectedType] = useState<number | null>(client?.type_id || preSelectedType || null);
+  const [selectedType, setSelectedType] = useState<ClientCategory | null>(client?.client_type || preSelectedType || null);
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState<Partial<ClientFormData>>({
-    type_id: client?.type_id || preSelectedType || 1,
+    client_type: client?.client_type || preSelectedType || 'Particulier',
     statut: client?.statut || 'actif',
     nom: client?.nom || '',
     prenom: client?.prenom || '',
@@ -61,11 +54,10 @@ export default function AddClientForm({
   const [testDataApplied, setTestDataApplied] = useState(false);
 
   // Fonction pour générer les données de test selon le type de client
-  const getPlaceholderData = (typeId: number) => {
-    const typeData = clientTypes.find(t => t.id === typeId);
-    if (!typeData) return { formData: {}, referentData: {}, conventionData: {} };
+  const getPlaceholderData = (clientType: ClientCategory) => {
+    if (!clientType) return { formData: {}, referentData: {}, conventionData: {} };
 
-    switch (typeData.nom) {
+    switch (clientType) {
       case 'Particulier':
         return {
           formData: {
@@ -161,11 +153,11 @@ export default function AddClientForm({
   };
 
   // Fonction pour appliquer les données de test
-  const applyPlaceholderData = (typeId: number) => {
-    const placeholderData = getPlaceholderData(typeId);
+  const applyPlaceholderData = (clientType: ClientCategory) => {
+    const placeholderData = getPlaceholderData(clientType);
     setFormData(prev => ({ 
       ...prev, 
-      type_id: typeId, 
+      client_type: clientType, 
       statut: 'actif',
       ...placeholderData.formData 
     }));
@@ -180,7 +172,7 @@ export default function AddClientForm({
   // Fonction pour vider le formulaire
   const clearForm = () => {
     setFormData({
-      type_id: selectedType || 1,
+      client_type: selectedType || 'Particulier',
       statut: 'actif',
       mode_paiement: 'virement',
       delai_paiement: 30,
@@ -191,14 +183,14 @@ export default function AddClientForm({
     setTestDataApplied(false);
   };
 
-  const selectedTypeData = clientTypes.find(t => t.id === selectedType);
+  const selectedTypeData = selectedType;
 
   // Appliquer les données de test au montage si un type est présélectionné et pas en mode édition
   useEffect(() => {
-    if (!client && preSelectedType && clientTypes.length > 0) {
+    if (!client && preSelectedType) {
       applyPlaceholderData(preSelectedType);
     }
-  }, [client, preSelectedType, clientTypes]);
+  }, [client, preSelectedType]);
 
   const updateFormData = (field: keyof ClientFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -224,7 +216,7 @@ export default function AddClientForm({
 
       // Prepare simplified client data
       const clientData: Partial<Client> = {
-        type_id: selectedType,
+        client_type: selectedType || 'Particulier',
         nom: formData.nom!,
         prenom: formData.prenom,
         email: formData.email,
@@ -284,7 +276,7 @@ export default function AddClientForm({
       }
 
       // Create convention if active and for non-Particulier types (only for new clients)
-      if (!client && conventionData.active && selectedType !== 1) {
+      if (!client && conventionData.active && selectedType !== 'Particulier') {
         const { error: conventionError } = await supabase
           .from('conventions_tarifaires')
           .insert({
@@ -306,7 +298,7 @@ export default function AddClientForm({
       onClientAdded?.(clientResult);
       
       // Reset form
-      setFormData({ type_id: preSelectedType || 1, statut: 'actif' });
+      setFormData({ client_type: preSelectedType || 'Particulier', statut: 'actif' });
       setReferentData({});
       setConventionData({ active: false });
       setSelectedType(null);
@@ -351,23 +343,27 @@ export default function AddClientForm({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {clientTypes.map((type) => (
+              {CLIENT_TYPES.map((type) => (
                 <button
-                  key={type.id}
+                  key={type}
                   type="button"
                   onClick={() => {
-                    setSelectedType(type.id);
-                    applyPlaceholderData(type.id);
+                    setSelectedType(type);
+                    applyPlaceholderData(type);
                   }}
                   className={`p-6 border-2 rounded-lg transition-all duration-200 text-center ${
-                    selectedType === type.id 
+                    selectedType === type 
                       ? 'border-primary bg-primary/5' 
-                      : getTypeColorClass(type.nom)
+                      : getTypeColorClass(type)
                   }`}
                 >
-                  <div className="mb-2">{getTypeIcon(type.nom)}</div>
-                  <div className="font-semibold text-lg">{type.nom}</div>
-                  <div className="text-sm text-gray-600 mt-1">{type.description}</div>
+                  <div className="mb-2">{getTypeIcon(type)}</div>
+                  <div className="font-semibold text-lg">{type}</div>
+                  <div className="text-sm text-gray-600 mt-1">{
+                    type === 'Particulier' ? 'Personne physique' :
+                    type === 'Entreprise' ? 'Société commerciale' :
+                    'Organisation à but non lucratif'
+                  }</div>
                 </button>
               ))}
             </div>
@@ -382,8 +378,12 @@ export default function AddClientForm({
           <AlertDescription>
             <div className="flex items-center justify-between">
               <div>
-                <strong>Type de client :</strong> {selectedTypeData.nom}
-                <div className="text-sm text-gray-600">{selectedTypeData.description}</div>
+                <strong>Type de client :</strong> {selectedTypeData}
+                <div className="text-sm text-gray-600">{
+                  selectedTypeData === 'Particulier' ? 'Personne physique' :
+                  selectedTypeData === 'Entreprise' ? 'Société commerciale' :
+                  'Organisation à but non lucratif'
+                }</div>
               </div>
               {onCancel && (
                 <Button type="button" variant="outline" onClick={onCancel} size="sm">
@@ -403,7 +403,7 @@ export default function AddClientForm({
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  {client ? 'Modifier le Client' : 'Ajouter un Nouveau Client'} - {selectedTypeData?.nom}
+                  {client ? 'Modifier le Client' : 'Ajouter un Nouveau Client'} - {selectedTypeData}
                 </div>
                 <div className="flex items-center gap-2">
                   {testDataApplied && (
@@ -438,7 +438,7 @@ export default function AddClientForm({
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="basic">Informations</TabsTrigger>
-                  <TabsTrigger value="convention" disabled={selectedType === 1}>Convention</TabsTrigger>
+                  <TabsTrigger value="convention" disabled={selectedType === 'Particulier'}>Convention</TabsTrigger>
                 </TabsList>
 
                 {/* Onglet Informations complètes */}
@@ -451,7 +451,7 @@ export default function AddClientForm({
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedTypeData?.nom === 'Particulier' ? (
+                      {selectedTypeData === 'Particulier' ? (
                         <>
                           <div>
                             <Label htmlFor="nom">Nom *</Label>
@@ -707,12 +707,12 @@ export default function AddClientForm({
 
                 {/* Onglet Convention */}
                 <TabsContent value="convention" className="space-y-4">
-                  {selectedTypeData && selectedType !== 1 ? (
+                  {selectedTypeData && selectedType !== 'Particulier' ? (
                     <>
                       <Alert>
                         <FileText className="h-4 w-4" />
                         <AlertDescription>
-                          Convention tarifaire pour {selectedTypeData.nom === 'Entreprise' ? 'les entreprises' : 'les associations'}
+                          Convention tarifaire pour {selectedTypeData === 'Entreprise' ? 'les entreprises' : 'les associations'}
                         </AlertDescription>
                       </Alert>
                       

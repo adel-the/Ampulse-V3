@@ -9,7 +9,8 @@ import { Badge } from '../ui/badge';
 import { Search, Plus, Users, Building, UserCheck, Filter, Eye, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, FileText, Download, MoreVertical, RefreshCcw } from 'lucide-react';
 import { clientsApi, type ClientWithRelations } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
-import type { Client, ClientType } from '@/lib/supabase';
+import { CLIENT_TYPES } from '@/lib/supabase';
+import type { Client, ClientCategory } from '@/lib/supabase';
 import ClientEditModal from '../modals/ClientEditModal';
 import ConfirmationDialog from '../ui/confirmation-dialog';
 
@@ -27,7 +28,7 @@ interface ClientStats {
 export default function ClientsSection() {
   const { addNotification } = useNotifications();
   const [clients, setClients] = useState<Client[]>([]);
-  const [clientTypes, setClientTypes] = useState<ClientType[]>([]);
+  // Client types are now static constants
   const [stats, setStats] = useState<ClientStats>({
     total: 0,
     actifs: 0,
@@ -40,7 +41,7 @@ export default function ClientsSection() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<number | null>(null);
+  const [selectedType, setSelectedType] = useState<ClientCategory | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState('list');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
@@ -54,17 +55,10 @@ export default function ClientsSection() {
 
   // Load data on mount
   useEffect(() => {
-    loadClientTypes();
+    // Client types are now static constants
     loadClients();
   }, []);
 
-  // Load client types
-  const loadClientTypes = async () => {
-    const response = await clientsApi.getClientTypes();
-    if (response.success && response.data) {
-      setClientTypes(response.data);
-    }
-  };
 
   // Load clients
   const loadClients = async () => {
@@ -89,10 +83,10 @@ export default function ClientsSection() {
       actifs: clientList.filter(c => c.statut === 'actif').length,
       inactifs: clientList.filter(c => c.statut === 'inactif').length,
       prospects: clientList.filter(c => c.statut === 'prospect').length,
-      archives: clientList.filter(c => c.statut === 'archive').length,
-      particuliers: clientList.filter(c => c.type_id === 1).length,
-      entreprises: clientList.filter(c => c.type_id === 2).length,
-      associations: clientList.filter(c => c.type_id === 3).length
+      archives: 0, // Archive status not yet implemented
+      particuliers: clientList.filter(c => c.client_type === 'Particulier').length,
+      entreprises: clientList.filter(c => c.client_type === 'Entreprise').length,
+      associations: clientList.filter(c => c.client_type === 'Association').length
     };
     setStats(newStats);
   };
@@ -156,8 +150,8 @@ export default function ClientsSection() {
   };
 
   // Get client type info
-  const getClientType = (typeId: number) => {
-    return clientTypes.find(t => t.id === typeId);
+  const getClientType = (clientType: ClientCategory) => {
+    return clientType || 'Non défini';
   };
 
   // Get status color
@@ -173,18 +167,18 @@ export default function ClientsSection() {
 
   // Get client display name
   const getClientDisplayName = (client: Client) => {
-    if (client.type_id === 1) {
+    if (client.client_type === 'Particulier') {
       return `${client.prenom || ''} ${client.nom || ''}`.trim();
     }
     return client.raison_sociale || client.nom || '';
   };
 
   // Get type icon
-  const getTypeIcon = (typeId: number) => {
-    switch (typeId) {
-      case 1: return User;
-      case 2: return Building;
-      case 3: return Users;
+  const getTypeIcon = (clientType: ClientCategory) => {
+    switch (clientType) {
+      case 'Particulier': return User;
+      case 'Entreprise': return Building;
+      case 'Association': return Users;
       default: return User;
     }
   };
@@ -259,12 +253,12 @@ export default function ClientsSection() {
           
           <select
             value={selectedType || ''}
-            onChange={(e) => setSelectedType(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) => setSelectedType(e.target.value ? e.target.value as ClientCategory : null)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Tous les types</option>
-            {clientTypes.map(type => (
-              <option key={type.id} value={type.id}>{type.nom}</option>
+            {CLIENT_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
             ))}
           </select>
           
@@ -354,8 +348,8 @@ export default function ClientsSection() {
                     </thead>
                     <tbody>
                       {clients.map(client => {
-                        const type = getClientType(client.type_id || 1);
-                        const TypeIcon = getTypeIcon(client.type_id || 1);
+                        const type = getClientType(client.client_type || 'Particulier');
+                        const TypeIcon = getTypeIcon(client.client_type || 'Particulier');
                         
                         return (
                           <tr key={client.id} className="border-b hover:bg-gray-50">
@@ -444,8 +438,8 @@ export default function ClientsSection() {
             // Grid view
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {clients.map(client => {
-                const type = getClientType(client.type_id || 1);
-                const TypeIcon = getTypeIcon(client.type_id || 1);
+                const type = getClientType(client.client_type || 'Particulier');
+                const TypeIcon = getTypeIcon(client.client_type || 'Particulier');
                 
                 return (
                   <Card key={client.id} className="hover:shadow-md transition-shadow">
@@ -544,7 +538,6 @@ export default function ClientsSection() {
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         client={selectedClient}
-        clientTypes={clientTypes}
         onSuccess={handleModalSuccess}
       />
 

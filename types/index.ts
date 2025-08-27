@@ -429,22 +429,14 @@ export interface DocumentPreview {
   dateGeneration: string;
 }
 
-// Interfaces pour la gestion des clients
-export interface ClientType {
-  id: number;
-  nom: string;
-  description?: string;
-  icone?: string;
-  couleur: string;
-  ordre: number;
-  actif: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Client type constants
+export const CLIENT_TYPES = ['Particulier', 'Entreprise', 'Association'] as const;
+export type ClientCategory = typeof CLIENT_TYPES[number];
 
+// Interfaces pour la gestion des clients
 export interface Client {
   id: number;
-  type_id: number;
+  client_type: ClientCategory;
   nom: string;
   prenom?: string;
   raison_sociale?: string;
@@ -594,7 +586,6 @@ export interface ClientSegmentAssignment {
 
 // Interface pour les clients avec informations complètes
 export interface ClientWithDetails extends Omit<Client, 'notes'> {
-  type?: ClientType;
   contacts?: ClientContact[];
   documents?: ClientDocument[];
   interactions?: ClientInteraction[];
@@ -608,7 +599,7 @@ export interface ClientSearchResult {
   id: number;
   numero_client: string;
   nom_complet: string;
-  type_nom: string;
+  client_type: ClientCategory;
   email?: string;
   telephone?: string;
   ville?: string;
@@ -629,7 +620,7 @@ export interface ClientStatistics {
 
 // Interface pour le formulaire d'ajout/modification de client
 export interface ClientFormData {
-  type_id: number;
+  client_type: ClientCategory;
   nom: string;
   prenom?: string;
   raison_sociale?: string;
@@ -673,7 +664,7 @@ export interface ClientFormData {
 // Interface pour les filtres de recherche clients
 export interface ClientSearchFilters {
   search_term?: string;
-  type_id?: number;
+  client_type?: ClientCategory;
   statut?: string;
   ville?: string;
   commercial_id?: string;

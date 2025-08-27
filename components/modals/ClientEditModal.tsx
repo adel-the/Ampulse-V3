@@ -12,13 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { clientsApi } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
-import type { ClientType } from '@/lib/supabase';
+import type { ClientCategory } from '@/lib/supabase';
 
 interface ClientEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   client?: ClientWithRelations | null;
-  clientTypes: ClientType[];
   onSuccess?: () => void;
 }
 
@@ -26,7 +25,6 @@ export default function ClientEditModal({
   isOpen,
   onClose,
   client,
-  clientTypes,
   onSuccess
 }: ClientEditModalProps) {
   const { addNotification } = useNotifications();
@@ -35,7 +33,7 @@ export default function ClientEditModal({
   
   // Form data
   const [formData, setFormData] = useState<ClientFormData>({
-    type_id: 1,
+    client_type: 'Particulier',
     nom: '',
     prenom: '',
     raison_sociale: '',
@@ -88,7 +86,7 @@ export default function ClientEditModal({
   useEffect(() => {
     if (isOpen && client) {
       setFormData({
-        type_id: client.type_id || 1,
+        client_type: client.client_type || 'Particulier',
         nom: client.nom || '',
         prenom: client.prenom || '',
         raison_sociale: client.raison_sociale || '',
@@ -115,7 +113,7 @@ export default function ClientEditModal({
     } else if (isOpen) {
       // Reset form for new client
       setFormData({
-        type_id: 1,
+        client_type: 'Particulier',
         nom: '',
         prenom: '',
         raison_sociale: '',
@@ -143,10 +141,9 @@ export default function ClientEditModal({
   }, [isOpen, client]);
 
   // Get selected client type
-  const selectedType = clientTypes.find(t => t.id === formData.type_id);
-  const isParticulier = formData.type_id === 1;
-  const isEntreprise = formData.type_id === 2;
-  const isAssociation = formData.type_id === 3;
+  const isParticulier = formData.client_type === 'Particulier';
+  const isEntreprise = formData.client_type === 'Entreprise';
+  const isAssociation = formData.client_type === 'Association';
 
   // Validation
   const validateForm = () => {
@@ -390,22 +387,22 @@ export default function ClientEditModal({
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4">
-                    {clientTypes.map(type => (
+                    {[{value: 'Particulier', label: 'Particulier', description: 'Client individuel'}, {value: 'Entreprise', label: 'Entreprise', description: 'Société commerciale'}, {value: 'Association', label: 'Association', description: 'Organisation à but non lucratif'}].map(type => (
                       <button
-                        key={type.id}
+                        key={type.value}
                         type="button"
-                        onClick={() => setFormData({ ...formData, type_id: type.id })}
+                        onClick={() => setFormData({ ...formData, client_type: type.value as ClientCategory })}
                         className={`p-4 border-2 rounded-lg transition-all ${
-                          formData.type_id === type.id
+                          formData.client_type === type.value
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         <div className="flex flex-col items-center">
-                          {type.id === 1 && <User className="h-8 w-8 mb-2 text-blue-600" />}
-                          {type.id === 2 && <Building className="h-8 w-8 mb-2 text-green-600" />}
-                          {type.id === 3 && <Users className="h-8 w-8 mb-2 text-amber-600" />}
-                          <span className="font-medium">{type.nom}</span>
+                          {type.value === 'Particulier' && <User className="h-8 w-8 mb-2 text-blue-600" />}
+                          {type.value === 'Entreprise' && <Building className="h-8 w-8 mb-2 text-green-600" />}
+                          {type.value === 'Association' && <Users className="h-8 w-8 mb-2 text-amber-600" />}
+                          <span className="font-medium">{type.label}</span>
                           <span className="text-xs text-gray-500">{type.description}</span>
                         </div>
                       </button>

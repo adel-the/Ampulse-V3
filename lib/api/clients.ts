@@ -1,15 +1,14 @@
 import { supabaseAdmin } from '../supabase';
-import type { Client, ClientType, Referent, ConventionTarifaire } from '../supabase';
+import type { Client, Referent, ConventionTarifaire, ClientCategory, CLIENT_TYPES } from '../supabase';
 
 export interface ClientWithRelations extends Client {
-  type?: ClientType;
   referents?: Referent[];
   conventions?: ConventionTarifaire[];
 }
 
 export interface ClientFormData {
   // Informations de base
-  type_id: number;
+  client_type: ClientCategory;
   nom: string;
   prenom?: string;
   raison_sociale?: string;
@@ -93,7 +92,6 @@ export const clientsApi = {
         .from('clients')
         .select(`
           *,
-          type:client_types(*),
           referents(*),
           conventions:conventions_tarifaires(*)
         `)
@@ -109,7 +107,7 @@ export const clientsApi = {
   },
 
   // Rechercher des clients
-  async searchClients(searchTerm?: string, typeId?: number, statut?: string): Promise<ApiResponse<Client[]>> {
+  async searchClients(searchTerm?: string, clientType?: ClientCategory, statut?: string): Promise<ApiResponse<Client[]>> {
     try {
       let query = supabaseAdmin.from('clients').select('*');
 
@@ -117,8 +115,8 @@ export const clientsApi = {
         query = query.or(`nom.ilike.%${searchTerm}%,prenom.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,raison_sociale.ilike.%${searchTerm}%`);
       }
 
-      if (typeId) {
-        query = query.eq('type_id', typeId);
+      if (clientType) {
+        query = query.eq('client_type', clientType);
       }
 
       if (statut) {
@@ -217,16 +215,15 @@ export const clientsApi = {
     }
   },
 
-  // Récupérer les types de clients
-  async getClientTypes(): Promise<ApiResponse<ClientType[]>> {
+  // Récupérer les types de clients (pour compatibilité descendante)
+  async getClientTypes(): Promise<ApiResponse<Array<{id: number, nom: string}>>> {
     try {
-      const { data, error } = await supabaseAdmin
-        .from('client_types')
-        .select('*')
-        .order('ordre', { ascending: true });
-
-      if (error) throw error;
-      return { data: data || [], error: null, success: true };
+      // Return static client types for backward compatibility
+      const types = CLIENT_TYPES.map((type, index) => ({
+        id: index + 1,
+        nom: type
+      }));
+      return { data: types, error: null, success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur lors du chargement des types';
       return { data: null, error: message, success: false };

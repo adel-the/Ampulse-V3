@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Client, 
-  ClientType, 
+  ClientCategory,
+  CLIENT_TYPES,
   ClientSearchResult, 
   ClientStatistics, 
   ClientFormData,
@@ -27,20 +28,14 @@ interface ClientManagementProps {
   onClientSelect?: (client: Client) => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  selectedTypeForForm?: number | null;
-  setSelectedTypeForForm?: (type: number | null) => void;
+  selectedTypeForForm?: ClientCategory | null;
+  setSelectedTypeForForm?: (type: ClientCategory | null) => void;
 }
 
-// Types de clients en dur (solution adaptée)
-const CLIENT_TYPES = [
-  { id: 1, nom: 'Particulier', description: 'Client individuel', icone: 'user', couleur: '#3B82F6' },
-  { id: 2, nom: 'Entreprise', description: 'Société commerciale', icone: 'building', couleur: '#10B981' },
-  { id: 3, nom: 'Association', description: 'Organisation à but non lucratif', icone: 'users', couleur: '#F59E0B' }
-];
 
 // Fonction pour générer un numéro client
-function generateClientNumber(typeId: number, existingNumbers: string[] = []): string {
-  const typeCode = typeId === 1 ? 'PAR' : typeId === 2 ? 'ENT' : 'ASS';
+function generateClientNumber(clientType: ClientCategory, existingNumbers: string[] = []): string {
+  const typeCode = clientType === 'Particulier' ? 'PAR' : clientType === 'Entreprise' ? 'ENT' : 'ASS';
   const existingForType = existingNumbers
     .filter(num => num.startsWith(typeCode))
     .map(num => parseInt(num.substring(3)) || 0);
@@ -51,16 +46,16 @@ function generateClientNumber(typeId: number, existingNumbers: string[] = []): s
 
 export default function ClientManagement({ onClientSelect, activeTab: externalActiveTab, onTabChange, selectedTypeForForm: externalType, setSelectedTypeForForm: setExternalType }: ClientManagementProps) {
   const [clients, setClients] = useState<ClientSearchResult[]>([]);
-  const [clientTypes, setClientTypes] = useState<ClientType[]>([]);
+  // Client types are now static constants
   const [statistics, setStatistics] = useState<ClientStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<number | null>(null);
+  const [selectedType, setSelectedType] = useState<ClientCategory | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientWithDetails | null>(null);
   const [internalActiveTab, setInternalActiveTab] = useState('list');
-  const [internalSelectedTypeForForm, setInternalSelectedTypeForForm] = useState<number | null>(null);
+  const [internalSelectedTypeForForm, setInternalSelectedTypeForForm] = useState<ClientCategory | null>(null);
   const selectedTypeForForm = externalType !== undefined ? externalType : internalSelectedTypeForForm;
   const setSelectedTypeForForm = setExternalType || setInternalSelectedTypeForForm;
   
@@ -76,24 +71,11 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
 
   // Charger les données initiales
   useEffect(() => {
-    loadClientTypes();
+    // Client types are now static constants
     loadStatistics();
     searchClients();
   }, []);
 
-  const loadClientTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('client_types')
-        .select('*')
-        .order('ordre');
-
-      if (error) throw error;
-      setClientTypes(data || []);
-    } catch (error) {
-      // Removed console.error to clean up console output
-    }
-  };
 
   const loadStatistics = async () => {
     try {
@@ -113,7 +95,7 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
       const { data, error } = await supabase
         .rpc('search_clients', {
           p_search_term: searchTerm || '',
-          p_type_id: selectedType,
+          p_client_type: selectedType,
           p_statut: selectedStatus || null,
           p_limit: 50
         });
@@ -138,7 +120,6 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
         .from('clients')
         .select(`
           *,
-          type:client_types(*),
           contacts:client_contacts(*),
           documents:client_documents(*),
           interactions:client_interactions(*),
@@ -249,11 +230,11 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
                     id="type"
                     className="w-full p-2 border border-gray-300 rounded-md"
                     value={selectedType || ''}
-                    onChange={(e) => setSelectedType(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => setSelectedType(e.target.value as ClientCategory || null)}
                   >
                     <option value="">Tous les types</option>
-                    {clientTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.nom}</option>
+                    {CLIENT_TYPES.map(type => (
+                      <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
                 </div>
@@ -304,11 +285,11 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
                       onClick={() => handleClientSelect(client)}
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="text-2xl">{getTypeIcon(client.type_nom)}</div>
+                        <div className="text-2xl">{getTypeIcon(client.client_type)}</div>
                         <div>
                           <div className="font-medium">{client.nom_complet}</div>
                           <div className="text-sm text-gray-500">
-                            {client.numero_client} • {client.type_nom}
+                            {client.numero_client} • {client.client_type}
                           </div>
                           {client.email && (
                             <div className="text-sm text-gray-500">{client.email}</div>
@@ -350,7 +331,7 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
-                    onClick={() => setSelectedTypeForForm(clientTypes.find(t => t.nom === 'Particulier')?.id || null)}
+                    onClick={() => setSelectedTypeForForm('Particulier')}
                     className="p-6 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 text-center"
                   >
                     <div className="text-4xl mb-2">👤</div>
@@ -359,7 +340,7 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
                   </button>
                   
                   <button
-                    onClick={() => setSelectedTypeForForm(clientTypes.find(t => t.nom === 'Entreprise')?.id || null)}
+                    onClick={() => setSelectedTypeForForm('Entreprise')}
                     className="p-6 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all duration-200 text-center"
                   >
                     <div className="text-4xl mb-2">🏢</div>
@@ -368,7 +349,7 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
                   </button>
                   
                   <button
-                    onClick={() => setSelectedTypeForForm(clientTypes.find(t => t.nom === 'Association')?.id || null)}
+                    onClick={() => setSelectedTypeForForm('Association')}
                     className="p-6 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 text-center"
                   >
                     <div className="text-4xl mb-2">👥</div>
@@ -382,7 +363,6 @@ export default function ClientManagement({ onClientSelect, activeTab: externalAc
             {/* Formulaire d'ajout */}
             {selectedTypeForForm && (
               <AddClientForm 
-                clientTypes={clientTypes.length > 0 ? clientTypes : CLIENT_TYPES}
                 preSelectedType={selectedTypeForForm}
                 onClientAdded={(client) => {
                   setShowAddModal(false);
@@ -519,13 +499,13 @@ function ClientDetails({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-xl">
-                {client.type?.nom === 'Particulier' 
+                {client.client_type === 'Particulier' 
                   ? `${client.nom} ${client.prenom || ''}`.trim()
                   : client.raison_sociale || client.nom
                 }
               </CardTitle>
               <div className="text-sm text-gray-500 mt-1">
-                {client.numero_client} • {client.type?.nom}
+                {client.numero_client} • {client.client_type}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -570,7 +550,7 @@ function ClientDetails({
                 <div className="space-y-6">
                   {/* Informations de base */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {client.type?.nom === 'Particulier' ? (
+                    {client.client_type === 'Particulier' ? (
                       <>
                         <div>
                           <Label htmlFor="edit-nom">Nom *</Label>
@@ -676,7 +656,7 @@ function ClientDetails({
                   </div>
 
                   {/* Informations spécifiques selon le type */}
-                  {client.type?.nom === 'Entreprise' && (
+                  {client.client_type === 'Entreprise' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="edit-siret">SIRET</Label>
@@ -697,7 +677,7 @@ function ClientDetails({
                     </div>
                   )}
 
-                  {client.type?.nom === 'Association' && (
+                  {client.client_type === 'Association' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="edit-numero-agrement">Numéro d'agrément</Label>
@@ -719,7 +699,7 @@ function ClientDetails({
                     </div>
                   )}
 
-                  {client.type?.nom === 'Particulier' && (
+                  {client.client_type === 'Particulier' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="edit-nombre-enfants">Nombre d'enfants</Label>

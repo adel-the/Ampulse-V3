@@ -44,7 +44,7 @@ import {
   Calculator,
   Building
 } from 'lucide-react';
-import { OperateurSocial, Client as ClientType } from '../../types';
+import { OperateurSocial, Client as ClientType, ClientCategory } from '../../types';
 import { supabase } from '../../lib/supabase';
 import AddClientPage from '../pages/AddClientPage';
 import React from 'react'; // Added missing import for React
@@ -89,10 +89,10 @@ interface Client {
 }
 
 // Types et constantes pour l'édition
-const CLIENT_TYPES = [
-  { id: 1, label: 'Particulier', icon: User },
-  { id: 2, label: 'Entreprise', icon: Building },
-  { id: 3, label: 'Association', icon: Heart }
+const CLIENT_TYPE_OPTIONS = [
+  { value: 'Particulier', label: 'Particulier', icon: User },
+  { value: 'Entreprise', label: 'Entreprise', icon: Building },
+  { value: 'Association', label: 'Association', icon: Heart }
 ];
 
 const SECTEURS_ACTIVITE = [
@@ -171,7 +171,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
       setLoading(true);
       const { data, error } = await supabase.rpc('search_clients', {
         p_search_term: '',
-        p_type_id: null,
+        p_client_type: null,
         p_statut: null,
         p_limit: 100
       });
@@ -210,7 +210,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
       numero_agrement: client.numero_agrement || '',
       nombre_adherents: client.nombre_adherents || undefined,
       nombre_enfants: client.nombre_enfants || undefined,
-      type_id: client.type_id || 1
+      client_type: client.client_type || 'Particulier'
     });
     setIsEditing(true);
     setEditActiveTab('general');
@@ -492,9 +492,9 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
       client.raison_sociale?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType = typeFilter === 'all' || 
-      (typeFilter === 'association' && client.type_id === 3) ||
-      (typeFilter === 'entreprise' && client.type_id === 2) ||
-      (typeFilter === 'particulier' && client.type_id === 1);
+      (typeFilter === 'association' && client.client_type === 'Association') ||
+      (typeFilter === 'entreprise' && client.client_type === 'Entreprise') ||
+      (typeFilter === 'particulier' && client.client_type === 'Particulier');
 
     const matchesStatus = statusFilter === 'all' || client.statut === statusFilter;
 
@@ -508,9 +508,9 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
   const prospectsClients = allClients.filter(c => c.statut === 'prospect').length;
   const archivesClients = allClients.filter(c => c.statut === 'archive').length;
 
-  const associationsClientsCount = allClients.filter(c => c.type_id === 3).length;
-  const entreprisesClientsCount = allClients.filter(c => c.type_id === 2).length;
-  const particuliersClientsCount = allClients.filter(c => c.type_id === 1).length;
+  const associationsClientsCount = allClients.filter(c => c.client_type === 'Association').length;
+  const entreprisesClientsCount = allClients.filter(c => c.client_type === 'Entreprise').length;
+  const particuliersClientsCount = allClients.filter(c => c.client_type === 'Particulier').length;
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
@@ -540,20 +540,15 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
     }
   };
 
-  const getTypeName = (typeId: number) => {
-    switch (typeId) {
-      case 1: return 'Particulier';
-      case 2: return 'Entreprise';
-      case 3: return 'Association';
-      default: return 'Inconnu';
-    }
+  const getTypeName = (clientType: ClientCategory) => {
+    return clientType || 'Inconnu';
   };
 
-  const getTypeIconById = (typeId: number) => {
-    switch (typeId) {
-      case 1: return User;
-      case 2: return Building2;
-      case 3: return Heart;
+  const getTypeIconByType = (clientType: ClientCategory) => {
+    switch (clientType) {
+      case 'Particulier': return User;
+      case 'Entreprise': return Building2;
+      case 'Association': return Heart;
       default: return User;
     }
   };
@@ -625,17 +620,17 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                 <div>
                   <Label className="text-base font-medium">Type de structure *</Label>
                   <div className="grid grid-cols-3 gap-4 mt-2">
-                    {CLIENT_TYPES.map((type) => {
+                    {CLIENT_TYPE_OPTIONS.map((type) => {
                       const Icon = type.icon;
                       return (
                         <Card 
-                          key={type.id}
+                          key={type.value}
                           className={`cursor-pointer transition-all ${
-                            editFormData.type_id === type.id 
+                            editFormData.client_type === type.value 
                               ? 'ring-2 ring-blue-500 bg-blue-50' 
                               : 'hover:bg-gray-50'
                           }`}
-                          onClick={() => setEditFormData(prev => ({ ...prev, type_id: type.id }))}
+                          onClick={() => setEditFormData(prev => ({ ...prev, client_type: type.value as ClientCategory }))}
                         >
                           <CardContent className="p-4 text-center">
                             <Icon className="h-8 w-8 mx-auto mb-2 text-blue-600" />
@@ -658,7 +653,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     />
                   </div>
 
-                  {editFormData.type_id === 1 && (
+                  {editFormData.client_type === 'Particulier' && (
                     <div>
                       <Label htmlFor="prenom">Prénom *</Label>
                       <Input
@@ -670,7 +665,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </div>
                   )}
 
-                  {editFormData.type_id !== 1 && (
+                  {editFormData.client_type !== 'Particulier' && (
                     <div>
                       <Label htmlFor="raison_sociale">Raison sociale *</Label>
                       <Input
@@ -682,7 +677,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </div>
                   )}
 
-                  {editFormData.type_id === 2 && (
+                  {editFormData.client_type === 'Entreprise' && (
                     <div>
                       <Label htmlFor="siret">SIRET</Label>
                       <Input
@@ -694,7 +689,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </div>
                   )}
 
-                  {editFormData.type_id === 3 && (
+                  {editFormData.client_type === 'Association' && (
                     <div>
                       <Label htmlFor="numero_agrement">Numéro d'agrément</Label>
                       <Input
@@ -721,7 +716,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </select>
                   </div>
 
-                  {editFormData.type_id === 2 && (
+                  {editFormData.client_type === 'Entreprise' && (
                     <div>
                       <Label htmlFor="nombre_employes">Nombre d'employés</Label>
                       <Input
@@ -733,7 +728,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </div>
                   )}
 
-                  {editFormData.type_id === 3 && (
+                  {editFormData.client_type === 'Association' && (
                     <div>
                       <Label htmlFor="nombre_adherents">Nombre d'adhérents</Label>
                       <Input
@@ -745,7 +740,7 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                     </div>
                   )}
 
-                  {editFormData.type_id === 1 && (
+                  {editFormData.client_type === 'Particulier' && (
                     <div>
                       <Label htmlFor="nombre_enfants">Nombre d'enfants</Label>
                       <Input
@@ -1196,8 +1191,8 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
             {filteredClients.slice(0, 5).map((client) => (
               <div key={client.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-4">
-                  <div className={`p-2 rounded-full ${getTypeColor(getTypeName(client.type_id || 1).toLowerCase())}`}>
-                    {React.createElement(getTypeIconById(client.type_id || 1), { className: "h-4 w-4" })}
+                  <div className={`p-2 rounded-full ${getTypeColor(getTypeName(client.client_type || 'Particulier').toLowerCase())}`}>
+                    {React.createElement(getTypeIconByType(client.client_type || 'Particulier'), { className: "h-4 w-4" })}
                   </div>
                   <div>
                     <p className="font-medium">{getClientFullName(client)}</p>
@@ -1226,15 +1221,15 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
 
   // Rendu de la liste des clients
   const renderClientList = (clientType: 'association' | 'entreprise' | 'particulier') => {
-    const typeId = clientType === 'association' ? 3 : clientType === 'entreprise' ? 2 : 1;
-    const clients = filteredClients.filter(client => client.type_id === typeId);
+    const clientTypeEnum = clientType === 'association' ? 'Association' : clientType === 'entreprise' ? 'Entreprise' : 'Particulier';
+    const clients = filteredClients.filter(client => client.client_type === clientTypeEnum);
 
     return (
       <div className="space-y-4">
         {clients.length === 0 ? (
           <Card className="p-8 text-center">
             <div className="text-gray-400 mb-4">
-              {React.createElement(getTypeIconById(typeId), { className: "h-12 w-12 mx-auto" })}
+              {React.createElement(getTypeIconByType(clientTypeEnum), { className: "h-12 w-12 mx-auto" })}
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun client {clientType}</h3>
             <p className="text-gray-600">Aucun client de ce type trouvé</p>
@@ -1246,8 +1241,8 @@ export default function OperateursTable({ operateurs, onOperateurSelect, onAddOp
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <div className={`p-2 rounded-full ${getTypeColor(getTypeName(client.type_id || 1).toLowerCase())}`}>
-                        {React.createElement(getTypeIconById(client.type_id || 1), { className: "h-4 w-4" })}
+                      <div className={`p-2 rounded-full ${getTypeColor(getTypeName(client.client_type || 'Particulier').toLowerCase())}`}>
+                        {React.createElement(getTypeIconByType(client.client_type || 'Particulier'), { className: "h-4 w-4" })}
                       </div>
                       <div>
                         <CardTitle className="text-base">{getClientFullName(client)}</CardTitle>

@@ -794,7 +794,7 @@ export interface Database {
           adresse: string | null
           ville: string | null
           code_postal: string | null
-          type_id: number
+          client_type: 'Particulier' | 'Entreprise' | 'Association'
           statut: 'actif' | 'inactif' | 'prospect'
           numero_client: string | null
           raison_sociale: string | null
@@ -811,7 +811,7 @@ export interface Database {
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          type_id?: number
+          client_type: 'Particulier' | 'Entreprise' | 'Association'
           statut?: 'actif' | 'inactif' | 'prospect'
           numero_client?: string | null
           raison_sociale?: string | null
@@ -828,7 +828,7 @@ export interface Database {
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          type_id?: number
+          client_type?: 'Particulier' | 'Entreprise' | 'Association'
           statut?: 'actif' | 'inactif' | 'prospect'
           numero_client?: string | null
           raison_sociale?: string | null
@@ -906,38 +906,6 @@ export interface Database {
           forfait_mensuel?: number | null
           conditions?: string | null
           active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      client_types: {
-        Row: {
-          id: number
-          nom: string
-          description: string | null
-          icone: string | null
-          couleur: string | null
-          ordre: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          nom: string
-          description?: string | null
-          icone?: string | null
-          couleur?: string | null
-          ordre?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          nom?: string
-          description?: string | null
-          icone?: string | null
-          couleur?: string | null
-          ordre?: number
           created_at?: string
           updated_at?: string
         }
@@ -1149,7 +1117,6 @@ export type DocumentTemplate = Tables<'document_templates'>
 export type Document = Tables<'documents'>
 export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
-export type ClientType = Tables<'client_types'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 export type Equipment = Tables<'equipments'>
@@ -1188,9 +1155,12 @@ export interface RoomEquipmentWithDetails extends EquipmentAssignment {
   equipment?: Equipment
 }
 
+// Client types constants
+export const CLIENT_TYPES = ['Particulier', 'Entreprise', 'Association'] as const
+export type ClientCategory = typeof CLIENT_TYPES[number]
+
 // Simplified client types
 export interface ClientWithDetails extends Client {
-  type?: ClientType
   referents?: Referent[]
   conventions?: ConventionTarifaire[]
 }
@@ -1206,7 +1176,7 @@ export interface ClientFormData {
   adresse?: string
   code_postal?: string
   ville?: string
-  type_id?: number
+  client_type: ClientCategory
   statut?: 'actif' | 'inactif' | 'prospect'
   
   // Billing information
@@ -1234,7 +1204,7 @@ export interface ClientSearchResult {
   id: number
   numero_client: string
   nom_complet: string
-  type_nom: string
+  client_type: ClientCategory
   email?: string
   telephone?: string
   ville?: string
