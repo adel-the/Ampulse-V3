@@ -154,20 +154,20 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
         console.error('Erreur lors de la recherche des chambres:', error);
         // Fallback vers la méthode simulée
         setAvailableRooms(getSimulatedRooms());
-      } else {
+      } else if (data && data.length > 0) {
         // Transformer les données pour correspondre au format attendu
         const transformedRooms = data.map((room: any) => ({
-          hotel: room.hotel_nom,
-          hotelAddress: room.hotel_adresse,
-          hotelVille: room.hotel_ville,
-          roomNumber: room.room_numero,
-          roomType: room.room_type,
-          isAvailable: room.is_available,
-          pricePerNight: room.price_per_night,
-          totalPrice: room.total_price,
-          characteristics: room.characteristics || getRandomCharacteristics(),
-          capacity: room.capacity,
-          roomId: room.room_id,
+          hotel: room.hotel_nom || 'Hôtel',
+          hotelAddress: room.hotel_adresse || '',
+          hotelVille: room.hotel_ville || '',
+          roomNumber: room.numero || `Room ${room.id}`,
+          roomType: room.category_name || 'Standard',
+          isAvailable: room.is_available !== false,
+          pricePerNight: room.prix || 60,
+          totalPrice: room.prix ? room.prix * numberOfNights : 60 * numberOfNights,
+          characteristics: getRandomCharacteristics(),
+          capacity: room.capacity || 2,
+          roomId: room.id,
           hotelId: room.hotel_id
         }));
         
@@ -178,6 +178,10 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
         }
         
         setAvailableRooms(filteredRooms);
+      } else {
+        // Si pas de données, utiliser les données simulées
+        console.log('Aucune chambre trouvée dans la base de données, utilisation des données simulées');
+        setAvailableRooms(getSimulatedRooms());
       }
     } catch (error) {
       console.error('Erreur lors de la recherche des chambres:', error);
