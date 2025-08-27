@@ -8,7 +8,8 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useHotelEquipmentCRUD } from '@/hooks/useSupabase';
-import type { HotelEquipment } from '@/lib/supabase';
+import { roomCategoriesApi } from '@/lib/api/roomCategories';
+import type { HotelEquipment, RoomCategory } from '@/lib/supabase';
 
 interface RoomFormData {
   id?: number;
@@ -26,6 +27,7 @@ interface RoomFormData {
   equipment_ids?: number[];
   images?: string[];
   notes?: string;
+  category_id?: number;
 }
 
 interface RoomFormModalProps {
@@ -63,6 +65,8 @@ export default function RoomFormModal({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<RoomCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   // Types de chambres disponibles
   const roomTypes = [
@@ -77,6 +81,25 @@ export default function RoomFormModal({
 
   // Charger les équipements disponibles pour l'hôtel de cette chambre
   const { equipments, loading: equipmentsLoading } = useHotelEquipmentCRUD(formData.hotel_id);
+  
+  // Charger les catégories de chambres
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const response = await roomCategoriesApi.getCategories();
+        if (response.success && response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
   
   // Filtrer et organiser les équipements actifs par catégorie
   const equipmentsByCategory = useMemo(() => {
@@ -311,6 +334,29 @@ export default function RoomFormModal({
                       ))}
                     </select>
                     {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="category_id" className="text-sm font-medium text-gray-700">
+                      Catégorie
+                    </Label>
+                    <select
+                      id="category_id"
+                      value={formData.category_id || ''}
+                      onChange={(e) => handleInputChange('category_id', e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={categoriesLoading}
+                    >
+                      <option value="">Sélectionner une catégorie</option>
+                      {categories.map(category => (
+                        <option key={category.id} value={category.id}>
+                          {category.name} ({category.capacity} pers.)
+                        </option>
+                      ))}
+                    </select>
+                    {categoriesLoading && (
+                      <p className="text-xs text-gray-500 mt-1">Chargement des catégories...</p>
+                    )}
                   </div>
 
                   <div>

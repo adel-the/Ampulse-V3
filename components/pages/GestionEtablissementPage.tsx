@@ -5,11 +5,13 @@ import {
   Bed,
   Wrench,
   MapPin,
-  Building
+  Building,
+  Home
 } from 'lucide-react';
 import EstablishmentsSection from '../features/EstablishmentsSection';
 import RoomsSection from '../features/RoomsSection';
 import EquipmentsSection from '../features/EquipmentsSection';
+import RoomCategoriesSection from '../features/RoomCategoriesSection';
 import { establishmentsApi } from '../../lib/api/establishments';
 import { useNotifications } from '../../hooks/useNotifications';
 import type { Establishment } from '../../lib/api/establishments';
@@ -58,6 +60,11 @@ export default function GestionEtablissementPage() {
       icon: <Building2 className="h-4 w-4" />
     },
     {
+      id: 'categories',
+      label: 'Catégories de chambre',
+      icon: <Home className="h-4 w-4" />
+    },
+    {
       id: 'equipements',
       label: 'Équipements',
       icon: <Wrench className="h-4 w-4" />
@@ -79,6 +86,9 @@ export default function GestionEtablissementPage() {
             currentSelectedId={selectedEstablishment?.id}
           />
         );
+      
+      case 'categories':
+        return <RoomCategoriesSection selectedHotelId={selectedEstablishment?.id || null} />;
       
       case 'chambres':
         return <RoomsSection selectedHotelId={selectedEstablishment?.id || null} />;

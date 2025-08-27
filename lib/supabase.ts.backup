@@ -1,18 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-// Configuration Supabase Online - Production uniquement
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Admin client for operations that need service role permissions (bypasses RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
+import { createClient } from '@supabase/supabase-js'// Configuration Supabase avec fallback pour le développementconst supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URLconst supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEYconst supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEYif (!supabaseUrl) {  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable. Please check your .env.local file.')}// Utiliser la service role key en développement pour contourner les problèmes RLSconst isDevelopment = process.env.NEXT_PUBLIC_ENV === 'development'const keyToUse = isDevelopment && supabaseServiceRoleKey ? supabaseServiceRoleKey : supabaseAnonKeyif (!keyToUse) {  throw new Error('Missing Supabase key. Please check your .env.local file.')}// Avertissement en développementif (isDevelopment && supabaseServiceRoleKey && keyToUse === supabaseServiceRoleKey) {  console.warn('⚠️ Using service role key for development - this bypasses RLS policies')}export const supabase = createClient(supabaseUrl, keyToUse)
 
 // Types générés pour Supabase
 export interface Database {
@@ -250,7 +236,6 @@ export interface Database {
           equipment_ids: number[] | null
           last_cleaned: string | null
           notes: string | null
-          category_id: number | null
           created_at: string
           updated_at: string
         }
@@ -272,7 +257,6 @@ export interface Database {
           equipment_ids?: number[] | null
           last_cleaned?: string | null
           notes?: string | null
-          category_id?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -294,7 +278,6 @@ export interface Database {
           equipment_ids?: number[] | null
           last_cleaned?: string | null
           notes?: string | null
-          category_id?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -797,7 +780,7 @@ export interface Database {
           adresse: string | null
           ville: string | null
           code_postal: string | null
-          client_type: 'Particulier' | 'Entreprise' | 'Association'
+          type_id: number
           statut: 'actif' | 'inactif' | 'prospect'
           numero_client: string | null
           raison_sociale: string | null
@@ -814,7 +797,7 @@ export interface Database {
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          client_type: 'Particulier' | 'Entreprise' | 'Association'
+          type_id?: number
           statut?: 'actif' | 'inactif' | 'prospect'
           numero_client?: string | null
           raison_sociale?: string | null
@@ -831,7 +814,7 @@ export interface Database {
           adresse?: string | null
           ville?: string | null
           code_postal?: string | null
-          client_type?: 'Particulier' | 'Entreprise' | 'Association'
+          type_id?: number
           statut?: 'actif' | 'inactif' | 'prospect'
           numero_client?: string | null
           raison_sociale?: string | null
@@ -909,6 +892,38 @@ export interface Database {
           forfait_mensuel?: number | null
           conditions?: string | null
           active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      client_types: {
+        Row: {
+          id: number
+          nom: string
+          description: string | null
+          icone: string | null
+          couleur: string | null
+          ordre: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          nom: string
+          description?: string | null
+          icone?: string | null
+          couleur?: string | null
+          ordre?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          nom?: string
+          description?: string | null
+          icone?: string | null
+          couleur?: string | null
+          ordre?: number
           created_at?: string
           updated_at?: string
         }
@@ -1019,32 +1034,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      room_categories: {
-        Row: {
-          id: number
-          name: string
-          capacity: number
-          surface: number | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          name: string
-          capacity: number
-          surface?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          name?: string
-          capacity?: number
-          surface?: number | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
       equipment_assignments: {
         Row: {
           id: number
@@ -1135,10 +1124,6 @@ export type Establishment = Tables<'hotels'> // Alias pour clarté
 export type Room = Tables<'rooms'>
 export type RoomInsert = Inserts<'rooms'>
 export type RoomUpdate = Updates<'rooms'>
-
-export type RoomCategory = Tables<'room_categories'>
-export type RoomCategoryInsert = Inserts<'room_categories'>
-export type RoomCategoryUpdate = Updates<'room_categories'>
 export type Usager = Tables<'usagers'>
 export type OperateurSocial = Tables<'operateurs_sociaux'>
 export type Reservation = Tables<'reservations'>
@@ -1150,6 +1135,7 @@ export type DocumentTemplate = Tables<'document_templates'>
 export type Document = Tables<'documents'>
 export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
+export type ClientType = Tables<'client_types'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 export type Equipment = Tables<'equipments'>
@@ -1188,12 +1174,9 @@ export interface RoomEquipmentWithDetails extends EquipmentAssignment {
   equipment?: Equipment
 }
 
-// Client types constants
-export const CLIENT_TYPES = ['Particulier', 'Entreprise', 'Association'] as const
-export type ClientCategory = typeof CLIENT_TYPES[number]
-
 // Simplified client types
 export interface ClientWithDetails extends Client {
+  type?: ClientType
   referents?: Referent[]
   conventions?: ConventionTarifaire[]
 }
@@ -1209,7 +1192,7 @@ export interface ClientFormData {
   adresse?: string
   code_postal?: string
   ville?: string
-  client_type: ClientCategory
+  type_id?: number
   statut?: 'actif' | 'inactif' | 'prospect'
   
   // Billing information
@@ -1237,7 +1220,7 @@ export interface ClientSearchResult {
   id: number
   numero_client: string
   nom_complet: string
-  client_type: ClientCategory
+  type_nom: string
   email?: string
   telephone?: string
   ville?: string

@@ -31,7 +31,10 @@ import type {
   Inserts,
   Updates,
   RoomInsert,
-  RoomUpdate
+  RoomUpdate,
+  RoomCategory,
+  RoomCategoryInsert,
+  RoomCategoryUpdate
 } from '@/lib/supabase'
 
 // Types for API responses
@@ -2279,6 +2282,178 @@ export const useRoomEquipmentIds = (roomId?: number, hotelId?: number) => {
     addEquipment,
     removeEquipment,
     fetchRoomEquipments
+  }
+}
+
+// ====================================
+// Room Categories Management Hook
+// ====================================
+
+// Hook for room categories
+export const useRoomCategories = (options?: HookOptions) => {
+  const [categories, setCategories] = useState<RoomCategory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enableRealTime = false } = options || {}
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error } = await supabaseAdmin
+        .from('room_categories')
+        .select('*')
+        .order('name')
+
+      if (error) throw error
+      setCategories(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des catégories')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createCategory = async (category: RoomCategoryInsert): Promise<ApiResponse<RoomCategory>> => {
+    try {
+      setError(null)
+      const categoryData = {
+        ...category,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('room_categories')
+        .insert(categoryData)
+        .select()
+        .single()
+
+      if (error) throw error
+      setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la catégorie'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateCategory = async (id: number, updates: RoomCategoryUpdate): Promise<ApiResponse<RoomCategory>> => {
+    try {
+      setError(null)
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('room_categories')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      setCategories(prev => prev.map(cat => cat.id === id ? data : cat))
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la catégorie'
+      setError(errorMessage)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteCategory = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      setError(null)
+
+      // Check if category is used by any rooms
+      const { data: rooms, error: checkError } = await supabaseAdmin
+        .from('rooms')
+        .select('id')
+        .eq('category_id', id)
+        .limit(1)
+
+      if (checkError) {
+        console.warn('Could not check rooms before deletion:', checkError)
+      } else if (rooms && rooms.length > 0) {
+        throw new Error('Impossible de supprimer une catégorie utilisée par des chambres')
+      }
+
+      const { error } = await supabaseAdmin
+        .from('room_categories')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      setCategories(prev => prev.filter(cat => cat.id !== id))
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la catégorie'
+      setError(errorMessage)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime) return
+
+    const channel = supabase
+      .channel('room_categories')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_categories'
+        },
+        (payload) => {
+          console.log('Real-time room category update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setCategories(prev => {
+                if (!prev.some(c => c.id === payload.new.id)) {
+                  const newCategories = [...prev, payload.new as RoomCategory]
+                  return newCategories.sort((a, b) => a.name.localeCompare(b.name))
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setCategories(prev => prev.map(category => 
+                category.id === payload.new.id ? payload.new as RoomCategory : category
+              ))
+              break
+            case 'DELETE':
+              setCategories(prev => prev.filter(category => category.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [enableRealTime])
+
+  return {
+    categories,
+    loading,
+    error,
+    fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory
   }
 }
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { roomsApi } from '@/lib/api/rooms';
 import { establishmentsApi } from '@/lib/api/establishments';
+import { roomCategoriesApi } from '@/lib/api/roomCategories';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Plus, Bed, Edit2, Trash2, Check, MapPin, Users, DollarSign, Home, Wifi, Tv, Coffee, Car, AlertCircle, Filter } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import RoomFormModal from '../modals/RoomFormModal';
 import type { Room } from '@/lib/api/rooms';
 import type { Establishment } from '@/lib/api/establishments';
+import type { RoomCategory } from '@/lib/supabase';
 
 interface RoomFormData extends Partial<Room> {
   equipment_ids?: number[];
@@ -23,12 +25,14 @@ interface RoomsSectionProps {
 export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('tous');
   const [filterType, setFilterType] = useState<string>('tous');
+  const [filterCategory, setFilterCategory] = useState<string>('tous');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const { addNotification } = useNotifications();
 
@@ -47,6 +51,7 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
 
   useEffect(() => {
     loadEstablishments();
+    loadCategories();
   }, []);
 
   useEffect(() => {
@@ -61,6 +66,17 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des etablissements:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await roomCategoriesApi.getCategories();
+      if (response.success && response.data) {
+        setCategories(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des catégories:', error);
     }
   };
 
@@ -149,7 +165,8 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
           is_smoking: data.is_smoking || false,
           equipment_ids: data.equipment_ids || [],
           images: data.images || [],
-          notes: data.notes
+          notes: data.notes,
+          category_id: data.category_id || null
         };
         
         response = await roomsApi.createRoom(createData);
@@ -247,6 +264,12 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
     // Filtrer par type
     if (filterType !== 'tous' && room.type !== filterType) return false;
     
+    // Filtrer par catégorie
+    if (filterCategory !== 'tous') {
+      const categoryId = parseInt(filterCategory);
+      if (room.category_id !== categoryId) return false;
+    }
+    
     // Filtrer par terme de recherche
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -328,6 +351,20 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                   <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </select>
+              
+              {/* Filtre par catégorie */}
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="tous">Toutes les catégories</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id.toString()}>
+                    {category.name} ({category.capacity} pers.)
+                  </option>
+                ))}
+              </select>
             </div>
             
             <Button onClick={handleAddNew} className="flex items-center gap-2">
@@ -337,7 +374,7 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
           </div>
           
           {/* Résultats de filtrage */}
-          {(searchTerm || filterStatus !== 'tous' || filterType !== 'tous') && (
+          {(searchTerm || filterStatus !== 'tous' || filterType !== 'tous' || filterCategory !== 'tous') && (
             <div className="mt-4 text-sm text-gray-600">
               {filteredRooms.length} chambre{filteredRooms.length > 1 ? 's' : ''} trouvée{filteredRooms.length > 1 ? 's' : ''}
               {searchTerm && ` pour "${searchTerm}"`}
@@ -381,6 +418,9 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Catégorie
+                    </th>
                     {!selectedHotelId && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Hôtel
@@ -415,6 +455,20 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
                         <div className="text-sm text-gray-900">{room.type}</div>
                         {room.bed_type && (
                           <div className="text-xs text-gray-500">{room.bed_type}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {room.category_id ? (
+                            categories.find(cat => cat.id === room.category_id)?.name || 'Catégorie inconnue'
+                          ) : (
+                            <span className="text-gray-400">Aucune</span>
+                          )}
+                        </div>
+                        {room.category_id && categories.find(cat => cat.id === room.category_id) && (
+                          <div className="text-xs text-gray-500">
+                            {categories.find(cat => cat.id === room.category_id)!.capacity} pers.
+                          </div>
                         )}
                       </td>
                       {!selectedHotelId && (
