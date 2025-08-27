@@ -20,7 +20,8 @@ import {
   Menu,
   Grid3X3,
   Bed,
-  Building
+  Building,
+  Search
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -69,6 +70,12 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
       id: 'reservations-calendrier', 
       label: 'Disponibilité', 
       icon: Calendar, 
+      alwaysVisible: true
+    },
+    {
+      id: 'availability-search',
+      label: 'Recherche de disponibilité',
+      icon: Search,
       alwaysVisible: true
     },
     {

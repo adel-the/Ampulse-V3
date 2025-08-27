@@ -5,6 +5,7 @@ import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 
 import ReservationsPage from '../components/pages/ReservationsPage';
+import AvailabilitySearchPage from '../components/pages/AvailabilitySearchPage';
 
 import GestionPage from '../components/pages/GestionPage';
 import GestionEtablissementPage from '../components/pages/GestionEtablissementPage';
@@ -344,6 +345,15 @@ export default function Home() {
     }
 
     switch (activeTab) {
+      case 'availability-search':
+        return (
+          <AvailabilitySearchPage
+            onRoomSelect={(room, criteria) => {
+              addNotification('info', `Chambre ${room.numero} sélectionnée pour réservation`);
+              // TODO: Implement reservation creation from selected room
+            }}
+          />
+        );
       case 'reservations':
       case 'reservations-disponibilite':
       case 'reservations-liste':
