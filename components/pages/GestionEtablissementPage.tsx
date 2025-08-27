@@ -3,7 +3,9 @@ import TopBar from '../layout/TopBar';
 import { 
   Building2,
   Bed,
-  Wrench
+  Wrench,
+  MapPin,
+  Building
 } from 'lucide-react';
 import EstablishmentsSection from '../features/EstablishmentsSection';
 import RoomsSection from '../features/RoomsSection';
@@ -17,7 +19,7 @@ export default function GestionEtablissementPage() {
   
   // Global hotel selector state for Rooms and Equipments sections
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [globalSelectedHotelId, setGlobalSelectedHotelId] = useState<number | null>(null);
+  const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
   const [loadingEstablishments, setLoadingEstablishments] = useState(true);
   const { addNotification } = useNotifications();
 
@@ -33,8 +35,8 @@ export default function GestionEtablissementPage() {
       if (response.success && response.data) {
         setEstablishments(response.data);
         // Auto-select first hotel if available
-        if (response.data.length > 0 && !globalSelectedHotelId) {
-          setGlobalSelectedHotelId(response.data[0].id);
+        if (response.data.length > 0 && !selectedEstablishment) {
+          setSelectedEstablishment(response.data[0]);
         }
       }
     } catch (error) {
@@ -43,6 +45,10 @@ export default function GestionEtablissementPage() {
     } finally {
       setLoadingEstablishments(false);
     }
+  };
+
+  const handleEstablishmentSelect = (establishment: Establishment) => {
+    setSelectedEstablishment(establishment);
   };
 
   const topBarItems = [
@@ -69,48 +75,65 @@ export default function GestionEtablissementPage() {
         return (
           <EstablishmentsSection 
             onEstablishmentUpdate={loadEstablishments}
+            onEstablishmentSelect={handleEstablishmentSelect}
+            currentSelectedId={selectedEstablishment?.id}
           />
         );
       
       case 'chambres':
-        return <RoomsSection selectedHotelId={globalSelectedHotelId} />;
+        return <RoomsSection selectedHotelId={selectedEstablishment?.id || null} />;
       
       case 'equipements':
-        return <EquipmentsSection selectedHotelId={globalSelectedHotelId} />;
+        return <EquipmentsSection selectedHotelId={selectedEstablishment?.id || null} />;
       
       default:
         return <div>Page non trouvée</div>;
     }
   };
 
-  // Render hotel selector for Rooms and Equipments tabs
-  const renderHotelSelector = () => {
-    if (!['chambres', 'equipements'].includes(activeTab) || loadingEstablishments) {
-      return null;
-    }
+  // Render selected establishment display for all tabs
+  const renderSelectedEstablishment = () => {
 
-    if (establishments.length === 0) {
+    if (!selectedEstablishment) {
+      if (activeTab === 'etablissement') {
+        return (
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+            <span className="text-sm text-gray-600">
+              Sélectionnez un établissement dans la liste ci-dessous
+            </span>
+          </div>
+        );
+      }
       return (
-        <div className="text-sm text-gray-500">
-          Aucun établissement disponible
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <span className="text-sm text-yellow-800">
+            Aucun établissement sélectionné. Veuillez sélectionner un établissement dans l'onglet Établissements.
+          </span>
         </div>
       );
     }
 
     return (
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-gray-700">Hôtel :</label>
-        <select
-          value={globalSelectedHotelId || ''}
-          onChange={(e) => setGlobalSelectedHotelId(Number(e.target.value))}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {establishments.map(hotel => (
-            <option key={hotel.id} value={hotel.id}>
-              {hotel.nom} - {hotel.ville}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="rounded-full h-3 w-3 bg-blue-600"></div>
+        <div className="flex items-center gap-4 text-sm">
+          <span className="font-medium text-gray-900">{selectedEstablishment.nom}</span>
+          <span className="flex items-center gap-1 text-gray-600">
+            <MapPin className="h-3 w-3" />
+            {selectedEstablishment.ville}
+          </span>
+          <span className="flex items-center gap-1 text-gray-600">
+            <Building2 className="h-3 w-3" />
+            {selectedEstablishment.chambres_total} chambres
+          </span>
+          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+            selectedEstablishment.statut === 'ACTIF' 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-gray-100 text-gray-700'
+          }`}>
+            {selectedEstablishment.statut}
+          </span>
+        </div>
       </div>
     );
   };
@@ -139,7 +162,7 @@ export default function GestionEtablissementPage() {
                 );
               })}
             </div>
-            {renderHotelSelector()}
+            {renderSelectedEstablishment()}
           </div>
         </div>
       </div>

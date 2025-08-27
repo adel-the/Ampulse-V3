@@ -282,17 +282,6 @@ export default function EstablishmentsSection({ onEstablishmentSelect, currentSe
               ))
             )}
           </div>
-
-          {selectedEstablishment && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-700">
-                <Check className="h-4 w-4" />
-                <span className="text-sm font-medium">
-                  Établissement sélectionné : {selectedEstablishment.nom}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
