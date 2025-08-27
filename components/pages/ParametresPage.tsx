@@ -133,14 +133,14 @@ export default function ParametresPage({
       icon: <Building2 className="h-4 w-4" />
     },
     {
-      id: 'chambres',
-      label: 'Chambres',
-      icon: <Bed className="h-4 w-4" />
-    },
-    {
       id: 'equipements',
       label: 'Équipements',
       icon: <Wrench className="h-4 w-4" />
+    },
+    {
+      id: 'chambres',
+      label: 'Chambres',
+      icon: <Bed className="h-4 w-4" />
     },
     {
       id: 'clients',
