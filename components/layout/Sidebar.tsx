@@ -19,7 +19,8 @@ import {
   Wrench,
   Menu,
   Grid3X3,
-  Bed
+  Bed,
+  Building
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -102,6 +103,12 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
         { id: 'comptabilite-tva-taxes', label: 'TVA & Taxes', icon: Calculator },
         { id: 'comptabilite-clients', label: 'Comptes Clients', icon: Users }
       ]
+    },
+    { 
+      id: 'gestion-etablissement', 
+      label: 'Gestion d\'établissement', 
+      icon: Building, 
+      alwaysVisible: true
     },
     { id: 'parametres', label: 'Paramètres', icon: Settings, alwaysVisible: true }
   ];

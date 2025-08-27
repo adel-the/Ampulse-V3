@@ -7,6 +7,7 @@ import Sidebar from '../components/layout/Sidebar';
 import ReservationsPage from '../components/pages/ReservationsPage';
 
 import GestionPage from '../components/pages/GestionPage';
+import GestionEtablissementPage from '../components/pages/GestionEtablissementPage';
 
 import ClientManagement from '../components/features/ClientManagement';
 import OperateursTable from '../components/features/OperateursTable';
@@ -399,6 +400,9 @@ export default function Home() {
             onOperateurSelect={handleOperateurSelect}
           />
         );
+
+      case 'gestion-etablissement':
+        return <GestionEtablissementPage />;
 
       case 'analyses-donnees':
         return <ReportsPage hotels={hotels} selectedHotelId={selectedHotel} />;

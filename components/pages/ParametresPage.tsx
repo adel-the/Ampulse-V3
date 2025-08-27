@@ -2,15 +2,12 @@ import { useState, useEffect } from 'react';
 import TopBar from '../layout/TopBar';
 import { 
   Settings, 
-  Building2,
   Plus,
   X,
   Users,
   FileText,
-  Bed,
   UserCheck,
-  History,
-  Wrench
+  History
 } from 'lucide-react';
 import { User, Hotel, DocumentTemplate } from '../../types';
 import UsersManagement from '../features/UsersManagement';
@@ -18,12 +15,6 @@ import DocumentsManagement from '../features/DocumentsManagement';
 import ChambresPage from '../pages/ChambresPage';
 import OperateursTable from '../features/OperateursTable';
 import ModificationHistory from '../features/ModificationHistory';
-import EstablishmentsSection from '../features/EstablishmentsSection';
-import { establishmentsApi } from '../../lib/api/establishments';
-import { useNotifications } from '../../hooks/useNotifications';
-import type { Establishment } from '../../lib/api/establishments';
-import RoomsSection from '../features/RoomsSection';
-import EquipmentsSection from '../features/EquipmentsSection';
 import ClientsSection from '../features/ClientsSection';
 
 interface ParametresPageProps {
@@ -90,57 +81,12 @@ export default function ParametresPage({
     ville: '',
     codePostal: ''
   });
-  
-  // Global hotel selector state for Rooms and Equipments sections
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [globalSelectedHotelId, setGlobalSelectedHotelId] = useState<number | null>(null);
-  const [loadingEstablishments, setLoadingEstablishments] = useState(true);
-  const { addNotification } = useNotifications();
-
-  // Load establishments for global hotel selector
-  useEffect(() => {
-    loadEstablishments();
-  }, []);
-
-  const loadEstablishments = async () => {
-    try {
-      setLoadingEstablishments(true);
-      const response = await establishmentsApi.getEstablishments();
-      if (response.success && response.data) {
-        setEstablishments(response.data);
-        // Auto-select first hotel if available
-        if (response.data.length > 0 && !globalSelectedHotelId) {
-          setGlobalSelectedHotelId(response.data[0].id);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des établissements:', error);
-      addNotification('error', 'Erreur lors du chargement des établissements');
-    } finally {
-      setLoadingEstablishments(false);
-    }
-  };
 
   const topBarItems = [
     {
       id: 'general',
       label: 'Général',
       icon: <Settings className="h-4 w-4" />
-    },
-    {
-      id: 'etablissement',
-      label: 'Établissement',
-      icon: <Building2 className="h-4 w-4" />
-    },
-    {
-      id: 'equipements',
-      label: 'Équipements',
-      icon: <Wrench className="h-4 w-4" />
-    },
-    {
-      id: 'chambres',
-      label: 'Chambres',
-      icon: <Bed className="h-4 w-4" />
     },
     {
       id: 'clients',
@@ -284,24 +230,7 @@ export default function ParametresPage({
           </div>
         );
         
-      case 'etablissement':
-        return (
-          <EstablishmentsSection 
-            currentSelectedId={selectedHotel}
-            onEstablishmentSelect={(establishment) => {
-              // Update the global selected hotel when user selects an establishment
-              onHotelSelect(establishment.id);
-            }}
-          />
-        );
-         
-               case 'chambres':
-          return <RoomsSection selectedHotelId={globalSelectedHotelId} />;
-         
-               case 'equipements':
-          return <EquipmentsSection selectedHotelId={globalSelectedHotelId} />;
-         
-               case 'clients':
+      case 'clients':
           return <ClientsSection />;
          
                case 'utilisateurs':
@@ -342,38 +271,6 @@ export default function ParametresPage({
     }
   };
 
-  // Render hotel selector for Rooms and Equipments tabs
-  const renderHotelSelector = () => {
-    if (!['chambres', 'equipements'].includes(activeTab) || loadingEstablishments) {
-      return null;
-    }
-
-    if (establishments.length === 0) {
-      return (
-        <div className="text-sm text-gray-500">
-          Aucun établissement disponible
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-gray-700">Hôtel :</label>
-        <select
-          value={globalSelectedHotelId || ''}
-          onChange={(e) => setGlobalSelectedHotelId(Number(e.target.value))}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {establishments.map(hotel => (
-            <option key={hotel.id} value={hotel.id}>
-              {hotel.nom} - {hotel.ville}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  };
-
   return (
     <div>
       <div className="bg-white border-b border-gray-200 mb-6">
@@ -398,7 +295,6 @@ export default function ParametresPage({
                 );
               })}
             </div>
-            {renderHotelSelector()}
           </div>
         </div>
       </div>
