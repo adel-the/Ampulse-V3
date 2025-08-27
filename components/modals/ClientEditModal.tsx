@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Building, Users, Phone, Mail, MapPin, CreditCard, FileText, UserCheck, Calendar, Save, Plus, Trash2, Edit } from 'lucide-react';
+import { X, User, Building, Users, Phone, Mail, MapPin, CreditCard, FileText, UserCheck, Calendar, Save, Plus, Trash2, Edit, TestTube, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -9,6 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
@@ -81,6 +82,173 @@ export default function ClientEditModal({
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [testDataApplied, setTestDataApplied] = useState(false);
+
+  // Helper function to generate test data based on client type
+  const getTestData = (clientType: ClientCategory) => {
+    switch (clientType) {
+      case 'Particulier':
+        return {
+          formData: {
+            nom: 'Dupont',
+            prenom: 'Jean',
+            email: 'jean.dupont@example.com',
+            telephone: '06 23 45 67 89',
+            adresse: '42 Avenue des Champs',
+            ville: 'Paris',
+            code_postal: '75008',
+            nombre_enfants: 2,
+            mode_paiement: 'virement' as const,
+            delai_paiement: 30,
+            taux_tva: 20,
+            conditions_paiement: 'Paiement mensuel à réception de facture',
+            notes: 'Client régulier, famille de 4 personnes'
+          },
+          referent: {
+            nom: 'Dupont',
+            prenom: 'Marie',
+            fonction: 'Épouse',
+            telephone: '06 87 65 43 21',
+            email: 'marie.dupont@example.com'
+          },
+          convention: null
+        };
+      case 'Entreprise':
+        return {
+          formData: {
+            raison_sociale: 'Innov Tech SAS',
+            nom: 'Moreau',
+            prenom: 'Alexandre',
+            siret: '98765432101234',
+            email: 'contact@innovtech.fr',
+            telephone: '01 23 45 67 89',
+            adresse: '100 Rue de l\'Innovation',
+            ville: 'Lyon',
+            code_postal: '69002',
+            secteur_activite: 'Technologies de l\'information',
+            nombre_employes: 50,
+            mode_paiement: 'virement' as const,
+            delai_paiement: 45,
+            taux_tva: 20,
+            conditions_paiement: 'Paiement à 45 jours fin de mois',
+            notes: 'Entreprise partenaire depuis 2022'
+          },
+          referent: {
+            nom: 'Dubois',
+            prenom: 'Nathalie',
+            fonction: 'Responsable RH',
+            telephone: '06 45 67 89 01',
+            email: 'nathalie.dubois@innovtech.fr'
+          },
+          convention: {
+            date_debut: '2024-01-01',
+            date_fin: '2024-12-31',
+            reduction_pourcentage: 10,
+            forfait_mensuel: 3000,
+            conditions: 'Convention entreprise avec 10% de réduction sur le forfait mensuel',
+            active: true
+          }
+        };
+      case 'Association':
+        return {
+          formData: {
+            raison_sociale: 'Entraide et Solidarité',
+            nom: 'Bernard',
+            prenom: 'François',
+            siret: '11223344556677',
+            email: 'contact@entraide-solidarite.org',
+            telephone: '03 12 34 56 78',
+            adresse: '15 Place de la Solidarité',
+            ville: 'Lille',
+            code_postal: '59000',
+            numero_agrement: 'AGR-2024-001',
+            nombre_adherents: 150,
+            mode_paiement: 'cheque' as const,
+            delai_paiement: 60,
+            taux_tva: 20,
+            conditions_paiement: 'Paiement par chèque à 60 jours',
+            notes: 'Association partenaire pour l\'hébergement social'
+          },
+          referent: {
+            nom: 'Petit',
+            prenom: 'Isabelle',
+            fonction: 'Directrice',
+            telephone: '06 78 90 12 34',
+            email: 'isabelle.petit@entraide-solidarite.org'
+          },
+          convention: {
+            date_debut: '2024-01-15',
+            date_fin: '2024-12-15',
+            reduction_pourcentage: 25,
+            forfait_mensuel: 2000,
+            conditions: 'Convention association avec tarif préférentiel',
+            active: true
+          }
+        };
+      default:
+        return { formData: {}, referent: null, convention: null };
+    }
+  };
+
+  // Function to apply test data
+  const applyTestData = () => {
+    const testData = getTestData(formData.client_type);
+    setFormData(prev => ({
+      ...prev,
+      ...testData.formData
+    }));
+    if (testData.referent && !client) {
+      setNewReferent(testData.referent);
+    }
+    if (testData.convention && !client && formData.client_type !== 'Particulier') {
+      setNewConvention(testData.convention);
+    }
+    setTestDataApplied(true);
+    setTimeout(() => setTestDataApplied(false), 3000);
+  };
+
+  // Function to clear form
+  const clearForm = () => {
+    setFormData({
+      client_type: formData.client_type,
+      nom: '',
+      prenom: '',
+      raison_sociale: '',
+      email: '',
+      telephone: '',
+      adresse: '',
+      ville: '',
+      code_postal: '',
+      siret: '',
+      secteur_activite: '',
+      nombre_employes: undefined,
+      numero_agrement: '',
+      nombre_adherents: undefined,
+      nombre_enfants: undefined,
+      statut: 'actif',
+      mode_paiement: 'virement',
+      delai_paiement: 30,
+      taux_tva: 20,
+      conditions_paiement: '',
+      notes: ''
+    });
+    setNewReferent({
+      nom: '',
+      prenom: '',
+      fonction: '',
+      telephone: '',
+      email: ''
+    });
+    setNewConvention({
+      date_debut: '',
+      date_fin: '',
+      reduction_pourcentage: 0,
+      forfait_mensuel: 0,
+      conditions: '',
+      active: true
+    });
+    setTestDataApplied(false);
+  };
 
   // Load client data when modal opens
   useEffect(() => {
@@ -359,6 +527,41 @@ export default function ClientEditModal({
         {/* Content with tabs */}
         <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="p-6">
+            {/* Test data notification */}
+            {testDataApplied && (
+              <Alert className="mb-4 bg-green-50 border-green-200">
+                <AlertDescription>
+                  ✅ Données de test appliquées avec succès
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Test data buttons for new clients */}
+            {!client && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={applyTestData}
+                  className="flex items-center gap-2"
+                >
+                  <TestTube className="h-4 w-4" />
+                  Remplir avec données test
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearForm}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Effacer
+                </Button>
+              </div>
+            )}
+            
             <TabsList className="grid grid-cols-4 w-full">
               <TabsTrigger value="informations">Informations</TabsTrigger>
               <TabsTrigger value="contact">Contact</TabsTrigger>
@@ -427,6 +630,7 @@ export default function ClientEditModal({
                             id="nom"
                             value={formData.nom}
                             onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                            placeholder="Ex: Dupont"
                             className={errors.nom ? 'border-red-500' : ''}
                           />
                           {errors.nom && <p className="text-red-500 text-xs mt-1">{errors.nom}</p>}
@@ -437,6 +641,7 @@ export default function ClientEditModal({
                             id="prenom"
                             value={formData.prenom}
                             onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                            placeholder="Ex: Jean"
                             className={errors.prenom ? 'border-red-500' : ''}
                           />
                           {errors.prenom && <p className="text-red-500 text-xs mt-1">{errors.prenom}</p>}
@@ -448,6 +653,7 @@ export default function ClientEditModal({
                             type="number"
                             value={formData.nombre_enfants || ''}
                             onChange={(e) => setFormData({ ...formData, nombre_enfants: parseInt(e.target.value) || undefined })}
+                            placeholder="Ex: 2"
                             min="0"
                           />
                         </div>
@@ -460,6 +666,7 @@ export default function ClientEditModal({
                             id="raison_sociale"
                             value={formData.raison_sociale}
                             onChange={(e) => setFormData({ ...formData, raison_sociale: e.target.value })}
+                            placeholder={isEntreprise ? "Ex: Innov Tech SAS" : "Ex: Entraide et Solidarité"}
                             className={errors.raison_sociale ? 'border-red-500' : ''}
                           />
                           {errors.raison_sociale && <p className="text-red-500 text-xs mt-1">{errors.raison_sociale}</p>}
@@ -470,6 +677,7 @@ export default function ClientEditModal({
                             id="nom"
                             value={formData.nom}
                             onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                            placeholder="Ex: Moreau"
                           />
                         </div>
                         <div>
@@ -478,6 +686,7 @@ export default function ClientEditModal({
                             id="prenom"
                             value={formData.prenom}
                             onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                            placeholder="Ex: Alexandre"
                           />
                         </div>
                         <div>
@@ -486,7 +695,7 @@ export default function ClientEditModal({
                             id="siret"
                             value={formData.siret}
                             onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-                            placeholder="14 chiffres"
+                            placeholder="Ex: 12345678901234 (14 chiffres)"
                             className={errors.siret ? 'border-red-500' : ''}
                           />
                           {errors.siret && <p className="text-red-500 text-xs mt-1">{errors.siret}</p>}
@@ -649,6 +858,7 @@ export default function ClientEditModal({
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder={isParticulier ? "Ex: jean.dupont@example.com" : "Ex: contact@entreprise.fr"}
                         className={errors.email ? 'border-red-500' : ''}
                       />
                       {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -659,6 +869,7 @@ export default function ClientEditModal({
                         id="telephone"
                         value={formData.telephone}
                         onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                        placeholder="Ex: 06 12 34 56 78"
                         className={errors.telephone ? 'border-red-500' : ''}
                       />
                       {errors.telephone && <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>}
@@ -679,6 +890,7 @@ export default function ClientEditModal({
                         id="adresse"
                         value={formData.adresse}
                         onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                        placeholder="Ex: 42 Avenue des Champs"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -688,6 +900,7 @@ export default function ClientEditModal({
                           id="code_postal"
                           value={formData.code_postal}
                           onChange={(e) => setFormData({ ...formData, code_postal: e.target.value })}
+                          placeholder="Ex: 75008"
                         />
                       </div>
                       <div>
@@ -696,6 +909,7 @@ export default function ClientEditModal({
                           id="ville"
                           value={formData.ville}
                           onChange={(e) => setFormData({ ...formData, ville: e.target.value })}
+                          placeholder="Ex: Paris"
                         />
                       </div>
                     </div>
@@ -719,6 +933,7 @@ export default function ClientEditModal({
                           id="ref-nom"
                           value={newReferent.nom}
                           onChange={(e) => setNewReferent({ ...newReferent, nom: e.target.value })}
+                          placeholder="Ex: Dubois"
                         />
                       </div>
                       <div>
@@ -727,6 +942,7 @@ export default function ClientEditModal({
                           id="ref-prenom"
                           value={newReferent.prenom}
                           onChange={(e) => setNewReferent({ ...newReferent, prenom: e.target.value })}
+                          placeholder="Ex: Nathalie"
                         />
                       </div>
                       <div>
@@ -735,6 +951,7 @@ export default function ClientEditModal({
                           id="ref-fonction"
                           value={newReferent.fonction}
                           onChange={(e) => setNewReferent({ ...newReferent, fonction: e.target.value })}
+                          placeholder="Ex: Responsable RH"
                         />
                       </div>
                       <div>
