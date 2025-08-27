@@ -42,10 +42,7 @@ export default function AddClientForm({
     ville: client?.ville || '',
     code_postal: client?.code_postal || '',
     raison_sociale: client?.raison_sociale || '',
-    siret: client?.siret || '',
-    mode_paiement: 'virement',
-    delai_paiement: 30,
-    taux_tva: 20
+    siret: client?.siret || ''
   });
   const [referentData, setReferentData] = useState<Partial<ReferentFormData>>({});
   const [conventionData, setConventionData] = useState<Partial<ConventionFormData>>({
@@ -67,10 +64,7 @@ export default function AddClientForm({
             telephone: '06 12 34 56 78',
             adresse: '15 Rue de la République',
             ville: 'Lyon',
-            code_postal: '69001',
-            mode_paiement: 'virement' as const,
-            delai_paiement: 30,
-            taux_tva: 20
+            code_postal: '69001'
           },
           referentData: {
             nom: 'Durand',
@@ -94,10 +88,7 @@ export default function AddClientForm({
             telephone: '01 40 50 60 70',
             adresse: '25 Boulevard Haussmann',
             ville: 'Paris',
-            code_postal: '75009',
-            mode_paiement: 'virement' as const,
-            delai_paiement: 30,
-            taux_tva: 20
+            code_postal: '75009'
           },
           referentData: {
             nom: 'Martin',
@@ -126,10 +117,7 @@ export default function AddClientForm({
             telephone: '04 78 90 12 34',
             adresse: '45 Avenue de la Solidarité',
             ville: 'Marseille',
-            code_postal: '13001',
-            mode_paiement: 'cheque' as const,
-            delai_paiement: 45,
-            taux_tva: 20
+            code_postal: '13001'
           },
           referentData: {
             nom: 'Lefevre',
@@ -174,9 +162,15 @@ export default function AddClientForm({
     setFormData({
       client_type: selectedType || 'Particulier',
       statut: 'actif',
-      mode_paiement: 'virement',
-      delai_paiement: 30,
-      taux_tva: 20
+      nom: '',
+      prenom: '',
+      email: '',
+      telephone: '',
+      adresse: '',
+      ville: '',
+      code_postal: '',
+      raison_sociale: '',
+      siret: ''
     });
     setReferentData({});
     setConventionData({ active: false });
@@ -214,20 +208,22 @@ export default function AddClientForm({
     try {
       setLoading(true);
 
-      // Prepare simplified client data
-      const clientData: Partial<Client> = {
+      // Prepare simplified client data - only send fields that exist and have values
+      const clientData: any = {
         client_type: selectedType || 'Particulier',
-        nom: formData.nom!,
-        prenom: formData.prenom,
-        email: formData.email,
-        telephone: formData.telephone,
-        adresse: formData.adresse,
-        ville: formData.ville,
-        code_postal: formData.code_postal,
-        raison_sociale: formData.raison_sociale,
-        siret: formData.siret,
+        nom: formData.nom!.trim(),
         statut: formData.statut || 'actif'
       };
+      
+      // Only add optional fields if they have values (not empty strings)
+      if (formData.prenom && formData.prenom.trim()) clientData.prenom = formData.prenom.trim();
+      if (formData.email && formData.email.trim()) clientData.email = formData.email.trim();
+      if (formData.telephone && formData.telephone.trim()) clientData.telephone = formData.telephone.trim();
+      if (formData.adresse && formData.adresse.trim()) clientData.adresse = formData.adresse.trim();
+      if (formData.ville && formData.ville.trim()) clientData.ville = formData.ville.trim();
+      if (formData.code_postal && formData.code_postal.trim()) clientData.code_postal = formData.code_postal.trim();
+      if (formData.raison_sociale && formData.raison_sociale.trim()) clientData.raison_sociale = formData.raison_sociale.trim();
+      if (formData.siret && formData.siret.trim()) clientData.siret = formData.siret.trim();
 
       let clientResult: Client;
       
@@ -247,13 +243,17 @@ export default function AddClientForm({
         clientResult = updatedClient;
       } else {
         // Create new client
+        console.log('Creating client with data:', clientData);
         const { data: newClient, error: clientError } = await supabase
           .from('clients')
           .insert(clientData)
           .select()
           .single();
 
-        if (clientError) throw clientError;
+        if (clientError) {
+          console.error('Error creating client:', clientError);
+          throw clientError;
+        }
         clientResult = newClient;
       }
 
