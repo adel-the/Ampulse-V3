@@ -14,11 +14,13 @@ import { Room, RoomCategory, Hotel as HotelType, HotelEquipment } from '@/lib/su
 interface AvailabilitySearchPageProps {
   onRoomSelect?: (room: AvailableRoom, criteria: AvailabilitySearchCriteria) => void;
   className?: string;
+  selectedHotelId?: number | null;
 }
 
 export default function AvailabilitySearchPage({
   onRoomSelect,
-  className = ''
+  className = '',
+  selectedHotelId = null
 }: AvailabilitySearchPageProps) {
   // Data hooks
   const { establishments: hotels, loading: hotelsLoading, error: hotelsError } = useHotels();
@@ -257,6 +259,7 @@ export default function AvailabilitySearchPage({
         categories={categories}
         onSearch={handleSearch}
         isLoading={isSearching}
+        selectedHotelId={selectedHotelId}
       />
 
       {/* Search Error */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -24,6 +24,7 @@ interface AvailabilitySearchFormProps {
   onSearch: (criteria: AvailabilitySearchCriteria) => void;
   isLoading?: boolean;
   className?: string;
+  selectedHotelId?: number | null;
 }
 
 export default function AvailabilitySearchForm({
@@ -31,7 +32,8 @@ export default function AvailabilitySearchForm({
   categories,
   onSearch,
   isLoading = false,
-  className = ''
+  className = '',
+  selectedHotelId = null
 }: AvailabilitySearchFormProps) {
   const [criteria, setCriteria] = useState<AvailabilitySearchCriteria>({
     checkInDate: '',
@@ -44,6 +46,17 @@ export default function AvailabilitySearchForm({
 
   const [selectedHotel, setSelectedHotel] = useState<HotelType | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<RoomCategory | null>(null);
+
+  // Set default hotel when selectedHotelId prop is provided or changes
+  useEffect(() => {
+    if (selectedHotelId && hotels.length > 0) {
+      const defaultHotel = hotels.find(hotel => hotel.id === selectedHotelId);
+      if (defaultHotel && (!selectedHotel || selectedHotel.id !== selectedHotelId)) {
+        setSelectedHotel(defaultHotel);
+        setCriteria(prev => ({ ...prev, hotelId: defaultHotel.id }));
+      }
+    }
+  }, [selectedHotelId, hotels, selectedHotel]);
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];

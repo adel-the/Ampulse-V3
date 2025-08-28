@@ -348,6 +348,7 @@ export default function Home() {
       case 'availability-search':
         return (
           <AvailabilitySearchPage
+            selectedHotelId={selectedHotel}
             onRoomSelect={(room, criteria) => {
               addNotification('info', `Chambre ${room.numero} sélectionnée pour réservation`);
               // TODO: Implement reservation creation from selected room
