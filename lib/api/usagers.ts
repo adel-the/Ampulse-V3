@@ -73,42 +73,34 @@ class UsagersAPI {
         return { success: false, error: error.message };
       }
 
-      // Transform the data to include prescripteur object
+      // Transform the data to include prescripteur object using database-computed values
       const transformedData = (data || []).map((item: any) => ({
-        id: item.id,
-        numero_usager: item.numero_usager,
-        prescripteur_id: item.prescripteur_id,
-        nom: item.nom,
-        prenom: item.prenom,
-        date_naissance: item.date_naissance,
-        lieu_naissance: null,
-        nationalite: null,
-        adresse: null,
-        ville: item.ville,
-        code_postal: null,
-        telephone: item.telephone,
-        email: item.email,
-        numero_secu: null,
-        caf_number: null,
-        situation_familiale: item.situation_familiale,
-        nombre_enfants: 0,
-        revenus: null,
-        type_revenus: null,
-        prestations: null,
-        autonomie_level: item.autonomie_level,
-        observations: null,
-        statut: item.statut,
-        created_at: item.created_at,
-        updated_at: null,
-        created_by: null,
-        updated_by: null,
+        ...item,
+        // Ensure all required fields are present with proper defaults
+        lieu_naissance: item.lieu_naissance || null,
+        nationalite: item.nationalite || null,
+        adresse: item.adresse || null,
+        code_postal: item.code_postal || null,
+        numero_secu: item.numero_secu || null,
+        caf_number: item.caf_number || null,
+        nombre_enfants: item.nombre_enfants || 0,
+        revenus: item.revenus || null,
+        type_revenus: item.type_revenus || null,
+        prestations: item.prestations || null,
+        observations: item.observations || null,
+        updated_at: item.updated_at || null,
+        created_by: item.created_by || null,
+        updated_by: item.updated_by || null,
+        // Use the prescripteur data from the database join
         prescripteur: item.prescripteur_id ? {
           id: item.prescripteur_id,
           nom: item.prescripteur_nom,
-          prenom: null,
+          prenom: item.prescripteur_type === 'Particulier' ? 
+            (item.prescripteur_display_name?.split(' ')[1] || null) : null,
           raison_sociale: item.prescripteur_raison_sociale,
           client_type: item.prescripteur_type,
-          numero_client: null
+          numero_client: item.prescripteur_numero || null,
+          display_name: item.prescripteur_display_name
         } : undefined
       }));
 

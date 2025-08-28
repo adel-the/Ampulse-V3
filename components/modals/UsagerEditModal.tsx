@@ -21,6 +21,7 @@ interface UsagerEditModalProps {
   onClose: () => void;
   usager?: UsagerWithPrescripteur | null;
   prescripteurId?: number;
+  prescripteurs?: Client[];
   onSuccess?: () => void;
 }
 
@@ -55,6 +56,7 @@ export default function UsagerEditModal({
   onClose,
   usager,
   prescripteurId,
+  prescripteurs: propsPrescripteurs,
   onSuccess
 }: UsagerEditModalProps) {
   const { addNotification } = useNotifications();
@@ -89,23 +91,30 @@ export default function UsagerEditModal({
     statut: usager?.statut || 'actif'
   });
 
-  // Load prescripteurs
+  // Load prescripteurs - use props if provided, otherwise fetch
   useEffect(() => {
     if (isOpen) {
-      loadPrescripteurs();
+      if (propsPrescripteurs && propsPrescripteurs.length > 0) {
+        setPrescripteurs(propsPrescripteurs);
+      } else {
+        loadPrescripteurs();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, propsPrescripteurs]);
 
   const loadPrescripteurs = async () => {
-    const response = await clientsApi.searchClients('', undefined, 'actif');
-    if (response.success && response.data) {
-      // Filter to only show Entreprise and Association
-      const filtered = response.data.filter(c => 
-        c.client_type === 'Entreprise' || 
-        c.client_type === 'Association' ||
-        (c.client_type === 'Particulier' && c.statut === 'actif')
-      );
-      setPrescripteurs(filtered);
+    // Only load if not provided via props
+    if (!propsPrescripteurs || propsPrescripteurs.length === 0) {
+      const response = await clientsApi.searchClients('', undefined, 'actif');
+      if (response.success && response.data) {
+        // Filter to only show Entreprise and Association
+        const filtered = response.data.filter(c => 
+          c.client_type === 'Entreprise' || 
+          c.client_type === 'Association' ||
+          (c.client_type === 'Particulier' && c.statut === 'actif')
+        );
+        setPrescripteurs(filtered);
+      }
     }
   };
 

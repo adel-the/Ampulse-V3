@@ -91,6 +91,7 @@ export default function ClientsSection() {
     if (activeView === 'prescripteurs') {
       loadClients();
     } else {
+      loadClients(); // Also load clients for prescripteur filter dropdown
       loadUsagers();
       loadUsagerStatistics();
     }
@@ -586,6 +587,23 @@ export default function ClientsSection() {
                   </div>
                   
                   <select
+                    value={selectedPrescripteur || ''}
+                    onChange={(e) => setSelectedPrescripteur(e.target.value ? Number(e.target.value) : null)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Tous les prescripteurs</option>
+                    {clients
+                      .filter(c => c.statut === 'actif')
+                      .map(client => (
+                        <option key={client.id} value={client.id}>
+                          {client.client_type === 'Particulier' 
+                            ? `${client.nom} ${client.prenom || ''}`.trim()
+                            : client.raison_sociale || client.nom}
+                        </option>
+                      ))}
+                  </select>
+                  
+                  <select
                     value={selectedUsagerStatus}
                     onChange={(e) => setSelectedUsagerStatus(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -779,6 +797,13 @@ export default function ClientsSection() {
         isOpen={showUsagerEditModal}
         onClose={() => setShowUsagerEditModal(false)}
         usager={selectedUsager}
+        prescripteurs={clients.filter(c => 
+          c.statut === 'actif' && (
+            c.client_type === 'Entreprise' || 
+            c.client_type === 'Association' ||
+            c.client_type === 'Particulier'
+          )
+        )}
         onSuccess={() => {
           loadUsagers();
           loadUsagerStatistics();
