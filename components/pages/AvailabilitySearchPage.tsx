@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
 import { AlertCircle, RefreshCw, Search } from 'lucide-react';
 import AvailabilitySearchForm, { AvailabilitySearchCriteria } from '../features/AvailabilitySearchForm';
 import AvailabilityResults, { AvailableRoom } from '../features/AvailabilityResults';
-import { useHotels, useRoomCategories, useRooms, useHotelEquipmentCRUD } from '@/hooks/useSupabase';
+import { useAllHotels, useRoomCategories, useRooms, useHotelEquipmentCRUD } from '@/hooks/useSupabase';
 import { supabase } from '@/lib/supabase';
 import { Room, RoomCategory, Hotel as HotelType, HotelEquipment } from '@/lib/supabase';
 
@@ -22,8 +22,8 @@ export default function AvailabilitySearchPage({
   className = '',
   selectedHotelId = null
 }: AvailabilitySearchPageProps) {
-  // Data hooks
-  const { establishments: hotels, loading: hotelsLoading, error: hotelsError } = useHotels();
+  // Data hooks - Utilise useAllHotels pour récupérer TOUS les hôtels
+  const { hotels, loading: hotelsLoading, error: hotelsError } = useAllHotels();
   const { categories, loading: categoriesLoading, error: categoriesError } = useRoomCategories();
   
   // State for search results and search process

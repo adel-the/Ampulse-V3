@@ -265,6 +265,45 @@ export const useEstablishments = (options?: HookOptions) => {
 // Backward compatibility alias
 export const useHotels = useEstablishments
 
+// Hook pour récupérer TOUS les hôtels (pour la recherche de disponibilité)
+export const useAllHotels = () => {
+  const [hotels, setHotels] = useState<Hotel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchAllHotels = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Récupère TOUS les hôtels, pas seulement ceux de l'utilisateur
+      const { data, error } = await supabase
+        .from('hotels')
+        .select('*')
+        .order('nom')
+
+      if (error) throw error
+      
+      setHotels(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des hôtels')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAllHotels()
+  }, [])
+
+  return { 
+    hotels, 
+    loading, 
+    error, 
+    refetch: fetchAllHotels 
+  }
+}
+
 // Hook pour les réservations
 export const useReservations = () => {
   const [reservations, setReservations] = useState<Reservation[]>([])
