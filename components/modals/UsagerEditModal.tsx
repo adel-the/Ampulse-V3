@@ -361,6 +361,7 @@ export default function UsagerEditModal({
                     id="nom"
                     value={formData.nom}
                     onChange={(e) => handleInputChange('nom', e.target.value.toUpperCase())}
+                    placeholder="MARTIN"
                     required
                   />
                 </div>
@@ -370,6 +371,7 @@ export default function UsagerEditModal({
                     id="prenom"
                     value={formData.prenom}
                     onChange={(e) => handleInputChange('prenom', e.target.value)}
+                    placeholder="Jean"
                     required
                   />
                 </div>
@@ -383,6 +385,7 @@ export default function UsagerEditModal({
                     type="date"
                     value={formData.date_naissance}
                     onChange={(e) => handleInputChange('date_naissance', e.target.value)}
+                    placeholder="1985-03-15"
                   />
                 </div>
                 <div>
@@ -391,6 +394,7 @@ export default function UsagerEditModal({
                     id="lieu_naissance"
                     value={formData.lieu_naissance}
                     onChange={(e) => handleInputChange('lieu_naissance', e.target.value)}
+                    placeholder="Paris"
                   />
                 </div>
                 <div>
@@ -399,6 +403,7 @@ export default function UsagerEditModal({
                     id="nationalite"
                     value={formData.nationalite}
                     onChange={(e) => handleInputChange('nationalite', e.target.value)}
+                    placeholder="Française"
                   />
                 </div>
               </div>
@@ -442,6 +447,7 @@ export default function UsagerEditModal({
                   id="adresse"
                   value={formData.adresse}
                   onChange={(e) => handleInputChange('adresse', e.target.value)}
+                  placeholder="12 Rue de la République"
                 />
               </div>
 
@@ -452,6 +458,7 @@ export default function UsagerEditModal({
                     id="code_postal"
                     value={formData.code_postal}
                     onChange={(e) => handleInputChange('code_postal', e.target.value)}
+                    placeholder="75011"
                   />
                 </div>
                 <div>
@@ -460,6 +467,7 @@ export default function UsagerEditModal({
                     id="ville"
                     value={formData.ville}
                     onChange={(e) => handleInputChange('ville', e.target.value)}
+                    placeholder="Paris"
                   />
                 </div>
               </div>
@@ -472,6 +480,7 @@ export default function UsagerEditModal({
                     type="tel"
                     value={formData.telephone}
                     onChange={(e) => handleInputChange('telephone', e.target.value)}
+                    placeholder="06 12 34 56 78"
                   />
                 </div>
                 <div>
@@ -481,6 +490,7 @@ export default function UsagerEditModal({
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="jean.martin@email.fr"
                   />
                 </div>
               </div>
@@ -511,6 +521,7 @@ export default function UsagerEditModal({
                     min="0"
                     value={formData.nombre_enfants}
                     onChange={(e) => handleInputChange('nombre_enfants', parseInt(e.target.value) || 0)}
+                    placeholder="2"
                   />
                 </div>
               </div>
@@ -525,6 +536,7 @@ export default function UsagerEditModal({
                     step="0.01"
                     value={formData.revenus || ''}
                     onChange={(e) => handleInputChange('revenus', parseFloat(e.target.value) || null)}
+                    placeholder="850.00"
                   />
                 </div>
                 <div>
@@ -579,6 +591,7 @@ export default function UsagerEditModal({
                   id="caf_number"
                   value={formData.caf_number}
                   onChange={(e) => handleInputChange('caf_number', e.target.value)}
+                  placeholder="CAF75123456"
                 />
               </div>
 
@@ -589,7 +602,7 @@ export default function UsagerEditModal({
                   value={formData.observations}
                   onChange={(e) => handleInputChange('observations', e.target.value)}
                   rows={4}
-                  placeholder="Notes et observations particulières..."
+                  placeholder="Personne autonome, recherche active d'emploi. Suivi social hebdomadaire. Bonne intégration dans le centre d'hébergement."
                 />
               </div>
             </TabsContent>
