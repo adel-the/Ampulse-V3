@@ -20,7 +20,8 @@ import {
   Grid3X3,
   Bed,
   Building,
-  Search
+  Search,
+  Users
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -102,6 +103,12 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
         { id: 'comptabilite-exports', label: 'Exports Comptables', icon: Download },
         { id: 'comptabilite-tva-taxes', label: 'TVA & Taxes', icon: Calculator }
       ]
+    },
+    {
+      id: 'clients',
+      label: 'Clients',
+      icon: Users,
+      alwaysVisible: true
     },
     { 
       id: 'gestion-etablissement', 

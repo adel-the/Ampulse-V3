@@ -15,7 +15,6 @@ import DocumentsManagement from '../features/DocumentsManagement';
 import ChambresPage from '../pages/ChambresPage';
 import OperateursTable from '../features/OperateursTable';
 import ModificationHistory from '../features/ModificationHistory';
-import ClientsSection from '../features/ClientsSection';
 
 interface ParametresPageProps {
   features: {
@@ -87,11 +86,6 @@ export default function ParametresPage({
       id: 'general',
       label: 'Général',
       icon: <Settings className="h-4 w-4" />
-    },
-    {
-      id: 'clients',
-      label: 'Clients',
-      icon: <UserCheck className="h-4 w-4" />
     },
     {
       id: 'utilisateurs',
@@ -230,10 +224,7 @@ export default function ParametresPage({
           </div>
         );
         
-      case 'clients':
-          return <ClientsSection />;
-         
-               case 'utilisateurs':
+      case 'utilisateurs':
           return (
             <UsersManagement
               users={users || []}

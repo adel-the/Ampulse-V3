@@ -12,6 +12,7 @@ import GestionEtablissementPage from '../components/pages/GestionEtablissementPa
 
 import OperateursTable from '../components/features/OperateursTable';
 import ChambresPage from '../components/pages/ChambresPage';
+import ClientsSection from '../components/features/ClientsSection';
 
 import ComptabilitePage from '../components/pages/ComptabilitePage';
 
@@ -424,6 +425,13 @@ export default function Home() {
             selectedHotelId={selectedHotel || undefined}
             activeSubTab={activeTab}
           />
+        );
+
+      case 'clients':
+        return (
+          <div className="space-y-6">
+            <ClientsSection />
+          </div>
         );
 
       case 'parametres':
