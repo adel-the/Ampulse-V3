@@ -79,6 +79,7 @@ export default function ClientEditModal({
     conditions: '',
     active: true
   });
+
   const [editingConventionId, setEditingConventionId] = useState<number | null>(null);
 
   // Validation errors
@@ -146,7 +147,7 @@ export default function ClientEditModal({
             date_fin: '2024-12-31',
             reduction_pourcentage: 10,
             forfait_mensuel: 3000,
-            conditions: 'Convention entreprise avec 10% de réduction sur le forfait mensuel',
+            conditions: 'Convention entreprise avec 10% de réduction sur le forfait mensuel\n- Tarifs préférentiels sur toutes les catégories\n- Facturation mensuelle\n- 10 chambres garanties',
             active: true
           }
         };
