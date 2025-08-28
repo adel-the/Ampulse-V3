@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -32,6 +33,7 @@ interface ClientStats {
 }
 
 export default function ClientsSection() {
+  const router = useRouter();
   const { addNotification } = useNotifications();
   
   // View state
@@ -85,6 +87,28 @@ export default function ClientsSection() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingItem, setDeletingItem] = useState<{ type: 'client' | 'usager', item: any } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Restore state from sessionStorage on component mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('clientsSectionState');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        setActiveView(state.activeView || 'prescripteurs');
+        setSearchTerm(state.searchTerm || '');
+        setSelectedType(state.selectedType || null);
+        setSelectedStatus(state.selectedStatus || '');
+        setSelectedPrescripteur(state.selectedPrescripteur || null);
+        setSelectedUsagerStatus(state.selectedUsagerStatus || '');
+        setSelectedAutonomie(state.selectedAutonomie || '');
+        
+        // Clear the saved state after restoring
+        sessionStorage.removeItem('clientsSectionState');
+      } catch (error) {
+        console.error('Error restoring clients section state:', error);
+      }
+    }
+  }, []);
 
   // Load data based on active view
   useEffect(() => {
@@ -171,8 +195,20 @@ export default function ClientsSection() {
 
   // Handle create new client
   const handleCreateClient = () => {
-    setSelectedClient(null);
-    setShowClientEditModal(true);
+    // Store current filter state in sessionStorage to restore later
+    const currentState = {
+      activeView,
+      searchTerm,
+      selectedType,
+      selectedStatus,
+      selectedPrescripteur,
+      selectedUsagerStatus,
+      selectedAutonomie
+    };
+    sessionStorage.setItem('clientsSectionState', JSON.stringify(currentState));
+    
+    // Navigate to the new prescripteur page instead of opening modal
+    router.push('/nouveau-prescripteur');
   };
 
   // Handle edit client
