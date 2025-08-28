@@ -61,13 +61,72 @@ class UsagersAPI {
     autonomieLevel?: string
   ): Promise<ApiResponse<UsagerWithPrescripteur[]>> {
     try {
-      const { data, error } = await supabase.rpc('search_usagers', {
+      // Try RPC function first
+      const { data: rpcData, error: rpcError } = await supabase.rpc('search_usagers', {
         search_term: searchTerm || null,
         prescripteur_filter: prescripteurId || null,
         statut_filter: statut || null,
         autonomie_filter: autonomieLevel || null
       });
 
+      // If RPC fails, fallback to direct query
+      if (rpcError) {
+        console.warn('RPC search_usagers failed, falling back to direct query:', rpcError);
+        
+        // Build query with filters
+        let query = supabase
+          .from('usagers')
+          .select(`
+            *,
+            prescripteur:clients!prescripteur_id (
+              id,
+              nom,
+              prenom,
+              raison_sociale,
+              client_type,
+              numero_client
+            )
+          `)
+          .order('created_at', { ascending: false });
+        
+        // Apply filters
+        if (prescripteurId) {
+          query = query.eq('prescripteur_id', prescripteurId);
+        }
+        if (statut) {
+          query = query.eq('statut', statut);
+        }
+        if (autonomieLevel) {
+          query = query.eq('autonomie_level', autonomieLevel);
+        }
+        
+        const { data: fallbackData, error: fallbackError } = await query;
+        
+        if (fallbackError) {
+          console.error('Both RPC and fallback failed:', fallbackError);
+          return { success: false, error: fallbackError.message };
+        }
+        
+        // Filter by search term on client side if needed
+        let filteredData = fallbackData || [];
+        if (searchTerm && searchTerm.trim() !== '') {
+          const term = searchTerm.toLowerCase();
+          filteredData = filteredData.filter((usager: any) => 
+            usager.nom?.toLowerCase().includes(term) ||
+            usager.prenom?.toLowerCase().includes(term) ||
+            usager.numero_usager?.toLowerCase().includes(term) ||
+            usager.email?.toLowerCase().includes(term) ||
+            usager.telephone?.includes(term)
+          );
+        }
+        
+        return { success: true, data: filteredData as UsagerWithPrescripteur[] };
+      }
+      
+      // RPC succeeded, continue with original logic
+      const data = rpcData;
+      const error = rpcError;
+      
       if (error) {
         console.error('Error searching usagers:', error);
         return { success: false, error: error.message };
