@@ -787,59 +787,7 @@ export default function ReservationsAvailability({ reservations, hotels, selecte
         </Card>
       )}
 
-      {/* Résultats de recherche des réservations existantes */}
-      {(searchDateRange.startDate || searchDateRange.endDate || selectedRoomType !== 'all' || selectedCharacteristic !== 'all' || searchRoomNumber) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Réservations pour la période</CardTitle>
-            <p className="text-sm text-gray-500">
-              {filteredReservations.length} réservation(s) trouvée(s) avec les critères sélectionnés
-            </p>
-          </CardHeader>
-          <CardContent>
-            {filteredReservations.length > 0 ? (
-              <div className="space-y-3">
-                {filteredReservations.map((reservation) => (
-                  <div key={reservation.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Users className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{reservation.usager}</p>
-                        <p className="text-sm text-gray-500">{reservation.hotel} - Chambre {reservation.chambre}</p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(reservation.dateArrivee).toLocaleDateString('fr-FR')} - {new Date(reservation.dateDepart).toLocaleDateString('fr-FR')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge className={
-                        reservation.statut === 'CONFIRMEE' ? 'bg-green-100 text-green-800' :
-                        reservation.statut === 'EN_COURS' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }>
-                        {reservation.statut}
-                      </Badge>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {reservation.prix}€ pour {reservation.duree} jour(s)
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune réservation trouvée</h3>
-                <p className="text-gray-500">
-                  Aucune réservation ne correspond aux critères de recherche sélectionnés.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Section des réservations supprimée - non nécessaire dans le tableau de bord */}
 
              {/* Vue d'ensemble */}
        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
