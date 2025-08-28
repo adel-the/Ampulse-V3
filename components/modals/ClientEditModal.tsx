@@ -1216,6 +1216,26 @@ export default function ClientEditModal({
 
                           // Sauvegarder chaque catégorie de prix
                           for (const categoryPricing of pricingData) {
+                            // Clean monthly prices - remove undefined and zero values
+                            const cleanMonthlyPrices = () => {
+                              const cleaned: Record<string, number> = {};
+                              Object.entries(categoryPricing.monthlyPrices || {}).forEach(([month, price]) => {
+                                if (price !== undefined && price > 0) {
+                                  cleaned[month] = price;
+                                }
+                              });
+                              return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+                            };
+
+                            // Validate default price
+                            const validDefaultPrice = categoryPricing.defaultPrice && categoryPricing.defaultPrice > 0 ? categoryPricing.defaultPrice : null;
+                            
+                            if (!validDefaultPrice) {
+                              console.warn(`Catégorie ${categoryPricing.categoryName}: Prix par défaut invalide ou manquant`);
+                              errorCount++;
+                              continue;
+                            }
+
                             // Transformer les données du format frontend au format backend
                             const conventionData = {
                               client_id: client.id,
@@ -1223,8 +1243,8 @@ export default function ClientEditModal({
                               hotel_id: 1, // TODO: Récupérer l'hôtel sélectionné
                               date_debut: new Date().toISOString().split('T')[0], // Date du jour
                               date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // +1 an
-                              prix_defaut: categoryPricing.defaultPrice,
-                              prix_mensuel: categoryPricing.monthlyPrices, // L'API se charge de la conversion JSON
+                              prix_defaut: validDefaultPrice,
+                              prix_mensuel: cleanMonthlyPrices(),
                               conditions: categoryPricing.conditions || '',
                               active: true
                             };

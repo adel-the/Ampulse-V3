@@ -91,7 +91,7 @@ export default function ConventionPrix({ onSave, initialData, disabled = false }
             ...item, 
             monthlyPrices: {
               ...item.monthlyPrices,
-              [month]: price || undefined
+              [month]: price > 0 ? price : undefined
             }
           }
         : item
@@ -130,8 +130,24 @@ export default function ConventionPrix({ onSave, initialData, disabled = false }
     ));
   };
 
+  const cleanMonthlyPrices = (monthlyPrices: MonthlyPrice): MonthlyPrice => {
+    const cleaned: MonthlyPrice = {};
+    Object.entries(monthlyPrices).forEach(([month, price]) => {
+      if (price !== undefined && price > 0) {
+        cleaned[month as keyof MonthlyPrice] = price;
+      }
+    });
+    return cleaned;
+  };
+
   const handleSave = () => {
-    onSave?.(pricingData);
+    // Clean the data before saving - remove undefined values
+    const cleanedPricingData = pricingData.map(item => ({
+      ...item,
+      monthlyPrices: cleanMonthlyPrices(item.monthlyPrices),
+      defaultPrice: item.defaultPrice || 0
+    }));
+    onSave?.(cleanedPricingData);
   };
 
   if (categoriesLoading) {

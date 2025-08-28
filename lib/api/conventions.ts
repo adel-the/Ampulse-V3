@@ -60,10 +60,32 @@ export interface ConventionDetailView {
   updated_at: string;
 }
 
+// Helper function to clean monthly prices data
+const cleanMonthlyPrices = (monthlyPrices: Record<string, number> | undefined): Record<string, number> | null => {
+  if (!monthlyPrices) return null;
+  
+  const cleaned: Record<string, number> = {};
+  Object.entries(monthlyPrices).forEach(([month, price]) => {
+    if (price !== undefined && price !== null && price > 0) {
+      cleaned[month] = price;
+    }
+  });
+  
+  return Object.keys(cleaned).length > 0 ? cleaned : null;
+};
+
 export const conventionsApi = {
   // Créer ou mettre à jour une convention
   async upsertConvention(data: ConventionPriceData & { id?: number }) {
     try {
+      // Clean and validate monthly prices
+      const cleanedMonthlyPrices = cleanMonthlyPrices(data.prix_mensuel);
+      
+      // Validate required fields
+      if (!data.prix_defaut || data.prix_defaut <= 0) {
+        throw new Error('Le prix par défaut est requis et doit être supérieur à zéro');
+      }
+      
       const { data: result, error } = await supabase.rpc('upsert_convention_tarifaire', {
         p_client_id: data.client_id,
         p_category_id: data.category_id,
@@ -71,7 +93,7 @@ export const conventionsApi = {
         p_date_debut: data.date_debut,
         p_date_fin: data.date_fin || null,
         p_prix_defaut: data.prix_defaut,
-        p_prix_mensuel: data.prix_mensuel ? JSON.stringify(data.prix_mensuel) : null,
+        p_prix_mensuel: cleanedMonthlyPrices ? JSON.stringify(cleanedMonthlyPrices) : null,
         p_reduction_pourcentage: data.reduction_pourcentage || null,
         p_forfait_mensuel: data.forfait_mensuel || null,
         p_conditions: data.conditions || null,
