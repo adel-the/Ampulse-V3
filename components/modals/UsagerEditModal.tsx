@@ -66,30 +66,70 @@ export default function UsagerEditModal({
   const [searchPrescripteur, setSearchPrescripteur] = useState('');
   const [showPrescripteurSearch, setShowPrescripteurSearch] = useState(false);
   
-  // Form data
-  const [formData, setFormData] = useState({
-    prescripteur_id: prescripteurId || usager?.prescripteur_id || 0,
-    nom: usager?.nom || '',
-    prenom: usager?.prenom || '',
-    date_naissance: usager?.date_naissance || '',
-    lieu_naissance: usager?.lieu_naissance || '',
-    nationalite: usager?.nationalite || 'Française',
-    adresse: usager?.adresse || '',
-    ville: usager?.ville || '',
-    code_postal: usager?.code_postal || '',
-    telephone: usager?.telephone || '',
-    email: usager?.email || '',
-    numero_secu: usager?.numero_secu || '',
-    caf_number: usager?.caf_number || '',
-    situation_familiale: usager?.situation_familiale || null,
-    nombre_enfants: usager?.nombre_enfants || 0,
-    revenus: usager?.revenus || null,
-    type_revenus: usager?.type_revenus || '',
-    prestations: usager?.prestations || [],
-    autonomie_level: usager?.autonomie_level || 'Autonome',
-    observations: usager?.observations || '',
-    statut: usager?.statut || 'actif'
-  });
+  // Form data with test values for new usager
+  const getInitialFormData = () => {
+    if (usager) {
+      // Edit mode - use existing usager data
+      return {
+        prescripteur_id: prescripteurId || usager.prescripteur_id || 0,
+        nom: usager.nom || '',
+        prenom: usager.prenom || '',
+        date_naissance: usager.date_naissance || '',
+        lieu_naissance: usager.lieu_naissance || '',
+        nationalite: usager.nationalite || 'Française',
+        adresse: usager.adresse || '',
+        ville: usager.ville || '',
+        code_postal: usager.code_postal || '',
+        telephone: usager.telephone || '',
+        email: usager.email || '',
+        numero_secu: usager.numero_secu || '',
+        caf_number: usager.caf_number || '',
+        situation_familiale: usager.situation_familiale || null,
+        nombre_enfants: usager.nombre_enfants || 0,
+        revenus: usager.revenus || null,
+        type_revenus: usager.type_revenus || '',
+        prestations: usager.prestations || [],
+        autonomie_level: usager.autonomie_level || 'Autonome',
+        observations: usager.observations || '',
+        statut: usager.statut || 'actif'
+      };
+    } else {
+      // Create mode - use test data
+      return {
+        prescripteur_id: prescripteurId || 0,
+        nom: 'MARTIN',
+        prenom: 'Jean',
+        date_naissance: '1985-03-15',
+        lieu_naissance: 'Paris',
+        nationalite: 'Française',
+        adresse: '12 Rue de la République',
+        ville: 'Paris',
+        code_postal: '75011',
+        telephone: '06 12 34 56 78',
+        email: 'jean.martin@email.fr',
+        numero_secu: '1850375011234',
+        caf_number: 'CAF75123456',
+        situation_familiale: 'Célibataire',
+        nombre_enfants: 2,
+        revenus: 850.00,
+        type_revenus: 'RSA',
+        prestations: ['RSA', 'APL'],
+        autonomie_level: 'Autonome',
+        observations: 'Personne autonome, recherche active d\'emploi. Suivi social hebdomadaire. Bonne intégration dans le centre d\'hébergement.',
+        statut: 'actif'
+      };
+    }
+  };
+  
+  const [formData, setFormData] = useState(getInitialFormData());
+  
+  // Reset form data when modal opens/closes or usager changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+    }
+  }, [isOpen, usager]);
+  
 
   // Load prescripteurs - use props if provided, otherwise fetch
   useEffect(() => {
@@ -361,7 +401,6 @@ export default function UsagerEditModal({
                     id="nom"
                     value={formData.nom}
                     onChange={(e) => handleInputChange('nom', e.target.value.toUpperCase())}
-                    placeholder="MARTIN"
                     required
                   />
                 </div>
@@ -371,7 +410,6 @@ export default function UsagerEditModal({
                     id="prenom"
                     value={formData.prenom}
                     onChange={(e) => handleInputChange('prenom', e.target.value)}
-                    placeholder="Jean"
                     required
                   />
                 </div>
@@ -385,7 +423,6 @@ export default function UsagerEditModal({
                     type="date"
                     value={formData.date_naissance}
                     onChange={(e) => handleInputChange('date_naissance', e.target.value)}
-                    placeholder="1985-03-15"
                   />
                 </div>
                 <div>
@@ -394,7 +431,6 @@ export default function UsagerEditModal({
                     id="lieu_naissance"
                     value={formData.lieu_naissance}
                     onChange={(e) => handleInputChange('lieu_naissance', e.target.value)}
-                    placeholder="Paris"
                   />
                 </div>
                 <div>
@@ -403,7 +439,6 @@ export default function UsagerEditModal({
                     id="nationalite"
                     value={formData.nationalite}
                     onChange={(e) => handleInputChange('nationalite', e.target.value)}
-                    placeholder="Française"
                   />
                 </div>
               </div>
@@ -447,7 +482,6 @@ export default function UsagerEditModal({
                   id="adresse"
                   value={formData.adresse}
                   onChange={(e) => handleInputChange('adresse', e.target.value)}
-                  placeholder="12 Rue de la République"
                 />
               </div>
 
@@ -458,7 +492,6 @@ export default function UsagerEditModal({
                     id="code_postal"
                     value={formData.code_postal}
                     onChange={(e) => handleInputChange('code_postal', e.target.value)}
-                    placeholder="75011"
                   />
                 </div>
                 <div>
@@ -467,7 +500,6 @@ export default function UsagerEditModal({
                     id="ville"
                     value={formData.ville}
                     onChange={(e) => handleInputChange('ville', e.target.value)}
-                    placeholder="Paris"
                   />
                 </div>
               </div>
@@ -480,7 +512,6 @@ export default function UsagerEditModal({
                     type="tel"
                     value={formData.telephone}
                     onChange={(e) => handleInputChange('telephone', e.target.value)}
-                    placeholder="06 12 34 56 78"
                   />
                 </div>
                 <div>
@@ -490,7 +521,6 @@ export default function UsagerEditModal({
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="jean.martin@email.fr"
                   />
                 </div>
               </div>
@@ -521,7 +551,6 @@ export default function UsagerEditModal({
                     min="0"
                     value={formData.nombre_enfants}
                     onChange={(e) => handleInputChange('nombre_enfants', parseInt(e.target.value) || 0)}
-                    placeholder="2"
                   />
                 </div>
               </div>
@@ -536,7 +565,6 @@ export default function UsagerEditModal({
                     step="0.01"
                     value={formData.revenus || ''}
                     onChange={(e) => handleInputChange('revenus', parseFloat(e.target.value) || null)}
-                    placeholder="850.00"
                   />
                 </div>
                 <div>
@@ -591,7 +619,6 @@ export default function UsagerEditModal({
                   id="caf_number"
                   value={formData.caf_number}
                   onChange={(e) => handleInputChange('caf_number', e.target.value)}
-                  placeholder="CAF75123456"
                 />
               </div>
 
@@ -602,7 +629,6 @@ export default function UsagerEditModal({
                   value={formData.observations}
                   onChange={(e) => handleInputChange('observations', e.target.value)}
                   rows={4}
-                  placeholder="Personne autonome, recherche active d'emploi. Suivi social hebdomadaire. Bonne intégration dans le centre d'hébergement."
                 />
               </div>
             </TabsContent>
