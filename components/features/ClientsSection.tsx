@@ -53,11 +53,11 @@ export default function ClientsSection() {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Load data on mount
+  // Load data on mount and when filters change
   useEffect(() => {
     // Client types are now static constants
     loadClients();
-  }, []);
+  }, [selectedType, selectedStatus]);
 
 
   // Load clients
@@ -185,7 +185,7 @@ export default function ClientsSection() {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <div>
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
@@ -253,7 +253,10 @@ export default function ClientsSection() {
           
           <select
             value={selectedType || ''}
-            onChange={(e) => setSelectedType(e.target.value ? e.target.value as ClientCategory : null)}
+            onChange={(e) => {
+              const newValue = e.target.value ? e.target.value as ClientCategory : null;
+              setSelectedType(newValue);
+            }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Tous les types</option>
@@ -264,7 +267,9 @@ export default function ClientsSection() {
           
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => {
+              setSelectedStatus(e.target.value);
+            }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Tous les statuts</option>
@@ -290,33 +295,9 @@ export default function ClientsSection() {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <TabsList>
-          <TabsTrigger value="list">Liste des clients</TabsTrigger>
-          <TabsTrigger value="create">Créer un client</TabsTrigger>
-        </TabsList>
-
-        {/* List Tab */}
-        <TabsContent value="list">
-          {/* View mode toggle */}
-          <div className="flex justify-end mb-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                Tableau
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-              >
-                Cartes
-              </Button>
-            </div>
-          </div>
+        {/* Main content (previously list tab) */}
+        <div>
+          {/* View mode toggle removed */}
 
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -515,23 +496,8 @@ export default function ClientsSection() {
               })}
             </div>
           )}
-        </TabsContent>
-
-        {/* Create Tab */}
-        <TabsContent value="create">
-          <Card className="p-8 text-center">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Créer un nouveau client</h3>
-            <p className="text-gray-600 mb-4">
-              Ajoutez un nouveau client à votre base de données
-            </p>
-            <Button onClick={handleCreateClient}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau client
-            </Button>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
 
       {/* Client Edit Modal */}
       <ClientEditModal
