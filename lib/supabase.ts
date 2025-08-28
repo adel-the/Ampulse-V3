@@ -299,51 +299,90 @@ export interface Database {
       usagers: {
         Row: {
           id: number
+          numero_usager: string
+          prescripteur_id: number
           nom: string
           prenom: string
           date_naissance: string | null
+          lieu_naissance: string | null
+          nationalite: string | null
           adresse: string | null
+          ville: string | null
+          code_postal: string | null
           telephone: string | null
           email: string | null
           numero_secu: string | null
-          situation_familiale: string | null
+          caf_number: string | null
+          situation_familiale: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
           nombre_enfants: number
           revenus: number | null
+          type_revenus: string | null
           prestations: string[] | null
+          autonomie_level: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
+          observations: string | null
+          statut: 'actif' | 'inactif' | 'archive'
           created_at: string
           updated_at: string
+          created_by: string | null
+          updated_by: string | null
         }
         Insert: {
           id?: number
+          numero_usager?: string
+          prescripteur_id: number
           nom: string
           prenom: string
           date_naissance?: string | null
+          lieu_naissance?: string | null
+          nationalite?: string | null
           adresse?: string | null
+          ville?: string | null
+          code_postal?: string | null
           telephone?: string | null
           email?: string | null
           numero_secu?: string | null
-          situation_familiale?: string | null
+          caf_number?: string | null
+          situation_familiale?: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
           nombre_enfants?: number
           revenus?: number | null
+          type_revenus?: string | null
           prestations?: string[] | null
+          autonomie_level?: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
+          observations?: string | null
+          statut?: 'actif' | 'inactif' | 'archive'
           created_at?: string
           updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
         }
         Update: {
           id?: number
+          numero_usager?: string
+          prescripteur_id?: number
           nom?: string
           prenom?: string
           date_naissance?: string | null
+          lieu_naissance?: string | null
+          nationalite?: string | null
           adresse?: string | null
+          ville?: string | null
+          code_postal?: string | null
           telephone?: string | null
           email?: string | null
           numero_secu?: string | null
-          situation_familiale?: string | null
+          caf_number?: string | null
+          situation_familiale?: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
           nombre_enfants?: number
           revenus?: number | null
+          type_revenus?: string | null
           prestations?: string[] | null
+          autonomie_level?: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
+          observations?: string | null
+          statut?: 'actif' | 'inactif' | 'archive'
           created_at?: string
           updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
         }
       }
       operateurs_sociaux: {
