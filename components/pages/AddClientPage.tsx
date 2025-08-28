@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Textarea } from '../ui/textarea';
 import { CheckCircle, AlertCircle, Plus, Trash2, User, Building, Heart, Calculator, Euro, Users, Calendar } from 'lucide-react';
 import { ConventionPrix, TarifsMensuels } from '../../types';
+import ConventionPrixComponent from '../features/ConventionPrix';
 
 interface AddClientPageProps {
   onSuccess?: () => void;
@@ -383,11 +384,12 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
         <CardContent>
           <form onSubmit={handleSubmit}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="general">Informations générales</TabsTrigger>
                 <TabsTrigger value="facturation">Facturation</TabsTrigger>
                 <TabsTrigger value="referents">Référents ({referents.length})</TabsTrigger>
                 <TabsTrigger value="tarification">Conventions tarifaires</TabsTrigger>
+                <TabsTrigger value="convention-prix">Grille de prix</TabsTrigger>
               </TabsList>
 
               {/* Onglet Informations générales */}
@@ -965,6 +967,14 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
                      ))}
                    </TabsContent>
                  </Tabs>
+               </TabsContent>
+
+               {/* Onglet Grille de Prix */}
+               <TabsContent value="convention-prix" className="space-y-6">
+                 <ConventionPrixComponent 
+                   onSave={(pricingData) => console.log('Prix data:', pricingData)}
+                   disabled={loading}
+                 />
                </TabsContent>
             </Tabs>
 

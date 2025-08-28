@@ -11,6 +11,7 @@ import { User, Building, Users, CreditCard, Phone, FileText, TestTube, RotateCcw
 import { supabase } from '../../lib/supabase';
 import { CLIENT_TYPES } from '../../lib/supabase';
 import type { ClientCategory, ClientFormData, Client, ReferentFormData, ConventionFormData } from '../../lib/supabase';
+import ConventionPrix from './ConventionPrix';
 
 interface AddClientFormProps {
   preSelectedType?: ClientCategory | null;
@@ -48,6 +49,7 @@ export default function AddClientForm({
   const [conventionData, setConventionData] = useState<Partial<ConventionFormData>>({
     active: false
   });
+  const [conventionPrixData, setConventionPrixData] = useState<any[]>([]);
   const [testDataApplied, setTestDataApplied] = useState(false);
 
   // Fonction pour générer les données de test selon le type de client
@@ -174,6 +176,7 @@ export default function AddClientForm({
     });
     setReferentData({});
     setConventionData({ active: false });
+    setConventionPrixData([]);
     setTestDataApplied(false);
   };
 
@@ -301,6 +304,7 @@ export default function AddClientForm({
       setFormData({ client_type: preSelectedType || 'Particulier', statut: 'actif' });
       setReferentData({});
       setConventionData({ active: false });
+      setConventionPrixData([]);
       setSelectedType(null);
       setActiveTab('basic');
       
@@ -436,9 +440,10 @@ export default function AddClientForm({
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="basic">Informations</TabsTrigger>
                   <TabsTrigger value="convention" disabled={selectedType === 'Particulier'}>Convention</TabsTrigger>
+                  <TabsTrigger value="convention-prix" disabled={selectedType === 'Particulier'}>Convention de Prix</TabsTrigger>
                 </TabsList>
 
                 {/* Onglet Informations complètes */}
@@ -792,6 +797,23 @@ export default function AddClientForm({
                     <Alert>
                       <AlertDescription>
                         Les conventions tarifaires ne sont disponibles que pour les entreprises et les associations.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
+
+                {/* Onglet Convention de Prix */}
+                <TabsContent value="convention-prix" className="space-y-4">
+                  {selectedTypeData && selectedType !== 'Particulier' ? (
+                    <ConventionPrix 
+                      onSave={(pricingData) => setConventionPrixData(pricingData)}
+                      initialData={conventionPrixData}
+                      disabled={loading}
+                    />
+                  ) : (
+                    <Alert>
+                      <AlertDescription>
+                        Les conventions de prix ne sont disponibles que pour les entreprises et les associations.
                       </AlertDescription>
                     </Alert>
                   )}
