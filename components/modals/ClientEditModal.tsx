@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
+import ConventionPrix from '../features/ConventionPrix';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
 import type { ClientCategory } from '@/lib/supabase';
 
@@ -1162,6 +1163,21 @@ export default function ClientEditModal({
                         </Button>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Grille tarifaire par catégorie et par mois */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Grille tarifaire mensuelle par catégorie</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ConventionPrix 
+                      onSave={(pricingData) => {
+                        console.log('Pricing data saved:', pricingData);
+                        // TODO: Intégrer avec l'API pour sauvegarder les tarifs
+                      }}
+                    />
                   </CardContent>
                 </Card>
 
