@@ -10,7 +10,6 @@ import AvailabilitySearchPage from '../components/pages/AvailabilitySearchPage';
 import GestionPage from '../components/pages/GestionPage';
 import GestionEtablissementPage from '../components/pages/GestionEtablissementPage';
 
-import ClientManagement from '../components/features/ClientManagement';
 import OperateursTable from '../components/features/OperateursTable';
 import ChambresPage from '../components/pages/ChambresPage';
 
@@ -382,18 +381,6 @@ export default function Home() {
         return <GestionPage selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null} />;
 
 
-
-      case 'clients':
-        return (
-          <div className="space-y-6">
-            <ClientManagement
-              onClientSelect={(client) => {
-                // Client selected
-                addNotification('info', `Client sélectionné : ${client.nom}`);
-              }}
-            />
-          </div>
-        );
 
       case 'operateurs':
         if (!features.operateursSociaux) {

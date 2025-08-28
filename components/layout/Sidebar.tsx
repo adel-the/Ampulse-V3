@@ -4,7 +4,6 @@ import { Button } from '../ui/button';
 import {
   Building2,
   Calendar,
-  Users,
   MessageSquare,
   Settings,
   BarChart3,
@@ -84,12 +83,6 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
       icon: Wrench,
       alwaysVisible: true
     },
-    { 
-      id: 'clients', 
-      label: 'Clients', 
-      icon: Users, 
-      alwaysVisible: true
-    },
     {
       id: 'analyses-donnees',
       label: 'Analyses de données',
@@ -107,8 +100,7 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
         { id: 'comptabilite-facturation-paiements', label: 'Facturation & Paiements', icon: Receipt },
         { id: 'comptabilite-analytique', label: 'Comptabilité Analytique', icon: BarChart3 },
         { id: 'comptabilite-exports', label: 'Exports Comptables', icon: Download },
-        { id: 'comptabilite-tva-taxes', label: 'TVA & Taxes', icon: Calculator },
-        { id: 'comptabilite-clients', label: 'Comptes Clients', icon: Users }
+        { id: 'comptabilite-tva-taxes', label: 'TVA & Taxes', icon: Calculator }
       ]
     },
     { 
