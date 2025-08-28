@@ -1191,21 +1191,13 @@ export default function ClientEditModal({
                       onSave={async (pricingData) => {
                         // Vérifier qu'on a un client
                         if (!client?.id) {
-                          addNotification({
-                            type: 'error',
-                            title: 'Erreur',
-                            message: 'Veuillez d\'abord sauvegarder le client avant d\'ajouter des conventions tarifaires'
-                          });
+                          addNotification('error', 'Veuillez d\'abord sauvegarder le client avant d\'ajouter des conventions tarifaires');
                           return;
                         }
 
                         // Vérifier que le client n'est pas un particulier
                         if (formData.client_type === 'Particulier') {
-                          addNotification({
-                            type: 'error',
-                            title: 'Type de client incompatible',
-                            message: 'Les conventions tarifaires ne sont disponibles que pour les entreprises et associations'
-                          });
+                          addNotification('error', 'Les conventions tarifaires ne sont disponibles que pour les entreprises et associations');
                           return;
                         }
 
@@ -1262,11 +1254,7 @@ export default function ClientEditModal({
 
                           // Afficher le résultat
                           if (successCount > 0 && errorCount === 0) {
-                            addNotification({
-                              type: 'success',
-                              title: 'Succès',
-                              message: `${successCount} convention(s) tarifaire(s) sauvegardée(s) avec succès`
-                            });
+                            addNotification('success', `${successCount} convention(s) tarifaire(s) sauvegardée(s) avec succès`);
 
                             // Rafraîchir la liste des conventions
                             if (client?.id) {
@@ -1276,20 +1264,12 @@ export default function ClientEditModal({
                               }
                             }
                           } else if (errorCount > 0) {
-                            addNotification({
-                              type: 'warning',
-                              title: 'Sauvegarde partielle',
-                              message: `${successCount} sauvegardée(s), ${errorCount} erreur(s)`
-                            });
+                            addNotification('warning', `${successCount} sauvegardée(s), ${errorCount} erreur(s)`);
                           }
 
                         } catch (error) {
                           console.error('Erreur lors de la sauvegarde des conventions:', error);
-                          addNotification({
-                            type: 'error',
-                            title: 'Erreur',
-                            message: 'Impossible de sauvegarder les conventions tarifaires'
-                          });
+                          addNotification('error', 'Impossible de sauvegarder les conventions tarifaires');
                         } finally {
                           setLoading(false);
                         }
