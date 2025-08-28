@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
+import { conventionsApi } from '@/lib/api/conventions';
 import { useNotifications } from '@/hooks/useNotifications';
 import ConventionPrix from '../features/ConventionPrix';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
@@ -280,6 +281,19 @@ export default function ClientEditModal({
       });
       setReferents(client.referents || []);
       setConventions(client.conventions || []);
+      
+      // Charger les conventions tarifaires depuis la nouvelle API
+      if (client.id) {
+        conventionsApi.getClientConventions(client.id).then(result => {
+          if (result.success && result.data) {
+            console.log('Conventions tarifaires chargées:', result.data);
+            // Les conventions tarifaires sont maintenant disponibles
+            // Elles seront affichées dans la section dédiée
+          }
+        }).catch(error => {
+          console.error('Erreur lors du chargement des conventions tarifaires:', error);
+        });
+      }
     } else if (isOpen) {
       // Reset form for new client
       setFormData({
@@ -1174,9 +1188,91 @@ export default function ClientEditModal({
                   </CardHeader>
                   <CardContent>
                     <ConventionPrix 
-                      onSave={(pricingData) => {
-                        console.log('Pricing data saved:', pricingData);
-                        // TODO: Intégrer avec l'API pour sauvegarder les tarifs
+                      onSave={async (pricingData) => {
+                        // Vérifier qu'on a un client
+                        if (!client?.id) {
+                          addNotification({
+                            type: 'error',
+                            title: 'Erreur',
+                            message: 'Veuillez d\'abord sauvegarder le client avant d\'ajouter des conventions tarifaires'
+                          });
+                          return;
+                        }
+
+                        // Vérifier que le client n'est pas un particulier
+                        if (formData.client_type === 'Particulier') {
+                          addNotification({
+                            type: 'error',
+                            title: 'Type de client incompatible',
+                            message: 'Les conventions tarifaires ne sont disponibles que pour les entreprises et associations'
+                          });
+                          return;
+                        }
+
+                        try {
+                          setLoading(true);
+                          let successCount = 0;
+                          let errorCount = 0;
+
+                          // Sauvegarder chaque catégorie de prix
+                          for (const categoryPricing of pricingData) {
+                            // Transformer les données du format frontend au format backend
+                            const conventionData = {
+                              client_id: client.id,
+                              category_id: parseInt(categoryPricing.categoryId),
+                              hotel_id: 1, // TODO: Récupérer l'hôtel sélectionné
+                              date_debut: new Date().toISOString().split('T')[0], // Date du jour
+                              date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // +1 an
+                              prix_defaut: categoryPricing.defaultPrice,
+                              prix_mensuel: categoryPricing.monthlyPrices, // L'API se charge de la conversion JSON
+                              conditions: categoryPricing.conditions || '',
+                              active: true
+                            };
+
+                            // Appeler l'API pour sauvegarder
+                            const result = await conventionsApi.upsertConvention(conventionData);
+                            
+                            if (result.success) {
+                              successCount++;
+                            } else {
+                              errorCount++;
+                              console.error(`Erreur pour catégorie ${categoryPricing.categoryName}:`, result.error);
+                            }
+                          }
+
+                          // Afficher le résultat
+                          if (successCount > 0 && errorCount === 0) {
+                            addNotification({
+                              type: 'success',
+                              title: 'Succès',
+                              message: `${successCount} convention(s) tarifaire(s) sauvegardée(s) avec succès`
+                            });
+
+                            // Rafraîchir la liste des conventions
+                            if (client?.id) {
+                              const conventionsResult = await conventionsApi.getClientConventions(client.id);
+                              if (conventionsResult.success && conventionsResult.data) {
+                                setConventions(conventionsResult.data);
+                              }
+                            }
+                          } else if (errorCount > 0) {
+                            addNotification({
+                              type: 'warning',
+                              title: 'Sauvegarde partielle',
+                              message: `${successCount} sauvegardée(s), ${errorCount} erreur(s)`
+                            });
+                          }
+
+                        } catch (error) {
+                          console.error('Erreur lors de la sauvegarde des conventions:', error);
+                          addNotification({
+                            type: 'error',
+                            title: 'Erreur',
+                            message: 'Impossible de sauvegarder les conventions tarifaires'
+                          });
+                        } finally {
+                          setLoading(false);
+                        }
                       }}
                     />
                   </CardContent>
