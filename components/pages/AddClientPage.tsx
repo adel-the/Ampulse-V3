@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Textarea } from '../ui/textarea';
 import { CheckCircle, AlertCircle, Plus, Trash2, User, Building, Heart, Calculator, Euro, Users, Calendar } from 'lucide-react';
-import { ConventionPrix, TarifsMensuels } from '../../types';
+import { ConventionPrix, TarifsMensuels, CLIENT_TYPES as DB_CLIENT_TYPES, ClientCategory } from '../../types';
 
 interface AddClientPageProps {
   onSuccess?: () => void;
@@ -25,11 +25,11 @@ interface ConventionPrixForm {
   tarifsMensuels?: TarifsMensuels;
 }
 
-// Types et constantes
+// Types et constantes - Align with database types
 const CLIENT_TYPES = [
-  { id: 'particulier', label: 'Particulier', icon: User },
-  { id: 'entreprise', label: 'Entreprise', icon: Building },
-  { id: 'association', label: 'Association', icon: Heart }
+  { id: 'Particulier' as ClientCategory, label: 'Particulier', icon: User },
+  { id: 'Entreprise' as ClientCategory, label: 'Entreprise', icon: Building },
+  { id: 'Association' as ClientCategory, label: 'Association', icon: Heart }
 ];
 
 const SECTEURS_ACTIVITE = [
@@ -87,13 +87,27 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Validate CLIENT_TYPES consistency on mount
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const localTypes = CLIENT_TYPES.map(t => t.id);
+      const dbTypes = [...DB_CLIENT_TYPES];
+      const missingInLocal = dbTypes.filter(t => !localTypes.includes(t));
+      const missingInDB = localTypes.filter(t => !dbTypes.includes(t));
+      
+      if (missingInLocal.length > 0 || missingInDB.length > 0) {
+        console.error('CLIENT_TYPES mismatch detected:', { missingInLocal, missingInDB });
+      }
+    }
+  }, []);
+
   // État pour le filtrage des conventions par type de chambre
   const [filtreTypeChambre, setFiltreTypeChambre] = useState<string>('tous');
 
   // Données du formulaire
   const [formData, setFormData] = useState({
     // Informations générales
-    type: 'particulier',
+    type: 'Particulier' as ClientCategory,
     nom: '',
     siret: '',
     rna: '',
@@ -297,7 +311,7 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
         throw new Error('Le nom est obligatoire');
       }
 
-      if (formData.type !== 'particulier' && !formData.siret && !formData.rna) {
+      if (formData.type !== 'Particulier' && !formData.siret && !formData.rna) {
         throw new Error('Le SIRET ou RNA est obligatoire pour les entreprises et associations');
       }
 
@@ -314,7 +328,7 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
       
       // Reset du formulaire
       setFormData({
-        type: 'particulier',
+        type: 'Particulier' as ClientCategory,
         nom: '',
         siret: '',
         rna: '',
@@ -398,11 +412,13 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
                   <div className="grid grid-cols-3 gap-4 mt-2">
                     {CLIENT_TYPES.map((type) => {
                       const Icon = type.icon;
+                      const isSelected = formData.type === type.id;
+                      
                       return (
                         <Card 
                           key={type.id}
                           className={`cursor-pointer transition-all ${
-                            formData.type === type.id 
+                            isSelected
                               ? 'ring-2 ring-blue-500 bg-blue-50' 
                               : 'hover:bg-gray-50'
                           }`}
@@ -429,7 +445,7 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
                     />
                   </div>
 
-                  {formData.type === 'entreprise' && (
+                  {formData.type === 'Entreprise' && (
                     <div>
                       <Label htmlFor="siret">SIRET *</Label>
                       <Input
@@ -441,7 +457,7 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
                     </div>
                   )}
 
-                  {formData.type === 'association' && (
+                  {formData.type === 'Association' && (
                     <div>
                       <Label htmlFor="rna">Numéro RNA/SIREN *</Label>
                       <Input
@@ -453,7 +469,7 @@ const AddClientPage: React.FC<AddClientPageProps> = ({ onSuccess }) => {
                     </div>
                   )}
 
-                  {formData.type !== 'particulier' && (
+                  {formData.type !== 'Particulier' && (
                     <div>
                       <Label htmlFor="statutJuridique">Statut juridique</Label>
                       <select

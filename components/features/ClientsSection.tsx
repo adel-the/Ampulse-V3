@@ -98,6 +98,24 @@ export default function ClientsSection() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
 
+  // Referents state
+  const [referents, setReferents] = useState<Array<{
+    id?: number;
+    nom: string;
+    prenom: string;
+    fonction: string;
+    telephone: string;
+    email: string;
+    isEditing?: boolean;
+  }>>([]);
+  const [newReferent, setNewReferent] = useState({
+    nom: '',
+    prenom: '',
+    fonction: '',
+    telephone: '',
+    email: ''
+  });
+
   // Form state for prescripteur
   const [formData, setFormData] = useState<ClientFormData>({
     client_type: '' as any, // Empty to force selection
@@ -106,20 +124,53 @@ export default function ClientsSection() {
     raison_sociale: '',
     email: '',
     telephone: '',
+    telephone_mobile: '',
+    fax: '',
+    site_web: '',
     adresse: '',
+    complement_adresse: '',
     ville: '',
     code_postal: '',
+    pays: 'France',
+    // Entreprise fields
     siret: '',
+    siren: '',
+    tva_intracommunautaire: '',
     secteur_activite: '',
+    taille_entreprise: '',
+    chiffre_affaires: undefined,
     nombre_employes: undefined,
+    // Association fields
     numero_agrement: '',
+    date_agrement: '',
+    domaine_action: '',
     nombre_adherents: undefined,
-    nombre_enfants: undefined,
+    // Particulier fields
+    lieu_naissance: '',
+    nationalite: 'Française',
+    profession: '',
+    employeur: '',
+    // Facturation
+    facturation_mode_paiement: 'virement',
+    facturation_delai_paiement: 30,
+    facturation_tva_applicable: true,
+    facturation_remise_default: 0,
+    conditions_paiement: '30 jours',
+    limite_credit: undefined,
+    // Facturation address
+    facturation_adresse: '',
+    facturation_code_postal: '',
+    facturation_ville: '',
+    facturation_pays: 'France',
+    // Banking
+    facturation_rib: '',
+    facturation_iban: '',
+    facturation_bic: '',
+    facturation_titulaire_compte: '',
+    // Other
     statut: 'actif',
-    mode_paiement: 'virement',
-    delai_paiement: 30,
-    taux_tva: 20,
-    conditions_paiement: '',
+    source_acquisition: '',
+    tags: [],
     notes: ''
   });
   const [activeFormTab, setActiveFormTab] = useState('informations');
@@ -242,20 +293,53 @@ export default function ClientsSection() {
         raison_sociale: client.raison_sociale || '',
         email: client.email || '',
         telephone: client.telephone || '',
+        telephone_mobile: client.telephone_mobile || '',
+        fax: client.fax || '',
+        site_web: client.site_web || '',
         adresse: client.adresse || '',
+        complement_adresse: client.complement_adresse || '',
         ville: client.ville || '',
         code_postal: client.code_postal || '',
+        pays: client.pays || 'France',
+        // Entreprise fields
         siret: client.siret || '',
+        siren: client.siren || '',
+        tva_intracommunautaire: client.tva_intracommunautaire || '',
         secteur_activite: client.secteur_activite || '',
+        taille_entreprise: client.taille_entreprise || '',
+        chiffre_affaires: client.chiffre_affaires || undefined,
         nombre_employes: client.nombre_employes || undefined,
+        // Association fields
         numero_agrement: client.numero_agrement || '',
+        date_agrement: client.date_agrement || '',
+        domaine_action: client.domaine_action || '',
         nombre_adherents: client.nombre_adherents || undefined,
-        nombre_enfants: client.nombre_enfants || undefined,
+        // Particulier fields
+        lieu_naissance: client.lieu_naissance || '',
+        nationalite: client.nationalite || 'Française',
+        profession: client.profession || '',
+        employeur: client.employeur || '',
+        // Facturation
+        facturation_mode_paiement: client.facturation_mode_paiement || 'virement',
+        facturation_delai_paiement: client.facturation_delai_paiement || 30,
+        facturation_tva_applicable: client.facturation_tva_applicable !== false,
+        facturation_remise_default: client.facturation_remise_default || 0,
+        conditions_paiement: client.conditions_paiement || '30 jours',
+        limite_credit: client.limite_credit || undefined,
+        // Facturation address
+        facturation_adresse: client.facturation_adresse || '',
+        facturation_code_postal: client.facturation_code_postal || '',
+        facturation_ville: client.facturation_ville || '',
+        facturation_pays: client.facturation_pays || 'France',
+        // Banking
+        facturation_rib: client.facturation_rib || '',
+        facturation_iban: client.facturation_iban || '',
+        facturation_bic: client.facturation_bic || '',
+        facturation_titulaire_compte: client.facturation_titulaire_compte || '',
+        // Other
         statut: client.statut || 'actif',
-        mode_paiement: client.mode_paiement || 'virement',
-        delai_paiement: client.delai_paiement || 30,
-        taux_tva: client.taux_tva || 20,
-        conditions_paiement: client.conditions_paiement || '',
+        source_acquisition: client.source_acquisition || '',
+        tags: client.tags || [],
         notes: client.notes || ''
       });
     } else {
@@ -266,25 +350,66 @@ export default function ClientsSection() {
         raison_sociale: '',
         email: '',
         telephone: '',
+        telephone_mobile: '',
+        fax: '',
+        site_web: '',
         adresse: '',
+        complement_adresse: '',
         ville: '',
         code_postal: '',
+        pays: 'France',
+        // Entreprise fields
         siret: '',
+        siren: '',
+        tva_intracommunautaire: '',
         secteur_activite: '',
+        taille_entreprise: '',
+        chiffre_affaires: undefined,
         nombre_employes: undefined,
+        // Association fields
         numero_agrement: '',
+        date_agrement: '',
+        domaine_action: '',
         nombre_adherents: undefined,
-        nombre_enfants: undefined,
+        // Particulier fields
+        lieu_naissance: '',
+        nationalite: 'Française',
+        profession: '',
+        employeur: '',
+        // Facturation
+        facturation_mode_paiement: 'virement',
+        facturation_delai_paiement: 30,
+        facturation_tva_applicable: true,
+        facturation_remise_default: 0,
+        conditions_paiement: '30 jours',
+        limite_credit: undefined,
+        // Facturation address
+        facturation_adresse: '',
+        facturation_code_postal: '',
+        facturation_ville: '',
+        facturation_pays: 'France',
+        // Banking
+        facturation_rib: '',
+        facturation_iban: '',
+        facturation_bic: '',
+        facturation_titulaire_compte: '',
+        // Other
         statut: 'actif',
-        mode_paiement: 'virement',
-        delai_paiement: 30,
-        taux_tva: 20,
-        conditions_paiement: '',
+        source_acquisition: '',
+        tags: [],
         notes: ''
       });
     }
     setFormErrors({});
     setFormDirty(false);
+    setReferents([]);
+    setNewReferent({
+      nom: '',
+      prenom: '',
+      fonction: '',
+      telephone: '',
+      email: ''
+    });
   };
 
   // Handle create new client
@@ -322,6 +447,22 @@ export default function ClientsSection() {
       if (result.success && result.data) {
         setSelectedClient(result.data);
         initializeFormData(result.data);
+        
+        // Load existing referents
+        if (result.data.referents && result.data.referents.length > 0) {
+          setReferents(result.data.referents.map(ref => ({
+            id: ref.id,
+            nom: ref.nom || '',
+            prenom: ref.prenom || '',
+            fonction: ref.fonction || '',
+            telephone: ref.telephone || '',
+            email: ref.email || '',
+            isEditing: false
+          })));
+        } else {
+          setReferents([]);
+        }
+        
         setViewMode('edit');
         setActiveFormTab('informations');
       } else {
@@ -499,14 +640,69 @@ export default function ClientsSection() {
       };
       
       // Only add optional fields if they have values
+      // Basic info
       if (formData.prenom?.trim()) filteredClientData.prenom = formData.prenom.trim();
+      if (formData.raison_sociale?.trim()) filteredClientData.raison_sociale = formData.raison_sociale.trim();
+      
+      // Contact info
       if (formData.email?.trim()) filteredClientData.email = formData.email.trim();
       if (formData.telephone?.trim()) filteredClientData.telephone = formData.telephone.trim();
+      if (formData.telephone_mobile?.trim()) filteredClientData.telephone_mobile = formData.telephone_mobile.trim();
+      if (formData.fax?.trim()) filteredClientData.fax = formData.fax.trim();
+      if (formData.site_web?.trim()) filteredClientData.site_web = formData.site_web.trim();
+      
+      // Address
       if (formData.adresse?.trim()) filteredClientData.adresse = formData.adresse.trim();
+      if (formData.complement_adresse?.trim()) filteredClientData.complement_adresse = formData.complement_adresse.trim();
       if (formData.ville?.trim()) filteredClientData.ville = formData.ville.trim();
       if (formData.code_postal?.trim()) filteredClientData.code_postal = formData.code_postal.trim();
-      if (formData.raison_sociale?.trim()) filteredClientData.raison_sociale = formData.raison_sociale.trim();
+      if (formData.pays?.trim()) filteredClientData.pays = formData.pays.trim();
+      
+      // Entreprise specific
       if (formData.siret?.trim()) filteredClientData.siret = formData.siret.trim();
+      if (formData.siren?.trim()) filteredClientData.siren = formData.siren.trim();
+      if (formData.tva_intracommunautaire?.trim()) filteredClientData.tva_intracommunautaire = formData.tva_intracommunautaire.trim();
+      if (formData.secteur_activite?.trim()) filteredClientData.secteur_activite = formData.secteur_activite.trim();
+      if (formData.taille_entreprise?.trim()) filteredClientData.taille_entreprise = formData.taille_entreprise.trim();
+      if (formData.chiffre_affaires !== undefined && formData.chiffre_affaires !== null) filteredClientData.chiffre_affaires = formData.chiffre_affaires;
+      if (formData.nombre_employes !== undefined && formData.nombre_employes !== null) filteredClientData.nombre_employes = formData.nombre_employes;
+      
+      // Association specific
+      if (formData.numero_agrement?.trim()) filteredClientData.numero_agrement = formData.numero_agrement.trim();
+      if (formData.date_agrement?.trim()) filteredClientData.date_agrement = formData.date_agrement.trim();
+      if (formData.domaine_action?.trim()) filteredClientData.domaine_action = formData.domaine_action.trim();
+      if (formData.nombre_adherents !== undefined && formData.nombre_adherents !== null) filteredClientData.nombre_adherents = formData.nombre_adherents;
+      
+      // Particulier specific
+      if (formData.lieu_naissance?.trim()) filteredClientData.lieu_naissance = formData.lieu_naissance.trim();
+      if (formData.nationalite?.trim()) filteredClientData.nationalite = formData.nationalite.trim();
+      if (formData.profession?.trim()) filteredClientData.profession = formData.profession.trim();
+      if (formData.employeur?.trim()) filteredClientData.employeur = formData.employeur.trim();
+      
+      // Facturation
+      if (formData.facturation_mode_paiement?.trim()) filteredClientData.facturation_mode_paiement = formData.facturation_mode_paiement.trim();
+      if (formData.facturation_delai_paiement !== undefined && formData.facturation_delai_paiement !== null) filteredClientData.facturation_delai_paiement = formData.facturation_delai_paiement;
+      if (formData.facturation_tva_applicable !== undefined) filteredClientData.facturation_tva_applicable = formData.facturation_tva_applicable;
+      if (formData.facturation_remise_default !== undefined && formData.facturation_remise_default !== null) filteredClientData.facturation_remise_default = formData.facturation_remise_default;
+      if (formData.conditions_paiement?.trim()) filteredClientData.conditions_paiement = formData.conditions_paiement.trim();
+      if (formData.limite_credit !== undefined && formData.limite_credit !== null) filteredClientData.limite_credit = formData.limite_credit;
+      
+      // Facturation address
+      if (formData.facturation_adresse?.trim()) filteredClientData.facturation_adresse = formData.facturation_adresse.trim();
+      if (formData.facturation_code_postal?.trim()) filteredClientData.facturation_code_postal = formData.facturation_code_postal.trim();
+      if (formData.facturation_ville?.trim()) filteredClientData.facturation_ville = formData.facturation_ville.trim();
+      if (formData.facturation_pays?.trim()) filteredClientData.facturation_pays = formData.facturation_pays.trim();
+      
+      // Banking
+      if (formData.facturation_rib?.trim()) filteredClientData.facturation_rib = formData.facturation_rib.trim();
+      if (formData.facturation_iban?.trim()) filteredClientData.facturation_iban = formData.facturation_iban.trim();
+      if (formData.facturation_bic?.trim()) filteredClientData.facturation_bic = formData.facturation_bic.trim();
+      if (formData.facturation_titulaire_compte?.trim()) filteredClientData.facturation_titulaire_compte = formData.facturation_titulaire_compte.trim();
+      
+      // Other
+      if (formData.source_acquisition?.trim()) filteredClientData.source_acquisition = formData.source_acquisition.trim();
+      if (formData.tags && formData.tags.length > 0) filteredClientData.tags = formData.tags;
+      if (formData.notes?.trim()) filteredClientData.notes = formData.notes.trim();
       
       let response;
       if (selectedClient?.id && viewMode === 'edit') {
@@ -561,6 +757,37 @@ export default function ClientsSection() {
             }
           } catch (error) {
             console.error('Error saving conventions:', error);
+          }
+        }
+        
+        // Save referents
+        if (referents.length > 0) {
+          try {
+            // If editing, delete existing referents first
+            if (viewMode === 'edit' && selectedClient?.id) {
+              const existingReferents = await clientsApi.getReferents(selectedClient.id);
+              if (existingReferents.success && existingReferents.data) {
+                for (const ref of existingReferents.data) {
+                  if (ref.id) {
+                    await clientsApi.deleteReferent(ref.id);
+                  }
+                }
+              }
+            }
+            
+            // Add new referents
+            for (const referent of referents) {
+              const referentData = {
+                nom: referent.nom,
+                prenom: referent.prenom || '',
+                fonction: referent.fonction || '',
+                telephone: referent.telephone || '',
+                email: referent.email || ''
+              };
+              await clientsApi.createReferent(clientId, referentData);
+            }
+          } catch (error) {
+            console.error('Error saving referents:', error);
           }
         }
         
@@ -695,9 +922,11 @@ export default function ClientsSection() {
 
         {/* Form Tabs */}
         <Tabs value={activeFormTab} onValueChange={setActiveFormTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="informations">Informations</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
+            <TabsTrigger value="facturation">Facturation</TabsTrigger>
+            <TabsTrigger value="referents">Référents</TabsTrigger>
             {(isEntreprise || isAssociation) && (
               <TabsTrigger value="conventions">Conventions</TabsTrigger>
             )}
@@ -788,24 +1017,235 @@ export default function ClientsSection() {
                   </div>
                 )}
 
-                {/* SIRET for Entreprise/Association */}
-                {(isEntreprise || isAssociation) && (
-                  <div>
-                    <Label htmlFor="siret">SIRET</Label>
-                    <Input
-                      id="siret"
-                      value={formData.siret}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, siret: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      className={formErrors.siret ? 'border-red-500' : ''}
-                    />
-                    {formErrors.siret && (
-                      <p className="text-xs text-red-500 mt-1">{formErrors.siret}</p>
-                    )}
-                  </div>
+                {/* Entreprise specific fields */}
+                {isEntreprise && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="siret">SIRET</Label>
+                        <Input
+                          id="siret"
+                          value={formData.siret}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, siret: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                          className={formErrors.siret ? 'border-red-500' : ''}
+                        />
+                        {formErrors.siret && (
+                          <p className="text-xs text-red-500 mt-1">{formErrors.siret}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="tva_intracommunautaire">TVA Intracommunautaire</Label>
+                        <Input
+                          id="tva_intracommunautaire"
+                          value={formData.tva_intracommunautaire}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, tva_intracommunautaire: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="secteur_activite">Secteur d'activité</Label>
+                        <Input
+                          id="secteur_activite"
+                          value={formData.secteur_activite}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, secteur_activite: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="taille_entreprise">Taille de l'entreprise</Label>
+                        <select
+                          id="taille_entreprise"
+                          value={formData.taille_entreprise}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, taille_entreprise: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- Sélectionnez --</option>
+                          <option value="TPE">TPE (1-9)</option>
+                          <option value="PME">PME (10-249)</option>
+                          <option value="ETI">ETI (250-4999)</option>
+                          <option value="GE">Grande entreprise (5000+)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="nombre_employes">Nombre d'employés</Label>
+                        <Input
+                          id="nombre_employes"
+                          type="number"
+                          value={formData.nombre_employes || ''}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, nombre_employes: e.target.value ? parseInt(e.target.value) : undefined }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="chiffre_affaires">Chiffre d'affaires annuel (€)</Label>
+                        <Input
+                          id="chiffre_affaires"
+                          type="number"
+                          value={formData.chiffre_affaires || ''}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, chiffre_affaires: e.target.value ? parseFloat(e.target.value) : undefined }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Association specific fields */}
+                {isAssociation && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="siret">SIRET</Label>
+                        <Input
+                          id="siret"
+                          value={formData.siret}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, siret: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                          className={formErrors.siret ? 'border-red-500' : ''}
+                        />
+                        {formErrors.siret && (
+                          <p className="text-xs text-red-500 mt-1">{formErrors.siret}</p>
+                        )}
+                      </div>
+                      <div>
+                        <Label htmlFor="numero_agrement">Numéro d'agrément</Label>
+                        <Input
+                          id="numero_agrement"
+                          value={formData.numero_agrement}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, numero_agrement: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="date_agrement">Date d'agrément</Label>
+                        <Input
+                          id="date_agrement"
+                          type="date"
+                          value={formData.date_agrement}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, date_agrement: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="nombre_adherents">Nombre d'adhérents</Label>
+                        <Input
+                          id="nombre_adherents"
+                          type="number"
+                          value={formData.nombre_adherents || ''}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, nombre_adherents: e.target.value ? parseInt(e.target.value) : undefined }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="domaine_action">Domaine d'action</Label>
+                      <Input
+                        id="domaine_action"
+                        value={formData.domaine_action}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, domaine_action: e.target.value }));
+                          setFormDirty(true);
+                        }}
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Particulier specific fields */}
+                {isParticulier && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="lieu_naissance">Lieu de naissance</Label>
+                        <Input
+                          id="lieu_naissance"
+                          value={formData.lieu_naissance}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, lieu_naissance: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="nationalite">Nationalité</Label>
+                        <Input
+                          id="nationalite"
+                          value={formData.nationalite}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, nationalite: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="profession">Profession</Label>
+                        <Input
+                          id="profession"
+                          value={formData.profession}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, profession: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="employeur">Employeur</Label>
+                        <Input
+                          id="employeur"
+                          value={formData.employeur}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, employeur: e.target.value }));
+                            setFormDirty(true);
+                          }}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Status */}
@@ -871,7 +1311,7 @@ export default function ClientsSection() {
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="telephone">Téléphone</Label>
+                    <Label htmlFor="telephone">Téléphone fixe</Label>
                     <Input
                       id="telephone"
                       value={formData.telephone}
@@ -888,6 +1328,47 @@ export default function ClientsSection() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="telephone_mobile">Téléphone mobile</Label>
+                    <Input
+                      id="telephone_mobile"
+                      value={formData.telephone_mobile}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, telephone_mobile: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fax">Fax</Label>
+                    <Input
+                      id="fax"
+                      value={formData.fax}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, fax: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="site_web">Site web</Label>
+                  <Input
+                    id="site_web"
+                    value={formData.site_web}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, site_web: e.target.value }));
+                      setFormDirty(true);
+                    }}
+                    disabled={isReadOnly}
+                    placeholder="https://"
+                  />
+                </div>
+
                 <div>
                   <Label htmlFor="adresse">Adresse</Label>
                   <Input
@@ -901,7 +1382,21 @@ export default function ClientsSection() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="complement_adresse">Complément d'adresse</Label>
+                  <Input
+                    id="complement_adresse"
+                    value={formData.complement_adresse}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, complement_adresse: e.target.value }));
+                      setFormDirty(true);
+                    }}
+                    disabled={isReadOnly}
+                    placeholder="Bâtiment, étage, etc."
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="code_postal">Code postal</Label>
                     <Input
@@ -925,6 +1420,478 @@ export default function ClientsSection() {
                       }}
                       disabled={isReadOnly}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="pays">Pays</Label>
+                    <Input
+                      id="pays"
+                      value={formData.pays}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, pays: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Facturation Tab */}
+          <TabsContent value="facturation">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations de facturation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="facturation_mode_paiement">Mode de paiement</Label>
+                    <select
+                      id="facturation_mode_paiement"
+                      value={formData.facturation_mode_paiement}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_mode_paiement: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="virement">Virement</option>
+                      <option value="cheque">Chèque</option>
+                      <option value="especes">Espèces</option>
+                      <option value="carte">Carte bancaire</option>
+                      <option value="prelevement">Prélèvement</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_delai_paiement">Délai de paiement (jours)</Label>
+                    <Input
+                      id="facturation_delai_paiement"
+                      type="number"
+                      value={formData.facturation_delai_paiement}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_delai_paiement: parseInt(e.target.value) || 30 }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="conditions_paiement">Conditions de paiement</Label>
+                    <Input
+                      id="conditions_paiement"
+                      value={formData.conditions_paiement}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, conditions_paiement: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="limite_credit">Limite de crédit (€)</Label>
+                    <Input
+                      id="limite_credit"
+                      type="number"
+                      value={formData.limite_credit || ''}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, limite_credit: e.target.value ? parseFloat(e.target.value) : undefined }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="facturation_tva_applicable"
+                      checked={formData.facturation_tva_applicable}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_tva_applicable: e.target.checked }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <Label htmlFor="facturation_tva_applicable">TVA applicable</Label>
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_remise_default">Remise par défaut (%)</Label>
+                    <Input
+                      id="facturation_remise_default"
+                      type="number"
+                      value={formData.facturation_remise_default || 0}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_remise_default: parseFloat(e.target.value) || 0 }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold mt-6">Adresse de facturation</h3>
+                
+                <div>
+                  <Label htmlFor="facturation_adresse">Adresse</Label>
+                  <Input
+                    id="facturation_adresse"
+                    value={formData.facturation_adresse}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, facturation_adresse: e.target.value }));
+                      setFormDirty(true);
+                    }}
+                    disabled={isReadOnly}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="facturation_code_postal">Code postal</Label>
+                    <Input
+                      id="facturation_code_postal"
+                      value={formData.facturation_code_postal}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_code_postal: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_ville">Ville</Label>
+                    <Input
+                      id="facturation_ville"
+                      value={formData.facturation_ville}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_ville: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_pays">Pays</Label>
+                    <Input
+                      id="facturation_pays"
+                      value={formData.facturation_pays}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_pays: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold mt-6">Informations bancaires</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="facturation_iban">IBAN</Label>
+                    <Input
+                      id="facturation_iban"
+                      value={formData.facturation_iban}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_iban: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                      placeholder="FR76 0000 0000 0000 0000 0000 000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_bic">BIC/SWIFT</Label>
+                    <Input
+                      id="facturation_bic"
+                      value={formData.facturation_bic}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_bic: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                      placeholder="XXXXXXXX"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="facturation_titulaire_compte">Titulaire du compte</Label>
+                    <Input
+                      id="facturation_titulaire_compte"
+                      value={formData.facturation_titulaire_compte}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_titulaire_compte: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="facturation_rib">RIB</Label>
+                    <Input
+                      id="facturation_rib"
+                      value={formData.facturation_rib}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, facturation_rib: e.target.value }));
+                        setFormDirty(true);
+                      }}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Referents Tab */}
+          <TabsContent value="referents">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestion des référents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-4">
+                    Les référents sont les personnes de contact associées à ce client.
+                  </div>
+                  
+                  {/* Add referent form */}
+                  {!isReadOnly && (
+                    <div className="border p-4 rounded-lg space-y-4 bg-gray-50">
+                      <h4 className="font-semibold">Ajouter un référent</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="ref_nom">Nom *</Label>
+                          <Input
+                            id="ref_nom"
+                            placeholder="Nom du référent"
+                            value={newReferent.nom}
+                            onChange={(e) => setNewReferent({...newReferent, nom: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="ref_prenom">Prénom</Label>
+                          <Input
+                            id="ref_prenom"
+                            placeholder="Prénom du référent"
+                            value={newReferent.prenom}
+                            onChange={(e) => setNewReferent({...newReferent, prenom: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="ref_fonction">Fonction</Label>
+                          <Input
+                            id="ref_fonction"
+                            placeholder="Directeur, Responsable, etc."
+                            value={newReferent.fonction}
+                            onChange={(e) => setNewReferent({...newReferent, fonction: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="ref_telephone">Téléphone</Label>
+                          <Input
+                            id="ref_telephone"
+                            placeholder="06 00 00 00 00"
+                            value={newReferent.telephone}
+                            onChange={(e) => setNewReferent({...newReferent, telephone: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="ref_email">Email</Label>
+                        <Input
+                          id="ref_email"
+                          type="email"
+                          placeholder="referent@example.com"
+                          value={newReferent.email}
+                          onChange={(e) => setNewReferent({...newReferent, email: e.target.value})}
+                        />
+                      </div>
+                      <Button 
+                        className="w-full"
+                        onClick={() => {
+                          if (newReferent.nom.trim()) {
+                            setReferents([...referents, {...newReferent, isEditing: false}]);
+                            setNewReferent({
+                              nom: '',
+                              prenom: '',
+                              fonction: '',
+                              telephone: '',
+                              email: ''
+                            });
+                            setFormDirty(true);
+                          } else {
+                            addNotification('error', 'Le nom du référent est obligatoire');
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter le référent
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* List of referents */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Référents actuels</h4>
+                    {referents.length > 0 ? (
+                      <div className="space-y-2">
+                        {referents.map((referent, index) => (
+                          <div key={index} className="border rounded-lg p-4 bg-white">
+                            {referent.isEditing ? (
+                              // Edit mode
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <Input
+                                    value={referent.nom}
+                                    onChange={(e) => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], nom: e.target.value};
+                                      setReferents(updated);
+                                    }}
+                                    placeholder="Nom"
+                                  />
+                                  <Input
+                                    value={referent.prenom}
+                                    onChange={(e) => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], prenom: e.target.value};
+                                      setReferents(updated);
+                                    }}
+                                    placeholder="Prénom"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <Input
+                                    value={referent.fonction}
+                                    onChange={(e) => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], fonction: e.target.value};
+                                      setReferents(updated);
+                                    }}
+                                    placeholder="Fonction"
+                                  />
+                                  <Input
+                                    value={referent.telephone}
+                                    onChange={(e) => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], telephone: e.target.value};
+                                      setReferents(updated);
+                                    }}
+                                    placeholder="Téléphone"
+                                  />
+                                </div>
+                                <Input
+                                  value={referent.email}
+                                  onChange={(e) => {
+                                    const updated = [...referents];
+                                    updated[index] = {...updated[index], email: e.target.value};
+                                    setReferents(updated);
+                                  }}
+                                  placeholder="Email"
+                                  type="email"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], isEditing: false};
+                                      setReferents(updated);
+                                      setFormDirty(true);
+                                    }}
+                                  >
+                                    <Save className="h-4 w-4 mr-1" />
+                                    Enregistrer
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const updated = [...referents];
+                                      updated[index] = {...updated[index], isEditing: false};
+                                      setReferents(updated);
+                                    }}
+                                  >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Annuler
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              // View mode
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="font-semibold">
+                                    {referent.nom} {referent.prenom}
+                                  </div>
+                                  {referent.fonction && (
+                                    <div className="text-sm text-gray-600">{referent.fonction}</div>
+                                  )}
+                                  <div className="text-sm space-y-1 mt-2">
+                                    {referent.telephone && (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-3 w-3" />
+                                        {referent.telephone}
+                                      </div>
+                                    )}
+                                    {referent.email && (
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-3 w-3" />
+                                        {referent.email}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {!isReadOnly && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        const updated = [...referents];
+                                        updated[index] = {...updated[index], isEditing: true};
+                                        setReferents(updated);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setReferents(referents.filter((_, i) => i !== index));
+                                        setFormDirty(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">
+                        Aucun référent enregistré pour ce client.
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
