@@ -114,20 +114,20 @@ export default function AvailabilitySearchForm({
 
   return (
     <Card className={`w-full ${className}`}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Search className="h-5 w-5 text-blue-600" />
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Search className="h-4 w-4 text-blue-600" />
           Recherche de disponibilité
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Date Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="checkIn" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Date d'arrivée
+      <CardContent className="pt-0">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Compact grid layout for all fields */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {/* Date d'arrivée */}
+            <div className="col-span-1">
+              <Label htmlFor="checkIn" className="text-xs text-gray-600 mb-1 block">
+                Arrivée
               </Label>
               <Input
                 id="checkIn"
@@ -135,14 +135,15 @@ export default function AvailabilitySearchForm({
                 value={criteria.checkInDate}
                 min={today}
                 onChange={(e) => handleInputChange('checkInDate', e.target.value)}
-                className="w-full"
+                className="h-9 text-sm"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="checkOut" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Date de départ
+            
+            {/* Date de départ */}
+            <div className="col-span-1">
+              <Label htmlFor="checkOut" className="text-xs text-gray-600 mb-1 block">
+                Départ
               </Label>
               <Input
                 id="checkOut"
@@ -150,17 +151,14 @@ export default function AvailabilitySearchForm({
                 value={criteria.checkOutDate}
                 min={minCheckOut}
                 onChange={(e) => handleInputChange('checkOutDate', e.target.value)}
-                className="w-full"
+                className="h-9 text-sm"
                 required
               />
             </div>
-          </div>
-
-          {/* Guests Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="adults" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+            
+            {/* Adultes */}
+            <div className="col-span-1">
+              <Label htmlFor="adults" className="text-xs text-gray-600 mb-1 block">
                 Adultes
               </Label>
               <Input
@@ -170,13 +168,14 @@ export default function AvailabilitySearchForm({
                 max="10"
                 value={criteria.adults}
                 onChange={(e) => handleInputChange('adults', parseInt(e.target.value) || 1)}
-                className="w-full"
+                className="h-9 text-sm"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="children" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+            
+            {/* Enfants */}
+            <div className="col-span-1">
+              <Label htmlFor="children" className="text-xs text-gray-600 mb-1 block">
                 Enfants
               </Label>
               <Input
@@ -186,31 +185,29 @@ export default function AvailabilitySearchForm({
                 max="10"
                 value={criteria.children}
                 onChange={(e) => handleInputChange('children', parseInt(e.target.value) || 0)}
-                className="w-full"
+                className="h-9 text-sm"
               />
             </div>
-          </div>
-
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Hotel Selection */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Hotel className="h-4 w-4" />
+            
+            {/* Établissement */}
+            <div className="col-span-2 md:col-span-2 lg:col-span-1">
+              <Label className="text-xs text-gray-600 mb-1 block">
                 Établissement
               </Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between"
+                    className="w-full h-9 justify-between text-sm px-2"
                     type="button"
                   >
-                    {selectedHotel ? selectedHotel.nom : 'Tous les établissements'}
-                    <ChevronDown className="h-4 w-4" />
+                    <span className="truncate">
+                      {selectedHotel ? selectedHotel.nom : 'Tous'}
+                    </span>
+                    <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
+                <DropdownMenuContent className="w-56">
                   <DropdownMenuItem onClick={() => handleHotelSelect(null)}>
                     Tous les établissements
                   </DropdownMenuItem>
@@ -225,25 +222,26 @@ export default function AvailabilitySearchForm({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
-            {/* Category Selection */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
+            
+            {/* Catégorie */}
+            <div className="col-span-2 md:col-span-2 lg:col-span-1">
+              <Label className="text-xs text-gray-600 mb-1 block">
                 Catégorie
               </Label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between"
+                    className="w-full h-9 justify-between text-sm px-2"
                     type="button"
                   >
-                    {selectedCategory ? selectedCategory.name : 'Toutes catégories'}
-                    <ChevronDown className="h-4 w-4" />
+                    <span className="truncate">
+                      {selectedCategory ? selectedCategory.name : 'Toutes'}
+                    </span>
+                    <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
+                <DropdownMenuContent className="w-64">
                   <DropdownMenuItem onClick={() => handleCategorySelect(null)}>
                     Toutes catégories
                   </DropdownMenuItem>
@@ -260,23 +258,25 @@ export default function AvailabilitySearchForm({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* Action Buttons - More compact */}
+          <div className="flex gap-2 pt-1">
             <Button
               type="submit"
               disabled={!canSearch || isLoading}
-              className="flex-1 flex items-center gap-2"
+              className="h-9 px-4 text-sm"
+              size="sm"
             >
-              <Search className="h-4 w-4" />
+              <Search className="h-3.5 w-3.5 mr-1.5" />
               {isLoading ? 'Recherche...' : 'Rechercher'}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={handleClearFilters}
-              className="flex items-center gap-2"
+              className="h-9 px-3 text-sm"
+              size="sm"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 mr-1.5" />
               Effacer
             </Button>
           </div>

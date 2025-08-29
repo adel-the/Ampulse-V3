@@ -317,10 +317,9 @@ export const useReservations = () => {
         .from('reservations')
         .select(`
           *,
-          usagers (nom, prenom, telephone, email),
-          hotels (nom, adresse, ville),
-          rooms (numero, type),
-          operateurs_sociaux (nom, prenom, organisation)
+          clients:usager_id (nom, prenom, telephone, email),
+          hotels:hotel_id (nom, adresse, ville),
+          rooms:chambre_id (numero, type)
         `)
         .order('date_arrivee', { ascending: false })
 
@@ -340,9 +339,9 @@ export const useReservations = () => {
         .insert(reservation)
         .select(`
           *,
-          usagers (nom, prenom),
-          hotels (nom, adresse),
-          rooms (numero, type)
+          clients:usager_id (nom, prenom),
+          hotels:hotel_id (nom, adresse),
+          rooms:chambre_id (numero, type)
         `)
         .single()
 
@@ -363,9 +362,9 @@ export const useReservations = () => {
         .eq('id', id)
         .select(`
           *,
-          usagers (nom, prenom),
-          hotels (nom, adresse),
-          rooms (numero, type)
+          clients:usager_id (nom, prenom),
+          hotels:hotel_id (nom, adresse),
+          rooms:chambre_id (numero, type)
         `)
         .single()
 

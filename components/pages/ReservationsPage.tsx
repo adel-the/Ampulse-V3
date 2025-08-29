@@ -230,7 +230,12 @@ export default function ReservationsPage({
 
       const { data, error } = await supabase
         .from('reservations')
-        .select('*')
+        .select(`
+          *,
+          clients:usager_id(id, nom, prenom, telephone, email),
+          hotels:hotel_id(id, nom, adresse, ville),
+          rooms:chambre_id(id, numero, type)
+        `)
         .order('date_arrivee', { ascending: false });
 
       if (error) {
@@ -244,9 +249,9 @@ export default function ReservationsPage({
       // Transformer les données pour correspondre au format attendu
       const transformedReservations: ReservationWithDetails[] = data?.map(reservation => ({
         id: reservation.id,
-        usager: reservation.usagerDetails?.nom || 'Usager non spécifié',
-        chambre: reservation.chambreDetails?.numero || 'Chambre non spécifiée',
-        hotel: reservation.hotelDetails?.nom || 'Hôtel non spécifié',
+        usager: reservation.clients ? `${reservation.clients.prenom} ${reservation.clients.nom}` : 'Usager non spécifié',
+        chambre: reservation.rooms?.numero || 'Chambre non spécifiée',
+        hotel: reservation.hotels?.nom || 'Hôtel non spécifié',
         dateArrivee: reservation.date_arrivee,
         dateDepart: reservation.date_depart,
         usager_id: reservation.usager_id,
@@ -262,25 +267,25 @@ export default function ReservationsPage({
         notes: reservation.notes,
         created_at: reservation.created_at,
         updated_at: reservation.updated_at,
-        // Données supplémentaires pour les détails (à récupérer séparément si nécessaire)
-        usagerDetails: { 
-          id: reservation.usager_id, 
-          nom: 'Usager', 
-          prenom: 'Non spécifié',
-          telephone: '',
-          email: ''
-        },
-        hotelDetails: { 
-          id: reservation.hotel_id, 
-          nom: 'Hôtel', 
-          adresse: '', 
-          ville: '' 
-        },
-        chambreDetails: { 
-          id: reservation.chambre_id, 
-          numero: 'Chambre', 
-          type: '' 
-        },
+        // Données supplémentaires pour les détails
+        usagerDetails: reservation.clients ? { 
+          id: reservation.clients.id, 
+          nom: reservation.clients.nom, 
+          prenom: reservation.clients.prenom,
+          telephone: reservation.clients.telephone || '',
+          email: reservation.clients.email || ''
+        } : undefined,
+        hotelDetails: reservation.hotels ? { 
+          id: reservation.hotels.id, 
+          nom: reservation.hotels.nom, 
+          adresse: reservation.hotels.adresse || '', 
+          ville: reservation.hotels.ville || '' 
+        } : undefined,
+        chambreDetails: reservation.rooms ? { 
+          id: reservation.rooms.id, 
+          numero: reservation.rooms.numero, 
+          type: reservation.rooms.type || '' 
+        } : undefined,
         operateurDetails: reservation.operateur_id ? {
           id: reservation.operateur_id,
           nom: 'Opérateur',
