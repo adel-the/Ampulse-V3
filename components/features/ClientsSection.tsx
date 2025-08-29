@@ -17,7 +17,6 @@ import { usagersApi, type UsagerWithPrescripteur, type UsagerStats } from '@/lib
 import { useNotifications } from '@/hooks/useNotifications';
 import { CLIENT_TYPES } from '@/lib/supabase';
 import type { Client, ClientCategory } from '@/lib/supabase';
-import ClientEditModal from '../modals/ClientEditModal';
 import UsagerEditModal from '../modals/UsagerEditModal';
 import ConfirmationDialog from '../ui/confirmation-dialog';
 
@@ -80,8 +79,6 @@ export default function ClientsSection() {
   const [selectedAutonomie, setSelectedAutonomie] = useState<string>('');
   
   // Modal states
-  const [showClientEditModal, setShowClientEditModal] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<ClientWithRelations | null>(null);
   const [showUsagerEditModal, setShowUsagerEditModal] = useState(false);
   const [selectedUsager, setSelectedUsager] = useState<UsagerWithPrescripteur | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -212,19 +209,12 @@ export default function ClientsSection() {
   };
 
   // Handle edit client
-  const handleEditClient = async (client: Client) => {
-    setLoading(true);
-    try {
-      const response = await clientsApi.getClientWithRelations(client.id);
-      if (response.success && response.data) {
-        setSelectedClient(response.data);
-        setShowClientEditModal(true);
-      } else {
-        addNotification('error', response.error || 'Erreur lors du chargement du client');
-      }
-    } finally {
-      setLoading(false);
-    }
+  const handleViewClient = (client: Client) => {
+    router.push(`/nouveau-prescripteur/${client.id}?mode=view`);
+  };
+
+  const handleEditClient = (client: Client) => {
+    router.push(`/nouveau-prescripteur/${client.id}?mode=edit`);
   };
 
   // Handle create new usager
@@ -524,7 +514,7 @@ export default function ClientsSection() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleEditClient(client)}
+                                    onClick={() => handleViewClient(client)}
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
@@ -816,17 +806,6 @@ export default function ClientsSection() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Client Edit Modal */}
-      <ClientEditModal
-        isOpen={showClientEditModal}
-        onClose={() => setShowClientEditModal(false)}
-        client={selectedClient}
-        onSuccess={() => {
-          loadClients();
-          setShowClientEditModal(false);
-        }}
-      />
 
       {/* Usager Edit Modal */}
       <UsagerEditModal

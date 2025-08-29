@@ -20,14 +20,20 @@ import type { ClientCategory } from '@/lib/supabase';
 
 interface NewPrescripteurPageProps {
   initialData?: ClientWithRelations | null;
+  mode?: 'create' | 'edit' | 'view';
 }
 
-export default function NewPrescripteurPage({ initialData }: NewPrescripteurPageProps) {
+export default function NewPrescripteurPage({ initialData, mode = 'create' }: NewPrescripteurPageProps) {
   const router = useRouter();
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('informations');
   const conventionPrixRef = useRef<ConventionPrixRef>(null);
+  
+  // Determine if form should be read-only
+  const isReadOnly = mode === 'view';
+  const isEditMode = mode === 'edit';
+  const isCreateMode = mode === 'create';
   
   // Form data
   const [formData, setFormData] = useState<ClientFormData>({
@@ -352,10 +358,20 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
       if (formData.raison_sociale?.trim()) filteredClientData.raison_sociale = formData.raison_sociale.trim();
       if (formData.siret?.trim()) filteredClientData.siret = formData.siret.trim();
       
-      console.log('Creating new client with formData:', formData);
-      console.log('Filtered client data for DB:', filteredClientData);
-      const response = await clientsApi.createClient(filteredClientData);
-      console.log('API Response:', response);
+      let response;
+      if (initialData?.id && isEditMode) {
+        // Update existing client
+        console.log('Updating existing client:', initialData.id, formData);
+        console.log('Filtered client data for DB:', filteredClientData);
+        response = await clientsApi.updateClient(initialData.id, filteredClientData);
+        console.log('Update API Response:', response);
+      } else {
+        // Create new client
+        console.log('Creating new client with formData:', formData);
+        console.log('Filtered client data for DB:', filteredClientData);
+        response = await clientsApi.createClient(filteredClientData);
+        console.log('Create API Response:', response);
+      }
 
       if (response.success && response.data?.id) {
         console.log('Success - Client saved:', response.data);
@@ -419,22 +435,26 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
               }
               
               // Message de succès combiné
+              const actionText = isEditMode ? 'modifié' : 'créé';
               if (conventionSuccessCount > 0 && conventionErrorCount === 0) {
-                addNotification('success', `Prescripteur créé avec succès. ${conventionSuccessCount} convention(s) tarifaire(s) sauvegardée(s).`);
+                addNotification('success', `Prescripteur ${actionText} avec succès. ${conventionSuccessCount} convention(s) tarifaire(s) sauvegardée(s).`);
               } else if (conventionSuccessCount > 0 && conventionErrorCount > 0) {
-                addNotification('warning', `Prescripteur créé avec succès. ${conventionSuccessCount} convention(s) sauvegardée(s), ${conventionErrorCount} erreur(s) pour les conventions.`);
+                addNotification('warning', `Prescripteur ${actionText} avec succès. ${conventionSuccessCount} convention(s) sauvegardée(s), ${conventionErrorCount} erreur(s) pour les conventions.`);
               } else {
-                addNotification('success', 'Prescripteur créé avec succès.');
+                addNotification('success', `Prescripteur ${actionText} avec succès.`);
               }
             } else {
-              addNotification('success', 'Prescripteur créé avec succès');
+              const actionText = isEditMode ? 'modifié' : 'créé';
+              addNotification('success', `Prescripteur ${actionText} avec succès`);
             }
           } catch (conventionError) {
             console.error('Erreur lors de la sauvegarde des conventions:', conventionError);
-            addNotification('warning', 'Prescripteur créé avec succès, mais erreur lors de la sauvegarde des conventions.');
+            const actionText = isEditMode ? 'modifié' : 'créé';
+            addNotification('warning', `Prescripteur ${actionText} avec succès, mais erreur lors de la sauvegarde des conventions.`);
           }
         } else {
-          addNotification('success', 'Prescripteur créé avec succès');
+          const actionText = isEditMode ? 'modifié' : 'créé';
+          addNotification('success', `Prescripteur ${actionText} avec succès`);
         }
         
         // Navigate back to clients section
@@ -562,7 +582,9 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {initialData ? 'Modifier le prescripteur' : 'Nouveau prescripteur'}
+                  {mode === 'view' ? 'Détails du prescripteur' : 
+                   mode === 'edit' ? 'Modifier le prescripteur' : 
+                   'Nouveau prescripteur'}
                 </h1>
                 {initialData && (
                   <p className="text-sm text-gray-600 mt-1">
@@ -573,25 +595,27 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={handleCancel} disabled={loading}>
-                Annuler
+                {isReadOnly ? 'Retour' : 'Annuler'}
               </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="min-w-[120px]"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Enregistrement...
-                  </div>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    {initialData ? 'Enregistrer' : 'Créer'}
-                  </>
-                )}
-              </Button>
+              {!isReadOnly && (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="min-w-[120px]"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Enregistrement...
+                    </div>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {isEditMode ? 'Enregistrer' : 'Créer'}
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -667,12 +691,13 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
                     <button
                       key={type.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, client_type: type.value as ClientCategory })}
+                      onClick={isReadOnly ? undefined : () => setFormData({ ...formData, client_type: type.value as ClientCategory })}
+                      disabled={isReadOnly}
                       className={`p-6 border-2 rounded-lg transition-all ${
                         formData.client_type === type.value
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <div className="flex flex-col items-center">
                         {type.value === 'Particulier' && <User className="h-10 w-10 mb-3 text-blue-600" />}
@@ -702,9 +727,10 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
                         <Input
                           id="nom"
                           value={formData.nom}
-                          onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                          onChange={isReadOnly ? undefined : (e) => setFormData({ ...formData, nom: e.target.value })}
                           placeholder="Ex: Dupont"
                           className={errors.nom ? 'border-red-500' : ''}
+                          disabled={isReadOnly}
                         />
                         {errors.nom && <p className="text-red-500 text-xs mt-1">{errors.nom}</p>}
                       </div>
@@ -1199,7 +1225,7 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
                 <CardContent>
                   <ConventionPrix 
                     ref={conventionPrixRef}
-                    disabled={loading}
+                    disabled={loading || isReadOnly}
                     showSaveButton={false}
                   />
                 </CardContent>
