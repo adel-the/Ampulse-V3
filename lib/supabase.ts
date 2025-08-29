@@ -933,8 +933,23 @@ export interface Database {
         Row: {
           id: number
           client_id: number
+          category_id: number | null
+          hotel_id: number | null
           date_debut: string | null
           date_fin: string | null
+          prix_defaut: number | null
+          prix_janvier: number | null
+          prix_fevrier: number | null
+          prix_mars: number | null
+          prix_avril: number | null
+          prix_mai: number | null
+          prix_juin: number | null
+          prix_juillet: number | null
+          prix_aout: number | null
+          prix_septembre: number | null
+          prix_octobre: number | null
+          prix_novembre: number | null
+          prix_decembre: number | null
           reduction_pourcentage: number | null
           forfait_mensuel: number | null
           conditions: string | null
@@ -945,8 +960,23 @@ export interface Database {
         Insert: {
           id?: number
           client_id: number
+          category_id?: number | null
+          hotel_id?: number | null
           date_debut?: string | null
           date_fin?: string | null
+          prix_defaut?: number | null
+          prix_janvier?: number | null
+          prix_fevrier?: number | null
+          prix_mars?: number | null
+          prix_avril?: number | null
+          prix_mai?: number | null
+          prix_juin?: number | null
+          prix_juillet?: number | null
+          prix_aout?: number | null
+          prix_septembre?: number | null
+          prix_octobre?: number | null
+          prix_novembre?: number | null
+          prix_decembre?: number | null
           reduction_pourcentage?: number | null
           forfait_mensuel?: number | null
           conditions?: string | null
@@ -957,8 +987,23 @@ export interface Database {
         Update: {
           id?: number
           client_id?: number
+          category_id?: number | null
+          hotel_id?: number | null
           date_debut?: string | null
           date_fin?: string | null
+          prix_defaut?: number | null
+          prix_janvier?: number | null
+          prix_fevrier?: number | null
+          prix_mars?: number | null
+          prix_avril?: number | null
+          prix_mai?: number | null
+          prix_juin?: number | null
+          prix_juillet?: number | null
+          prix_aout?: number | null
+          prix_septembre?: number | null
+          prix_octobre?: number | null
+          prix_novembre?: number | null
+          prix_decembre?: number | null
           reduction_pourcentage?: number | null
           forfait_mensuel?: number | null
           conditions?: string | null
@@ -1206,6 +1251,15 @@ export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
+
+// View type for v_conventions_tarifaires_detail - includes joined data from related tables
+export interface ConventionTarifaireDetail extends ConventionTarifaire {
+  client_nom: string | null; // From clients.raison_sociale
+  category_nom: string | null; // From room_categories.name
+  category_capacite: number | null; // From room_categories.capacity
+  hotel_nom: string | null; // From hotels.nom
+}
+
 export type Equipment = Tables<'equipments'>
 export type EquipmentInsert = Inserts<'equipments'>
 export type EquipmentUpdate = Updates<'equipments'>

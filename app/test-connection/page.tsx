@@ -325,7 +325,7 @@ export default function TestConnectionPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">{result.message}</span>
-                      <Badge variant={result.success ? "success" : "destructive"}>
+                      <Badge variant={result.success ? "default" : "destructive"}>
                         {result.success ? "PASS" : "FAIL"}
                       </Badge>
                     </div>
