@@ -244,57 +244,32 @@ export const clientsApi = {
   // Supprimer un client
   async deleteClient(id: number): Promise<ApiResponse<boolean>> {
     try {
-      console.log('=== DELETE CLIENT DEBUG ===');
+      console.log('=== DELETE CLIENT ===');
       console.log('Attempting to delete client with ID:', id);
       
-      // First check if there are any referents to delete
-      const { data: referents, error: referentsCheckError } = await supabaseAdmin
-        .from('referents')
+      // Check if client has any usagers (beneficiaries) that would prevent deletion
+      const { data: usagers, error: usagersError } = await supabaseAdmin
+        .from('usagers')
         .select('id')
-        .eq('client_id', id);
+        .eq('prescripteur_id', id)
+        .limit(1);
       
-      if (referentsCheckError) {
-        console.error('Error checking referents:', referentsCheckError);
-      } else if (referents && referents.length > 0) {
-        console.log(`Found ${referents.length} referents to delete first`);
-        // Delete referents first
-        const { error: deleteReferentsError } = await supabaseAdmin
-          .from('referents')
-          .delete()
-          .eq('client_id', id);
-        
-        if (deleteReferentsError) {
-          console.error('Error deleting referents:', deleteReferentsError);
-          throw deleteReferentsError;
-        }
-        console.log('Successfully deleted referents');
+      if (usagersError) {
+        console.error('Error checking usagers:', usagersError);
+      } else if (usagers && usagers.length > 0) {
+        console.error('Cannot delete client: has associated usagers');
+        return { 
+          data: false, 
+          error: 'Impossible de supprimer ce client car il a des usagers associés', 
+          success: false 
+        };
       }
       
-      // Check if there are any conventions to delete
-      const { data: conventions, error: conventionsCheckError } = await supabaseAdmin
-        .from('conventions_tarifaires')
-        .select('id')
-        .eq('client_id', id);
-      
-      if (conventionsCheckError) {
-        console.error('Error checking conventions:', conventionsCheckError);
-      } else if (conventions && conventions.length > 0) {
-        console.log(`Found ${conventions.length} conventions to delete first`);
-        // Delete conventions first
-        const { error: deleteConventionsError } = await supabaseAdmin
-          .from('conventions_tarifaires')
-          .delete()
-          .eq('client_id', id);
-        
-        if (deleteConventionsError) {
-          console.error('Error deleting conventions:', deleteConventionsError);
-          throw deleteConventionsError;
-        }
-        console.log('Successfully deleted conventions');
-      }
-
-      // Now delete the client
-      console.log('Deleting client...');
+      // Delete the client directly
+      // The database will automatically cascade delete:
+      // - referents (ON DELETE CASCADE)
+      // - conventions_tarifaires (ON DELETE CASCADE)
+      console.log('Deleting client and cascading related records...');
       const { error } = await supabaseAdmin
         .from('clients')
         .delete()
@@ -302,13 +277,31 @@ export const clientsApi = {
 
       if (error) {
         console.error('Error deleting client:', error);
+        
+        // Provide user-friendly error messages
+        if (error.message?.includes('foreign key constraint')) {
+          if (error.message.includes('reservations')) {
+            return { 
+              data: false, 
+              error: 'Impossible de supprimer ce client car il a des réservations associées', 
+              success: false 
+            };
+          }
+          return { 
+            data: false, 
+            error: 'Impossible de supprimer ce client car il a des données liées', 
+            success: false 
+          };
+        }
+        
         throw error;
       }
       
       console.log('Successfully deleted client with ID:', id);
+      console.log('Related records (referents, conventions_tarifaires) were automatically deleted via CASCADE');
       return { data: true, error: null, success: true };
     } catch (error) {
-      console.error('Full delete error:', error);
+      console.error('Delete client error:', error);
       const message = error instanceof Error ? error.message : 'Erreur lors de la suppression du client';
       return { data: false, error: message, success: false };
     }
