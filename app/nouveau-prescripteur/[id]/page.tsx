@@ -30,7 +30,7 @@ export default function PrescripteurEditPage({ params, searchParams }: Prescript
     const loadClient = async () => {
       try {
         setLoading(true);
-        const result = await clientsApi.getClientById(clientId);
+        const result = await clientsApi.getClientWithRelations(clientId);
         
         if (result.success && result.data) {
           setClient(result.data);
