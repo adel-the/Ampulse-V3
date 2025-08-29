@@ -1252,12 +1252,12 @@ export type Client = Tables<'clients'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 
-// View type for v_conventions_tarifaires_detail - includes joined data from related tables
-export interface ConventionTarifaireDetail extends ConventionTarifaire {
-  client_nom: string | null; // From clients.raison_sociale
-  category_nom: string | null; // From room_categories.name
-  category_capacite: number | null; // From room_categories.capacity
-  hotel_nom: string | null; // From hotels.nom
+// Type for conventions_tarifaires with foreign key expansion
+// Used when querying with .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')
+export interface ConventionTarifaireWithRelations extends ConventionTarifaire {
+  clients?: { raison_sociale: string | null };
+  room_categories?: { name: string | null; capacity: number | null };
+  hotels?: { nom: string | null };
 }
 
 export type Equipment = Tables<'equipments'>

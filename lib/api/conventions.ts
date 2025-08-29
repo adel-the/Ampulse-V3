@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { ConventionTarifaire } from '../supabase';
+import type { ConventionTarifaire, ConventionTarifaireWithRelations } from '../supabase';
 
 export interface ConventionPriceData {
   client_id: number;
@@ -26,38 +26,6 @@ export interface ConventionPriceData {
   forfait_mensuel?: number;
   conditions?: string;
   active?: boolean;
-}
-
-export interface ConventionDetailView {
-  id: number;
-  client_id: number;
-  client_nom: string;
-  category_id: number;
-  category_nom: string;
-  category_capacite: number;
-  hotel_id?: number;
-  hotel_nom?: string;
-  date_debut: string;
-  date_fin?: string;
-  prix_defaut: number;
-  prix_janvier?: number;
-  prix_fevrier?: number;
-  prix_mars?: number;
-  prix_avril?: number;
-  prix_mai?: number;
-  prix_juin?: number;
-  prix_juillet?: number;
-  prix_aout?: number;
-  prix_septembre?: number;
-  prix_octobre?: number;
-  prix_novembre?: number;
-  prix_decembre?: number;
-  reduction_pourcentage?: number;
-  forfait_mensuel?: number;
-  conditions?: string;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
 }
 
 // Helper function to clean monthly prices data
@@ -130,8 +98,20 @@ export const conventionsApi = {
   async getClientConventions(clientId: number, activeOnly = false) {
     try {
       let query = supabase
-        .from('v_conventions_tarifaires_detail')
-        .select('*')
+        .from('conventions_tarifaires')
+        .select(`
+          *,
+          clients!inner (
+            raison_sociale
+          ),
+          room_categories (
+            name,
+            capacity
+          ),
+          hotels (
+            nom
+          )
+        `)
         .eq('client_id', clientId)
         .order('date_debut', { ascending: false });
 
@@ -145,7 +125,7 @@ export const conventionsApi = {
 
       return {
         success: true,
-        data: data as ConventionDetailView[]
+        data: data as ConventionTarifaireWithRelations[]
       };
     } catch (error) {
       console.error('Error in getClientConventions:', error);
@@ -273,8 +253,20 @@ export const conventionsApi = {
   ) {
     try {
       let query = supabase
-        .from('v_conventions_tarifaires_detail')
-        .select('*')
+        .from('conventions_tarifaires')
+        .select(`
+          *,
+          clients!inner (
+            raison_sociale
+          ),
+          room_categories (
+            name,
+            capacity
+          ),
+          hotels (
+            nom
+          )
+        `)
         .eq('active', true)
         .or(`date_debut.lte.${dateFin},date_fin.gte.${dateDebut},date_fin.is.null`);
 
@@ -292,7 +284,7 @@ export const conventionsApi = {
 
       return {
         success: true,
-        data: data as ConventionDetailView[]
+        data: data as ConventionTarifaireWithRelations[]
       };
     } catch (error) {
       console.error('Error in getConventionsByPeriod:', error);

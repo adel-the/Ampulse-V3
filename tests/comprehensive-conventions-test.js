@@ -130,8 +130,8 @@ async function testGetConventionsView() {
   
   if (data.length > 0) {
     const conv = data[0];
-    console.log(`   - Client: ${conv.client_nom || 'Non trouvé'}`);
-    console.log(`   - Catégorie: ${conv.category_nom || 'Non trouvé'}`);
+    console.log(`   - Client: ${conv.clients?.raison_sociale || 'Non trouvé'}`);
+    console.log(`   - Catégorie: ${conv.room_categories?.name || 'Non trouvé'}`);
     console.log(`   - Prix défaut: ${conv.prix_defaut}€`);
     console.log(`   - Prix juillet: ${conv.prix_juillet || 'Non défini'}€`);
     console.log(`   - Active: ${conv.active ? 'Oui' : 'Non'}`);

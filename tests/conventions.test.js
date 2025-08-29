@@ -96,8 +96,10 @@ describe('Conventions Tarifaires', () => {
       expect(result.data.length).toBeGreaterThan(0);
       
       const convention = result.data[0];
-      expect(convention).toHaveProperty('client_nom');
-      expect(convention).toHaveProperty('category_nom');
+      expect(convention).toHaveProperty('clients');
+      expect(convention.clients).toHaveProperty('raison_sociale');
+      expect(convention).toHaveProperty('room_categories');
+      expect(convention.room_categories).toHaveProperty('name');
       expect(convention).toHaveProperty('prix_defaut');
     }, TEST_TIMEOUT);
 
