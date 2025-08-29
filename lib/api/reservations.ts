@@ -71,7 +71,7 @@ export const reservationsApi = {
         statut: data.statut || 'pending',
         prescripteur: 'System', // Default prescripteur for simplified system
         prix: data.room_rate, // Keep compatibility with existing field
-        duree: duration,
+        duree: duration, // Duration in days calculated from dates
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
