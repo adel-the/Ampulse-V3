@@ -221,21 +221,54 @@ export const clientsApi = {
   // Mettre à jour un client
   async updateClient(id: number, updates: Partial<ClientFormData>): Promise<ApiResponse<Client>> {
     try {
-      const updateData = {
-        ...updates,
-        updated_at: new Date().toISOString()
-      };
+      // Validate ID
+      if (!id || isNaN(id)) {
+        return { data: null, error: 'ID client invalide', success: false };
+      }
+
+      // Clean and validate update data
+      const cleanedUpdates: any = {};
+      
+      // Required fields
+      if (updates.client_type) cleanedUpdates.client_type = updates.client_type;
+      if (updates.nom) cleanedUpdates.nom = updates.nom.trim();
+      
+      // Optional fields - only include if they have values
+      if (updates.prenom !== undefined) cleanedUpdates.prenom = updates.prenom?.trim() || null;
+      if (updates.raison_sociale !== undefined) cleanedUpdates.raison_sociale = updates.raison_sociale?.trim() || null;
+      if (updates.email !== undefined) cleanedUpdates.email = updates.email?.trim() || null;
+      if (updates.telephone !== undefined) cleanedUpdates.telephone = updates.telephone?.trim() || null;
+      if (updates.adresse !== undefined) cleanedUpdates.adresse = updates.adresse?.trim() || null;
+      if (updates.ville !== undefined) cleanedUpdates.ville = updates.ville?.trim() || null;
+      if (updates.code_postal !== undefined) cleanedUpdates.code_postal = updates.code_postal?.trim() || null;
+      if (updates.siret !== undefined) cleanedUpdates.siret = updates.siret?.trim() || null;
+      if (updates.statut !== undefined) {
+        // Validate statut enum
+        const validStatuts = ['actif', 'inactif', 'prospect', 'archive'];
+        cleanedUpdates.statut = validStatuts.includes(updates.statut) ? updates.statut : 'actif';
+      }
+
+      // Add timestamp
+      cleanedUpdates.updated_at = new Date().toISOString();
+
+      console.log(`[API] Updating client ${id} with data:`, cleanedUpdates);
 
       const { data, error } = await supabaseAdmin
         .from('clients')
-        .update(updateData)
+        .update(cleanedUpdates)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error(`[API] Update error for client ${id}:`, error);
+        throw error;
+      }
+      
+      console.log(`[API] Client ${id} updated successfully`);
       return { data, error: null, success: true };
     } catch (error) {
+      console.error('[API] Update client error:', error);
       const message = error instanceof Error ? error.message : 'Erreur lors de la mise à jour du client';
       return { data: null, error: message, success: false };
     }
