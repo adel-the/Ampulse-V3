@@ -21,7 +21,12 @@ import {
   Bed,
   Building,
   Search,
-  Users
+  Users,
+  LayoutDashboard,
+  CalendarCheck,
+  CalendarDays,
+  BookOpen,
+  ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -57,19 +62,19 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
     { 
       id: 'reservations-disponibilite', 
       label: 'Tableau de bord', 
-      icon: Calendar, 
+      icon: LayoutDashboard, 
       alwaysVisible: true
     },
     { 
       id: 'reservations-liste', 
       label: 'Réservations', 
-      icon: Calendar, 
+      icon: ClipboardList, 
       alwaysVisible: true
     },
     { 
       id: 'reservations-calendrier', 
       label: 'Disponibilité', 
-      icon: Calendar, 
+      icon: CalendarCheck, 
       alwaysVisible: true
     },
     {

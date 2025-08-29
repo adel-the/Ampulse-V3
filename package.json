@@ -25,6 +25,8 @@
     "test:persistence:all": "node tests/run-persistence-tests.js",
     "validate:persistence": "npm run test:persistence:all",
     "test:all": "npm run test:rooms:all && npm run test:establishments:crud && npm run test:database:integrity && npm run test:persistence:all",
+    "test:reservations:count": "node test-reservations-count.js",
+    "validate:reservations": "npm run test:reservations:count",
     "diagnose:convention-prix": "node scripts/diagnose-convention-prix.js",
     "create-test-convention": "node scripts/create-test-convention.js"
   },

@@ -210,46 +210,70 @@ export default function ReservationsPage({
 
   const loadReservations = async () => {
     try {
+      console.log('🔍 [DEBUG] Starting loadReservations function');
       setLoading(true);
       setError(null);
       setUseFallbackData(false);
       
       // Vérifier d'abord si Supabase est accessible
+      console.log('🔍 [DEBUG] Testing Supabase connection...');
       const { data: testData, error: testError } = await supabase
         .from('reservations')
         .select('id')
         .limit(1);
 
+      console.log('🔍 [DEBUG] Test query result:', { testData, testError });
+
       if (testError) {
-        console.warn('Supabase non accessible, utilisation des données de fallback:', testError);
+        console.warn('⚠️ [DEBUG] Supabase non accessible, utilisation des données de fallback:', testError);
+        console.log('🔍 [DEBUG] Test error details:', {
+          message: testError.message,
+          details: testError.details,
+          hint: testError.hint,
+          code: testError.code
+        });
+        setError(`Test de connexion échoué: ${testError.message}`);
         setUseFallbackData(true);
         setReservations(fallbackReservations);
         setLoading(false);
         return;
       }
 
+      console.log('✅ [DEBUG] Supabase connection successful, executing main query...');
       const { data, error } = await supabase
         .from('reservations')
         .select(`
           *,
-          clients:usager_id(id, nom, prenom, telephone, email),
+          usagers:usager_id(id, nom, prenom, telephone, email),
           hotels:hotel_id(id, nom, adresse, ville),
-          rooms:chambre_id(id, numero, type)
+          rooms:chambre_id(id, numero, bed_type)
         `)
         .order('date_arrivee', { ascending: false });
 
+      console.log('🔍 [DEBUG] Main query result:', { dataLength: data?.length, error });
+
       if (error) {
-        console.warn('Erreur Supabase, utilisation des données de fallback:', error);
+        console.warn('⚠️ [DEBUG] Erreur Supabase, utilisation des données de fallback:', error);
+        console.log('🔍 [DEBUG] Main query error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        setError(`Erreur de requête: ${error.message}`);
         setUseFallbackData(true);
         setReservations(fallbackReservations);
         setLoading(false);
         return;
       }
 
+      console.log('✅ [DEBUG] Main query successful, transforming data...');
+      console.log('🔍 [DEBUG] Raw data sample:', data?.[0]);
+
       // Transformer les données pour correspondre au format attendu
       const transformedReservations: ReservationWithDetails[] = data?.map(reservation => ({
         id: reservation.id,
-        usager: reservation.clients ? `${reservation.clients.prenom} ${reservation.clients.nom}` : 'Usager non spécifié',
+        usager: reservation.usagers ? `${reservation.usagers.prenom} ${reservation.usagers.nom}` : 'Usager non spécifié',
         chambre: reservation.rooms?.numero || 'Chambre non spécifiée',
         hotel: reservation.hotels?.nom || 'Hôtel non spécifié',
         dateArrivee: reservation.date_arrivee,
@@ -268,12 +292,12 @@ export default function ReservationsPage({
         created_at: reservation.created_at,
         updated_at: reservation.updated_at,
         // Données supplémentaires pour les détails
-        usagerDetails: reservation.clients ? { 
-          id: reservation.clients.id, 
-          nom: reservation.clients.nom, 
-          prenom: reservation.clients.prenom,
-          telephone: reservation.clients.telephone || '',
-          email: reservation.clients.email || ''
+        usagerDetails: reservation.usagers ? { 
+          id: reservation.usagers.id, 
+          nom: reservation.usagers.nom, 
+          prenom: reservation.usagers.prenom,
+          telephone: reservation.usagers.telephone || '',
+          email: reservation.usagers.email || ''
         } : undefined,
         hotelDetails: reservation.hotels ? { 
           id: reservation.hotels.id, 
@@ -284,7 +308,7 @@ export default function ReservationsPage({
         chambreDetails: reservation.rooms ? { 
           id: reservation.rooms.id, 
           numero: reservation.rooms.numero, 
-          type: reservation.rooms.type || '' 
+          type: reservation.rooms.bed_type || '' 
         } : undefined,
         operateurDetails: reservation.operateur_id ? {
           id: reservation.operateur_id,
@@ -294,13 +318,28 @@ export default function ReservationsPage({
         } : undefined
       })) || [];
 
+      console.log('✅ [DEBUG] Data transformation completed, setting reservations...');
+      console.log('🔍 [DEBUG] Transformed reservations count:', transformedReservations.length);
+      console.log('🔍 [DEBUG] Transformed data sample:', transformedReservations[0]);
+      
       setReservations(transformedReservations);
+      setUseFallbackData(false);
+      console.log('✅ [DEBUG] loadReservations completed successfully with real data');
+      console.log('✅ [DEBUG] Fallback data is DISABLED - using real database data');
     } catch (err) {
-      console.warn('Exception lors du chargement, utilisation des données de fallback:', err);
+      console.warn('💥 [DEBUG] Exception lors du chargement, utilisation des données de fallback:', err);
+      console.log('🔍 [DEBUG] Exception details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      setError(err instanceof Error ? err.message : 'Erreur inconnue lors du chargement');
       setUseFallbackData(true);
       setReservations(fallbackReservations);
+      console.log('⚠️ [DEBUG] Fallback data activated due to exception');
     } finally {
       setLoading(false);
+      console.log('🔍 [DEBUG] loadReservations function completed');
     }
   };
 
@@ -347,8 +386,7 @@ export default function ReservationsPage({
     if (useFallbackData) {
       return (
         <div className="space-y-6">
-          {/* Banner de mode démonstration masqué */}
-          {/*
+          {/* Banner de mode démonstration */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -358,10 +396,11 @@ export default function ReservationsPage({
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">
-                  Mode démonstration
+                  Mode démonstration - Données de test
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>La connexion à la base de données n'est pas disponible. Les données affichées sont des exemples pour la démonstration.</p>
+                  <p>La connexion à la base de données n'est pas disponible. Les données affichées sont des exemples pour la démonstration (3 réservations de test).</p>
+                  <p className="mt-1 font-semibold">Erreur: {error || 'Connexion Supabase échouée'}</p>
                 </div>
                 <div className="mt-4">
                   <button 
@@ -374,7 +413,6 @@ export default function ReservationsPage({
               </div>
             </div>
           </div>
-          */}
 
           {renderMainContent()}
         </div>
