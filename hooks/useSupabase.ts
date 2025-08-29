@@ -563,7 +563,7 @@ export const useRooms = (hotelId?: number, options?: {
         .from('reservations')
         .select('id')
         .eq('chambre_id', id)
-        .in('statut', ['CONFIRMEE', 'EN_COURS'])
+        .in('statut', ['confirmed', 'pending'])
         .limit(1)
 
       if (checkError) {
@@ -645,22 +645,21 @@ export const useRooms = (hotelId?: number, options?: {
         return { available: false, reason: 'Chambre en maintenance', success: true }
       }
 
-      // Check for conflicting reservations
-      const { data: conflictingReservations, error } = await supabase
-        .from('reservations')
-        .select('id, date_arrivee, date_depart, statut')
-        .eq('chambre_id', roomId)
-        .in('statut', ['CONFIRMEE', 'EN_COURS'])
-        .or(`date_arrivee.lte.${dates.dateDepart},date_depart.gte.${dates.dateArrivee}`)
+      // Use the new database function for accurate availability checking
+      const { data: availability, error } = await supabase
+        .rpc('check_room_availability', {
+          p_room_id: roomId,
+          p_check_in: dates.dateArrivee,
+          p_check_out: dates.dateDepart
+        })
 
       if (error) throw error
 
-      const hasConflicts = conflictingReservations && conflictingReservations.length > 0
+      const isAvailable = availability === true
       
       return {
-        available: !hasConflicts,
-        conflictingReservations: conflictingReservations || [],
-        reason: hasConflicts ? 'Chambre déjà réservée pour ces dates' : undefined,
+        available: isAvailable,
+        reason: !isAvailable ? 'Chambre non disponible pour ces dates' : undefined,
         success: true
       }
     } catch (err) {
@@ -679,8 +678,21 @@ export const useRooms = (hotelId?: number, options?: {
     return rooms.filter(room => room.category_id === categoryId)
   }
 
-  const getAvailableRooms = (): Room[] => {
-    return rooms.filter(room => room.statut === 'disponible')
+  const getAvailableRooms = async (dates?: { dateArrivee: string, dateDepart: string }): Promise<Room[]> => {
+    if (!dates) {
+      // If no dates provided, return rooms that are not in maintenance
+      return rooms.filter(room => room.statut !== 'maintenance')
+    }
+    
+    // Check availability using the new database function
+    const availableRooms: Room[] = []
+    for (const room of rooms) {
+      const availability = await checkRoomAvailability(room.id, dates)
+      if (availability.available) {
+        availableRooms.push(room)
+      }
+    }
+    return availableRooms
   }
 
   const getRoomStatistics = () => {
@@ -1003,7 +1015,7 @@ export const useDashboardStats = () => {
       const { data: reservations, error: reservationsError } = await supabase
         .from('reservations')
         .select('prix, duree, statut')
-        .in('statut', ['CONFIRMEE', 'EN_COURS'])
+        .in('statut', ['confirmed', 'pending'])
 
       if (reservationsError) throw reservationsError
 
@@ -1325,7 +1337,7 @@ export const useClients = (options?: HookOptions) => {
         .from('reservations')
         .select('id')
         .eq('usager_id', id) // Assuming clients are linked as usagers in reservations
-        .in('statut', ['CONFIRMEE', 'EN_COURS'])
+        .in('statut', ['confirmed', 'pending'])
         .limit(1)
 
       if (checkError) {

@@ -37,34 +37,7 @@ export default function AvailabilitySearchPage({
   const isLoading = hotelsLoading || categoriesLoading;
   const error = hotelsError || categoriesError;
 
-  // Mock availability check function
-  const checkRoomAvailability = async (room: Room, criteria: AvailabilitySearchCriteria): Promise<boolean> => {
-    // Mock logic: room is available if not in maintenance
-    // In a real implementation, this would check reservation conflicts
-    if (room.statut === 'maintenance') {
-      return false;
-    }
-
-    // Check for overlapping reservations (mock implementation)
-    try {
-      const { data: reservations, error } = await supabase
-        .from('reservations')
-        .select('id, date_arrivee, date_depart, statut')
-        .eq('chambre_id', room.id)
-        .in('statut', ['CONFIRMEE', 'EN_COURS'])
-        .or(`date_arrivee.lte.${criteria.checkOutDate},date_depart.gte.${criteria.checkInDate}`);
-
-      if (error) {
-        console.warn('Error checking reservations:', error);
-        return true; // Assume available on error
-      }
-
-      return !reservations || reservations.length === 0;
-    } catch (err) {
-      console.warn('Error in availability check:', err);
-      return true; // Assume available on error
-    }
-  };
+  // Function removed - now using database function get_available_rooms_with_details
 
   // Get room equipment details
   const getRoomEquipmentDetails = async (room: Room, hotelId: number): Promise<HotelEquipment[]> => {
@@ -95,7 +68,7 @@ export default function AvailabilitySearchPage({
     }
   };
 
-  // Main search function
+  // Main search function using the correct database function
   const handleSearch = async (criteria: AvailabilitySearchCriteria) => {
     setIsSearching(true);
     setSearchError(null);
@@ -103,81 +76,75 @@ export default function AvailabilitySearchPage({
     setHasSearched(true);
 
     try {
-      // Get all rooms based on criteria
-      let query = supabase
-        .from('rooms')
-        .select(`
-          *,
-          hotels!inner(*)
-        `);
-
-      // Apply hotel filter
-      if (criteria.hotelId) {
-        query = query.eq('hotel_id', criteria.hotelId);
-      }
-
-      // Apply category filter
-      if (criteria.categoryId) {
-        query = query.eq('category_id', criteria.categoryId);
-      }
-
-      // Order by hotel name and room number
-      query = query.order('numero');
-
-      const { data: roomsWithHotels, error: roomsError } = await query;
+      // Use the corrected database function get_available_rooms_with_details
+      const { data: roomsData, error: roomsError } = await supabase
+        .rpc('get_available_rooms_with_details', {
+          p_date_debut: criteria.checkInDate,
+          p_date_fin: criteria.checkOutDate,
+          p_hotel_id: criteria.hotelId || null,
+          p_room_type: criteria.categoryId ? categories.find(c => c.id === criteria.categoryId)?.name || null : null,
+          p_capacity: criteria.adults + criteria.children,
+          p_characteristic: null,
+          p_room_number: null,
+          p_rental_mode: 'night'
+        });
 
       if (roomsError) {
         throw new Error(`Erreur lors de la recherche: ${roomsError.message}`);
       }
 
-      if (!roomsWithHotels || roomsWithHotels.length === 0) {
+      if (!roomsData || roomsData.length === 0) {
         setSearchResults([]);
         return;
       }
 
-      // Get room categories
-      const roomCategoryIds = [...new Set(roomsWithHotels
-        .map(r => r.category_id)
-        .filter(id => id !== null)
-      )];
-
-      let roomCategories: RoomCategory[] = [];
-      if (roomCategoryIds.length > 0) {
-        const { data: categoriesData } = await supabase
-          .from('room_categories')
-          .select('*')
-          .in('id', roomCategoryIds);
-        roomCategories = categoriesData || [];
-      }
-
-      // Process each room
+      // Transform database results to AvailableRoom format
       const availableRooms: AvailableRoom[] = [];
 
-      for (const roomData of roomsWithHotels) {
-        const room = roomData as Room & { hotels: HotelType };
-        const hotel = room.hotels;
-
-        // Check availability
-        const isAvailable = await checkRoomAvailability(room, criteria);
-
+      for (const roomData of roomsData) {
+        // Get hotel details
+        const hotel = hotels.find(h => h.id === roomData.hotel_id);
+        
         // Get category details
-        const category = room.category_id 
-          ? roomCategories.find(c => c.id === room.category_id)
+        const category = roomData.category_id 
+          ? categories.find(c => c.id === roomData.category_id)
           : undefined;
 
         // Get equipment details
-        const equipmentDetails = await getRoomEquipmentDetails(room, room.hotel_id);
+        const equipmentDetails = await getRoomEquipmentDetails({
+          id: roomData.id,
+          equipment_ids: roomData.equipment_ids || []
+        } as Room, roomData.hotel_id);
 
-        // Check capacity constraint
-        const totalGuests = criteria.adults + criteria.children;
-        const hasCapacityConstraint = category && totalGuests > category.capacity;
+        // Calculate nights and total price
+        const checkIn = new Date(criteria.checkInDate);
+        const checkOut = new Date(criteria.checkOutDate);
+        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        const totalPrice = roomData.prix * nights;
 
         availableRooms.push({
-          ...room,
+          id: roomData.id,
+          numero: roomData.numero,
+          hotel_id: roomData.hotel_id,
+          category_id: roomData.category_id,
+          capacity: roomData.capacity,
+          surface: roomData.surface,
+          prix: roomData.prix,
+          statut: roomData.statut,
+          floor: roomData.floor,
+          room_size: roomData.room_size,
+          bed_type: roomData.bed_type,
+          description: roomData.description,
+          equipment_ids: roomData.equipment_ids || [],
+          created_at: '',
+          updated_at: '',
+          last_cleaned: null,
           hotel,
           category,
           equipmentDetails,
-          isAvailable: isAvailable && !hasCapacityConstraint
+          isAvailable: roomData.is_available === true, // Use the database result
+          nights,
+          totalPrice
         });
       }
 
