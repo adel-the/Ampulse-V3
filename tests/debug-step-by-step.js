@@ -71,19 +71,19 @@ async function stepByStepDebug() {
     }, null, 2));
   }
 
-  // Test via la vue
-  console.log('\n3. Vérification via la vue...');
+  // Test via la table avec relations
+  console.log('\n3. Vérification via la table avec relations...');
   
   const { data: viewData, error: viewError } = await supabase
-    .from('v_conventions_tarifaires_detail')
-    .select('*')
+    .from('conventions_tarifaires')
+    .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')
     .eq('id', conventionId)
     .single();
 
   if (viewError) {
-    console.log(`❌ Erreur vue: ${viewError.message}`);
+    console.log(`❌ Erreur table: ${viewError.message}`);
   } else {
-    console.log('Données vue:', JSON.stringify({
+    console.log('Données table:', JSON.stringify({
       id: viewData.id,
       prix_defaut: viewData.prix_defaut,
       prix_janvier: viewData.prix_janvier,

@@ -15,7 +15,7 @@ Cette migration ajoute:
 - ✅ Fonction `get_convention_price()` pour récupérer le prix applicable
 - ✅ Fonction `check_convention_overlap()` pour vérifier les chevauchements
 - ✅ Fonction `upsert_convention_tarifaire()` pour créer/modifier les conventions
-- ✅ Vue `v_conventions_tarifaires_detail` pour faciliter la lecture
+- ✅ Table `conventions_tarifaires` avec expansion des foreign keys pour faciliter la lecture
 
 ### 2. API TypeScript
 **Fichier:** `lib/api/conventions.ts`

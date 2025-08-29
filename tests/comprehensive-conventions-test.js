@@ -110,13 +110,13 @@ async function testCreateConventionRPC() {
   }
 }
 
-// Test 2: Récupérer les conventions via la vue
+// Test 2: Récupérer les conventions via la table
 async function testGetConventionsView() {
-  console.log(`\n${colors.blue}📋 Test 2: Récupération via vue${colors.reset}`);
+  console.log(`\n${colors.blue}📋 Test 2: Récupération via table${colors.reset}`);
   
   const { data, error } = await supabase
-    .from('v_conventions_tarifaires_detail')
-    .select('*')
+    .from('conventions_tarifaires')
+    .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')
     .eq('client_id', VALID_CLIENT_ID)
     .order('date_debut', { ascending: false });
 
@@ -126,7 +126,7 @@ async function testGetConventionsView() {
   }
   
   const success = data.length > 0;
-  logResult('Récupération vue', success, `${data.length} convention(s) trouvée(s)`, 'au moins 1', data.length);
+  logResult('Récupération table', success, `${data.length} convention(s) trouvée(s)`, 'au moins 1', data.length);
   
   if (data.length > 0) {
     const conv = data[0];

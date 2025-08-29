@@ -47,8 +47,8 @@ async function debugPricing() {
   // 2. Vérifier les données stockées
   console.log('\n2. Vérification des données stockées...');
   const { data: storedData, error: storedError } = await supabase
-    .from('v_conventions_tarifaires_detail')
-    .select('*')
+    .from('conventions_tarifaires')
+    .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')
     .eq('id', conventionId);
   
   if (storedError) {
