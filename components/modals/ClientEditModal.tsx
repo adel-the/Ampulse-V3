@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Building, Users, Phone, Mail, MapPin, CreditCard, FileText, UserCheck, Calendar, Save, Plus, Trash2, Edit, TestTube, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
 import { conventionsApi } from '@/lib/api/conventions';
 import { useNotifications } from '@/hooks/useNotifications';
-import ConventionPrix from '../features/ConventionPrix';
+import ConventionPrix, { type ConventionPrixRef } from '../features/ConventionPrix';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
 import type { ClientCategory } from '@/lib/supabase';
 
@@ -33,6 +33,7 @@ export default function ClientEditModal({
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('informations');
+  const conventionPrixRef = useRef<ConventionPrixRef>(null);
   
   // Form data
   const [formData, setFormData] = useState<ClientFormData>({
@@ -424,7 +425,83 @@ export default function ClientEditModal({
 
       if (response.success) {
         console.log('Success - Client saved:', response.data);
-        addNotification('success', client ? 'Client modifié avec succès' : 'Client créé avec succès');
+        
+        // Sauvegarder les conventions tarifaires pour les entreprises et associations
+        if ((formData.client_type === 'Entreprise' || formData.client_type === 'Association') && 
+            conventionPrixRef.current) {
+          
+          try {
+            const pricingData = conventionPrixRef.current.getPricingData();
+            const hasValidData = conventionPrixRef.current.validateData();
+            
+            if (hasValidData && pricingData.length > 0) {
+              let conventionSuccessCount = 0;
+              let conventionErrorCount = 0;
+              
+              for (const categoryPricing of pricingData) {
+                // Clean monthly prices - remove undefined and zero values
+                const cleanMonthlyPrices = () => {
+                  const cleaned: Record<string, number> = {};
+                  Object.entries(categoryPricing.monthlyPrices || {}).forEach(([month, price]) => {
+                    if (price !== undefined && price > 0) {
+                      cleaned[month] = price;
+                    }
+                  });
+                  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+                };
+
+                // Validate default price
+                const validDefaultPrice = categoryPricing.defaultPrice && categoryPricing.defaultPrice > 0 ? categoryPricing.defaultPrice : null;
+                
+                if (!validDefaultPrice) {
+                  console.warn(`Catégorie ${categoryPricing.categoryName}: Prix par défaut invalide ou manquant`);
+                  conventionErrorCount++;
+                  continue;
+                }
+
+                // Transformer les données du format frontend au format backend
+                const conventionData = {
+                  client_id: response.data.id,
+                  category_id: parseInt(categoryPricing.categoryId),
+                  hotel_id: 1, // TODO: Récupérer l'hôtel sélectionné
+                  date_debut: new Date().toISOString().split('T')[0], // Date du jour
+                  date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // +1 an
+                  prix_defaut: validDefaultPrice,
+                  prix_mensuel: cleanMonthlyPrices(),
+                  conditions: categoryPricing.conditions || '',
+                  active: true
+                };
+
+                // Appeler l'API pour sauvegarder
+                const conventionResult = await conventionsApi.upsertConvention(conventionData);
+                
+                if (conventionResult.success) {
+                  conventionSuccessCount++;
+                } else {
+                  conventionErrorCount++;
+                  console.error(`Erreur pour catégorie ${categoryPricing.categoryName}:`, conventionResult.error);
+                }
+              }
+              
+              // Message de succès combiné
+              if (conventionSuccessCount > 0 && conventionErrorCount === 0) {
+                addNotification('success', `Client ${client ? 'modifié' : 'créé'} avec succès. ${conventionSuccessCount} convention(s) tarifaire(s) sauvegardée(s).`);
+              } else if (conventionSuccessCount > 0 && conventionErrorCount > 0) {
+                addNotification('warning', `Client ${client ? 'modifié' : 'créé'} avec succès. ${conventionSuccessCount} convention(s) sauvegardée(s), ${conventionErrorCount} erreur(s) pour les conventions.`);
+              } else {
+                addNotification('success', `Client ${client ? 'modifié' : 'créé'} avec succès.`);
+              }
+            } else {
+              addNotification('success', client ? 'Client modifié avec succès' : 'Client créé avec succès');
+            }
+          } catch (conventionError) {
+            console.error('Erreur lors de la sauvegarde des conventions:', conventionError);
+            addNotification('warning', `Client ${client ? 'modifié' : 'créé'} avec succès, mais erreur lors de la sauvegarde des conventions.`);
+          }
+        } else {
+          addNotification('success', client ? 'Client modifié avec succès' : 'Client créé avec succès');
+        }
+        
         onSuccess?.();
         onClose();
       } else {
@@ -1188,92 +1265,9 @@ export default function ClientEditModal({
                   </CardHeader>
                   <CardContent>
                     <ConventionPrix 
-                      onSave={async (pricingData) => {
-                        // Vérifier qu'on a un client
-                        if (!client?.id) {
-                          addNotification('error', 'Veuillez d\'abord sauvegarder le client avant d\'ajouter des conventions tarifaires');
-                          return;
-                        }
-
-                        // Vérifier que le client n'est pas un particulier
-                        if (formData.client_type === 'Particulier') {
-                          addNotification('error', 'Les conventions tarifaires ne sont disponibles que pour les entreprises et associations');
-                          return;
-                        }
-
-                        try {
-                          setLoading(true);
-                          let successCount = 0;
-                          let errorCount = 0;
-
-                          // Sauvegarder chaque catégorie de prix
-                          for (const categoryPricing of pricingData) {
-                            // Clean monthly prices - remove undefined and zero values
-                            const cleanMonthlyPrices = () => {
-                              const cleaned: Record<string, number> = {};
-                              Object.entries(categoryPricing.monthlyPrices || {}).forEach(([month, price]) => {
-                                if (price !== undefined && price > 0) {
-                                  cleaned[month] = price;
-                                }
-                              });
-                              return Object.keys(cleaned).length > 0 ? cleaned : undefined;
-                            };
-
-                            // Validate default price
-                            const validDefaultPrice = categoryPricing.defaultPrice && categoryPricing.defaultPrice > 0 ? categoryPricing.defaultPrice : null;
-                            
-                            if (!validDefaultPrice) {
-                              console.warn(`Catégorie ${categoryPricing.categoryName}: Prix par défaut invalide ou manquant`);
-                              errorCount++;
-                              continue;
-                            }
-
-                            // Transformer les données du format frontend au format backend
-                            const conventionData = {
-                              client_id: client.id,
-                              category_id: parseInt(categoryPricing.categoryId),
-                              hotel_id: 1, // TODO: Récupérer l'hôtel sélectionné
-                              date_debut: new Date().toISOString().split('T')[0], // Date du jour
-                              date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // +1 an
-                              prix_defaut: validDefaultPrice,
-                              prix_mensuel: cleanMonthlyPrices(),
-                              conditions: categoryPricing.conditions || '',
-                              active: true
-                            };
-
-                            // Appeler l'API pour sauvegarder
-                            const result = await conventionsApi.upsertConvention(conventionData);
-                            
-                            if (result.success) {
-                              successCount++;
-                            } else {
-                              errorCount++;
-                              console.error(`Erreur pour catégorie ${categoryPricing.categoryName}:`, result.error);
-                            }
-                          }
-
-                          // Afficher le résultat
-                          if (successCount > 0 && errorCount === 0) {
-                            addNotification('success', `${successCount} convention(s) tarifaire(s) sauvegardée(s) avec succès`);
-
-                            // Rafraîchir la liste des conventions
-                            if (client?.id) {
-                              const conventionsResult = await conventionsApi.getClientConventions(client.id);
-                              if (conventionsResult.success && conventionsResult.data) {
-                                setConventions(conventionsResult.data);
-                              }
-                            }
-                          } else if (errorCount > 0) {
-                            addNotification('warning', `${successCount} sauvegardée(s), ${errorCount} erreur(s)`);
-                          }
-
-                        } catch (error) {
-                          console.error('Erreur lors de la sauvegarde des conventions:', error);
-                          addNotification('error', 'Impossible de sauvegarder les conventions tarifaires');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
+                      ref={conventionPrixRef}
+                      disabled={loading}
+                      showSaveButton={false}
                     />
                   </CardContent>
                 </Card>

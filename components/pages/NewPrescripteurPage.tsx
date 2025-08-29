@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, X, User, Building, Users, Phone, Mail, MapPin, CreditCard, FileText, UserCheck, Calendar, Save, Plus, Trash2, Edit, TestTube, RotateCcw } from 'lucide-react';
+import { ArrowLeft, X, User, Building, Users, Phone, Mail, MapPin, CreditCard, FileText, UserCheck, Calendar, Save, Plus, Trash2, Edit, TestTube, RotateCcw, Euro } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
 import { conventionsApi } from '@/lib/api/conventions';
 import { useNotifications } from '@/hooks/useNotifications';
-// ConventionPrix removed - conventions are added via editing existing prescripteurs
+import ConventionPrix, { type ConventionPrixRef } from '../features/ConventionPrix';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
 import type { ClientCategory } from '@/lib/supabase';
 
@@ -27,6 +27,7 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('informations');
+  const conventionPrixRef = useRef<ConventionPrixRef>(null);
   
   // Form data
   const [formData, setFormData] = useState<ClientFormData>({
@@ -64,11 +65,17 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
   });
   const [editingReferentId, setEditingReferentId] = useState<number | null>(null);
 
-  // Conventions management - removed for new prescripteurs
-  // Conventions are handled only when editing existing prescripteurs
-  
-  // Pricing conventions data - removed for new prescripteurs
-  // Conventions can only be added when editing existing prescripteurs
+  // Conventions management
+  const [conventions, setConventions] = useState<any[]>([]);
+  const [newConvention, setNewConvention] = useState<ConventionFormData>({
+    date_debut: '',
+    date_fin: '',
+    reduction_pourcentage: 0,
+    forfait_mensuel: 0,
+    conditions: '',
+    active: true
+  });
+  const [editingConventionId, setEditingConventionId] = useState<number | null>(null);
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -190,7 +197,9 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
     if (testData.referent) {
       setNewReferent(testData.referent);
     }
-    // Conventions test data removed for new prescripteurs
+    if (testData.convention && !initialData && formData.client_type !== 'Particulier') {
+      setNewConvention(testData.convention);
+    }
     setTestDataApplied(true);
     setTimeout(() => setTestDataApplied(false), 3000);
   };
@@ -227,7 +236,14 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
       telephone: '',
       email: ''
     });
-    // Convention state reset removed for new prescripteurs
+    setNewConvention({
+      date_debut: '',
+      date_fin: '',
+      reduction_pourcentage: 0,
+      forfait_mensuel: 0,
+      conditions: '',
+      active: true
+    });
     setTestDataApplied(false);
   };
 
@@ -258,7 +274,19 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
         notes: initialData.notes || ''
       });
       setReferents(initialData.referents || []);
-      // Conventions loading removed for new prescripteurs
+      setConventions(initialData.conventions || []);
+      
+      // Charger les conventions tarifaires depuis la nouvelle API
+      if (initialData.id) {
+        conventionsApi.getClientConventions(initialData.id).then(result => {
+          if (result.success && result.data) {
+            console.log('Conventions tarifaires chargées:', result.data);
+            // Les conventions tarifaires sont maintenant disponibles
+          }
+        }).catch(error => {
+          console.error('Erreur lors du chargement des conventions tarifaires:', error);
+        });
+      }
     }
   }, [initialData]);
 
@@ -333,8 +361,81 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
         console.log('Success - Client saved:', response.data);
         const clientId = response.data.id;
         
-        // For new prescripteurs, conventions are added in a separate step via editing
-        addNotification('success', 'Prescripteur créé avec succès. Utilisez "Modifier" pour ajouter des conventions tarifaires.');
+        // Sauvegarder les conventions tarifaires pour les entreprises et associations
+        if ((formData.client_type === 'Entreprise' || formData.client_type === 'Association') && 
+            conventionPrixRef.current) {
+          
+          try {
+            const pricingData = conventionPrixRef.current.getPricingData();
+            const hasValidData = conventionPrixRef.current.validateData();
+            
+            if (hasValidData && pricingData.length > 0) {
+              let conventionSuccessCount = 0;
+              let conventionErrorCount = 0;
+              
+              for (const categoryPricing of pricingData) {
+                // Clean monthly prices - remove undefined and zero values
+                const cleanMonthlyPrices = () => {
+                  const cleaned: Record<string, number> = {};
+                  Object.entries(categoryPricing.monthlyPrices || {}).forEach(([month, price]) => {
+                    if (price !== undefined && price > 0) {
+                      cleaned[month] = price;
+                    }
+                  });
+                  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+                };
+
+                // Validate default price
+                const validDefaultPrice = categoryPricing.defaultPrice && categoryPricing.defaultPrice > 0 ? categoryPricing.defaultPrice : null;
+                
+                if (!validDefaultPrice) {
+                  console.warn(`Catégorie ${categoryPricing.categoryName}: Prix par défaut invalide ou manquant`);
+                  conventionErrorCount++;
+                  continue;
+                }
+
+                // Transformer les données du format frontend au format backend
+                const conventionData = {
+                  client_id: clientId,
+                  category_id: parseInt(categoryPricing.categoryId),
+                  hotel_id: 1, // TODO: Récupérer l'hôtel sélectionné
+                  date_debut: new Date().toISOString().split('T')[0], // Date du jour
+                  date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], // +1 an
+                  prix_defaut: validDefaultPrice,
+                  prix_mensuel: cleanMonthlyPrices(),
+                  conditions: categoryPricing.conditions || '',
+                  active: true
+                };
+
+                // Appeler l'API pour sauvegarder
+                const conventionResult = await conventionsApi.upsertConvention(conventionData);
+                
+                if (conventionResult.success) {
+                  conventionSuccessCount++;
+                } else {
+                  conventionErrorCount++;
+                  console.error(`Erreur pour catégorie ${categoryPricing.categoryName}:`, conventionResult.error);
+                }
+              }
+              
+              // Message de succès combiné
+              if (conventionSuccessCount > 0 && conventionErrorCount === 0) {
+                addNotification('success', `Prescripteur créé avec succès. ${conventionSuccessCount} convention(s) tarifaire(s) sauvegardée(s).`);
+              } else if (conventionSuccessCount > 0 && conventionErrorCount > 0) {
+                addNotification('warning', `Prescripteur créé avec succès. ${conventionSuccessCount} convention(s) sauvegardée(s), ${conventionErrorCount} erreur(s) pour les conventions.`);
+              } else {
+                addNotification('success', 'Prescripteur créé avec succès.');
+              }
+            } else {
+              addNotification('success', 'Prescripteur créé avec succès');
+            }
+          } catch (conventionError) {
+            console.error('Erreur lors de la sauvegarde des conventions:', conventionError);
+            addNotification('warning', 'Prescripteur créé avec succès, mais erreur lors de la sauvegarde des conventions.');
+          }
+        } else {
+          addNotification('success', 'Prescripteur créé avec succès');
+        }
         
         // Navigate back to clients section
         router.push('/');
@@ -380,8 +481,74 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
     setReferents(referents.filter(r => r.id !== referentId));
   };
 
-  // Convention management functions removed for new prescripteurs
-  // Conventions are managed only when editing existing prescripteurs
+  // Convention management functions
+  const handleAddConvention = async () => {
+    if (!newConvention.date_debut) {
+      addNotification('error', 'La date de début est obligatoire');
+      return;
+    }
+
+    if (!initialData?.id) {
+      // For new clients, add to local state
+      setConventions([...conventions, { ...newConvention, id: Date.now() }]);
+      setNewConvention({
+        date_debut: '',
+        date_fin: '',
+        reduction_pourcentage: 0,
+        forfait_mensuel: 0,
+        conditions: '',
+        active: true
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await clientsApi.createConvention(initialData.id, newConvention);
+      if (response.success) {
+        setConventions([...conventions, response.data!]);
+        setNewConvention({
+          date_debut: '',
+          date_fin: '',
+          reduction_pourcentage: 0,
+          forfait_mensuel: 0,
+          conditions: '',
+          active: true
+        });
+        addNotification('success', 'Convention ajoutée avec succès');
+      } else {
+        addNotification('error', response.error || 'Erreur lors de l\'ajout');
+      }
+    } catch (error) {
+      addNotification('error', 'Erreur lors de l\'ajout de la convention');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteConvention = async (conventionId: number) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette convention ?')) return;
+
+    if (!initialData?.id) {
+      setConventions(conventions.filter(c => c.id !== conventionId));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await clientsApi.deleteConvention(conventionId);
+      if (response.success) {
+        setConventions(conventions.filter(c => c.id !== conventionId));
+        addNotification('success', 'Convention supprimée avec succès');
+      } else {
+        addNotification('error', response.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      addNotification('error', 'Erreur lors de la suppression');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -468,7 +635,7 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
             </div>
           )}
           
-          <TabsList className="grid grid-cols-3 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="informations">Informations</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger 
@@ -477,6 +644,13 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
               className={isParticulier ? 'opacity-50' : ''}
             >
               Référents
+            </TabsTrigger>
+            <TabsTrigger 
+              value="conventions" 
+              disabled={isParticulier}
+              className={isParticulier ? 'opacity-50' : ''}
+            >
+              Conventions
             </TabsTrigger>
           </TabsList>
 
@@ -931,38 +1105,153 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
             </TabsContent>
           )}
 
-          {/* Conventions message for new prescripteurs */}
+          {/* Conventions Tab (only for Entreprise/Association) */}
           {!isParticulier && (
-            <div className="mt-8">
+            <TabsContent value="conventions" className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ajouter une convention tarifaire</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="conv-date-debut">Date de début *</Label>
+                      <Input
+                        id="conv-date-debut"
+                        type="date"
+                        value={newConvention.date_debut}
+                        onChange={(e) => setNewConvention({ ...newConvention, date_debut: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="conv-date-fin">Date de fin</Label>
+                      <Input
+                        id="conv-date-fin"
+                        type="date"
+                        value={newConvention.date_fin}
+                        onChange={(e) => setNewConvention({ ...newConvention, date_fin: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="conv-reduction">Réduction (%)</Label>
+                      <Input
+                        id="conv-reduction"
+                        type="number"
+                        value={newConvention.reduction_pourcentage}
+                        onChange={(e) => setNewConvention({ ...newConvention, reduction_pourcentage: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        max="100"
+                        step="0.1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="conv-forfait">Forfait mensuel (€)</Label>
+                      <Input
+                        id="conv-forfait"
+                        type="number"
+                        value={newConvention.forfait_mensuel}
+                        onChange={(e) => setNewConvention({ ...newConvention, forfait_mensuel: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="conv-conditions">Conditions</Label>
+                      <Textarea
+                        id="conv-conditions"
+                        value={newConvention.conditions}
+                        onChange={(e) => setNewConvention({ ...newConvention, conditions: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="conv-active"
+                        checked={newConvention.active}
+                        onChange={(e) => setNewConvention({ ...newConvention, active: e.target.checked })}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="conv-active">Convention active</Label>
+                    </div>
+                    <div className="flex items-end">
+                      <Button 
+                        type="button" 
+                        onClick={handleAddConvention}
+                        disabled={loading}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Grille tarifaire par catégorie et par mois */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-blue-600" />
-                    Conventions tarifaires
+                    <Euro className="h-5 w-5 text-green-600" />
+                    Grille tarifaire mensuelle par catégorie
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Alert className="bg-blue-50 border-blue-200">
-                    <AlertDescription className="text-blue-800">
-                      <div className="space-y-2">
-                        <p className="font-medium">Les conventions tarifaires peuvent être configurées après création du prescripteur.</p>
-                        <p className="text-sm">
-                          Une fois ce prescripteur créé, vous pourrez :
-                        </p>
-                        <ul className="list-disc list-inside text-sm ml-2 space-y-1">
-                          <li>Définir des tarifs spécifiques par catégorie de chambre</li>
-                          <li>Configurer des prix variables par mois</li>
-                          <li>Ajouter des conditions particulières</li>
-                        </ul>
-                        <p className="text-sm font-medium mt-3">
-                          → Créez d'abord le prescripteur, puis utilisez l'option "Modifier" pour ajouter les conventions.
-                        </p>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
+                  <ConventionPrix 
+                    ref={conventionPrixRef}
+                    disabled={loading}
+                    showSaveButton={false}
+                  />
                 </CardContent>
               </Card>
-            </div>
+
+              {/* List of conventions */}
+              {conventions.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Conventions existantes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {conventions.map((convention) => (
+                        <div key={convention.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={convention.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                                {convention.active ? 'Active' : 'Inactive'}
+                              </Badge>
+                              <span className="text-sm">
+                                Du {new Date(convention.date_debut).toLocaleDateString('fr-FR')}
+                                {convention.date_fin && ` au ${new Date(convention.date_fin).toLocaleDateString('fr-FR')}`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              {convention.reduction_pourcentage > 0 && (
+                                <span>Réduction : {convention.reduction_pourcentage}%</span>
+                              )}
+                              {convention.forfait_mensuel > 0 && (
+                                <span>Forfait : {convention.forfait_mensuel}€/mois</span>
+                              )}
+                            </div>
+                            {convention.conditions && (
+                              <p className="text-sm text-gray-600 mt-1">{convention.conditions}</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteConvention(convention.id)}
+                            disabled={loading}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
           )}
         </Tabs>
       </div>

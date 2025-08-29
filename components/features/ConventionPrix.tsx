@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -32,10 +32,16 @@ interface CategoryPricing {
   conditions?: string;
 }
 
+export interface ConventionPrixRef {
+  getPricingData: () => CategoryPricing[];
+  validateData: () => boolean;
+}
+
 interface ConventionPrixProps {
   onSave?: (pricingData: CategoryPricing[]) => void;
   initialData?: CategoryPricing[];
   disabled?: boolean;
+  showSaveButton?: boolean;
 }
 
 const MONTHS = [
@@ -53,9 +59,10 @@ const MONTHS = [
   { key: 'decembre', label: 'Déc', fullName: 'Décembre' }
 ] as const;
 
-export default function ConventionPrix({ onSave, initialData, disabled = false }: ConventionPrixProps) {
-  const { categories: roomCategories, loading: categoriesLoading } = useRoomCategories();
-  const [pricingData, setPricingData] = useState<CategoryPricing[]>([]);
+const ConventionPrix = forwardRef<ConventionPrixRef, ConventionPrixProps>(
+  ({ onSave, initialData, disabled = false, showSaveButton = true }, ref) => {
+    const { categories: roomCategories, loading: categoriesLoading } = useRoomCategories();
+    const [pricingData, setPricingData] = useState<CategoryPricing[]>([]);
 
   // Initialize pricing data when room categories are loaded
   useEffect(() => {
@@ -75,6 +82,22 @@ export default function ConventionPrix({ onSave, initialData, disabled = false }
       }
     }
   }, [roomCategories, initialData]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    getPricingData: () => {
+      // Clean the data before returning
+      return pricingData.map(item => ({
+        ...item,
+        monthlyPrices: cleanMonthlyPrices(item.monthlyPrices),
+        defaultPrice: item.defaultPrice || 0
+      }));
+    },
+    validateData: () => {
+      // Check if at least one category has a valid default price
+      return pricingData.some(item => item.defaultPrice && item.defaultPrice > 0);
+    }
+  }), [pricingData]);
 
   const updateDefaultPrice = (categoryId: string, price: number) => {
     setPricingData(prev => prev.map(item => 
@@ -193,7 +216,7 @@ export default function ConventionPrix({ onSave, initialData, disabled = false }
                 Définissez les tarifs par catégorie de chambre pour chaque mois de l'année
               </p>
             </div>
-            {onSave && (
+            {onSave && showSaveButton && (
               <Button onClick={handleSave} disabled={disabled} className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
                 Sauvegarder
@@ -315,4 +338,8 @@ export default function ConventionPrix({ onSave, initialData, disabled = false }
       ))}
     </div>
   );
-}
+});
+
+ConventionPrix.displayName = 'ConventionPrix';
+
+export default ConventionPrix;
