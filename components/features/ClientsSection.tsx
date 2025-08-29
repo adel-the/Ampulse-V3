@@ -150,23 +150,6 @@ export default function ClientsSection() {
     nationalite: 'Française',
     profession: '',
     employeur: '',
-    // Facturation
-    facturation_mode_paiement: 'virement',
-    facturation_delai_paiement: 30,
-    facturation_tva_applicable: true,
-    facturation_remise_default: 0,
-    conditions_paiement: '30 jours',
-    limite_credit: undefined,
-    // Facturation address
-    facturation_adresse: '',
-    facturation_code_postal: '',
-    facturation_ville: '',
-    facturation_pays: 'France',
-    // Banking
-    facturation_rib: '',
-    facturation_iban: '',
-    facturation_bic: '',
-    facturation_titulaire_compte: '',
     // Other
     statut: 'actif',
     source_acquisition: '',
@@ -319,23 +302,6 @@ export default function ClientsSection() {
         nationalite: client.nationalite || 'Française',
         profession: client.profession || '',
         employeur: client.employeur || '',
-        // Facturation
-        facturation_mode_paiement: client.facturation_mode_paiement || 'virement',
-        facturation_delai_paiement: client.facturation_delai_paiement || 30,
-        facturation_tva_applicable: client.facturation_tva_applicable !== false,
-        facturation_remise_default: client.facturation_remise_default || 0,
-        conditions_paiement: client.conditions_paiement || '30 jours',
-        limite_credit: client.limite_credit || undefined,
-        // Facturation address
-        facturation_adresse: client.facturation_adresse || '',
-        facturation_code_postal: client.facturation_code_postal || '',
-        facturation_ville: client.facturation_ville || '',
-        facturation_pays: client.facturation_pays || 'France',
-        // Banking
-        facturation_rib: client.facturation_rib || '',
-        facturation_iban: client.facturation_iban || '',
-        facturation_bic: client.facturation_bic || '',
-        facturation_titulaire_compte: client.facturation_titulaire_compte || '',
         // Other
         statut: client.statut || 'actif',
         source_acquisition: client.source_acquisition || '',
@@ -376,23 +342,6 @@ export default function ClientsSection() {
         nationalite: 'Française',
         profession: '',
         employeur: '',
-        // Facturation
-        facturation_mode_paiement: 'virement',
-        facturation_delai_paiement: 30,
-        facturation_tva_applicable: true,
-        facturation_remise_default: 0,
-        conditions_paiement: '30 jours',
-        limite_credit: undefined,
-        // Facturation address
-        facturation_adresse: '',
-        facturation_code_postal: '',
-        facturation_ville: '',
-        facturation_pays: 'France',
-        // Banking
-        facturation_rib: '',
-        facturation_iban: '',
-        facturation_bic: '',
-        facturation_titulaire_compte: '',
         // Other
         statut: 'actif',
         source_acquisition: '',
@@ -679,26 +628,6 @@ export default function ClientsSection() {
       if (formData.profession?.trim()) filteredClientData.profession = formData.profession.trim();
       if (formData.employeur?.trim()) filteredClientData.employeur = formData.employeur.trim();
       
-      // Facturation
-      if (formData.facturation_mode_paiement?.trim()) filteredClientData.facturation_mode_paiement = formData.facturation_mode_paiement.trim();
-      if (formData.facturation_delai_paiement !== undefined && formData.facturation_delai_paiement !== null) filteredClientData.facturation_delai_paiement = formData.facturation_delai_paiement;
-      if (formData.facturation_tva_applicable !== undefined) filteredClientData.facturation_tva_applicable = formData.facturation_tva_applicable;
-      if (formData.facturation_remise_default !== undefined && formData.facturation_remise_default !== null) filteredClientData.facturation_remise_default = formData.facturation_remise_default;
-      if (formData.conditions_paiement?.trim()) filteredClientData.conditions_paiement = formData.conditions_paiement.trim();
-      if (formData.limite_credit !== undefined && formData.limite_credit !== null) filteredClientData.limite_credit = formData.limite_credit;
-      
-      // Facturation address
-      if (formData.facturation_adresse?.trim()) filteredClientData.facturation_adresse = formData.facturation_adresse.trim();
-      if (formData.facturation_code_postal?.trim()) filteredClientData.facturation_code_postal = formData.facturation_code_postal.trim();
-      if (formData.facturation_ville?.trim()) filteredClientData.facturation_ville = formData.facturation_ville.trim();
-      if (formData.facturation_pays?.trim()) filteredClientData.facturation_pays = formData.facturation_pays.trim();
-      
-      // Banking
-      if (formData.facturation_rib?.trim()) filteredClientData.facturation_rib = formData.facturation_rib.trim();
-      if (formData.facturation_iban?.trim()) filteredClientData.facturation_iban = formData.facturation_iban.trim();
-      if (formData.facturation_bic?.trim()) filteredClientData.facturation_bic = formData.facturation_bic.trim();
-      if (formData.facturation_titulaire_compte?.trim()) filteredClientData.facturation_titulaire_compte = formData.facturation_titulaire_compte.trim();
-      
       // Other
       if (formData.source_acquisition?.trim()) filteredClientData.source_acquisition = formData.source_acquisition.trim();
       if (formData.tags && formData.tags.length > 0) filteredClientData.tags = formData.tags;
@@ -822,10 +751,6 @@ export default function ClientsSection() {
           ville: 'Paris',
           code_postal: '75008',
           nombre_enfants: 2,
-          mode_paiement: 'virement' as const,
-          delai_paiement: 30,
-          taux_tva: 20,
-          conditions_paiement: 'Paiement mensuel à réception de facture',
           notes: 'Client régulier, famille de 4 personnes'
         };
       case 'Entreprise':
@@ -841,10 +766,6 @@ export default function ClientsSection() {
           code_postal: '69002',
           secteur_activite: 'Technologies de l\'information',
           nombre_employes: 50,
-          mode_paiement: 'virement' as const,
-          delai_paiement: 45,
-          taux_tva: 20,
-          conditions_paiement: 'Paiement à 45 jours fin de mois',
           notes: 'Entreprise partenaire depuis 2022'
         };
       case 'Association':
@@ -860,10 +781,6 @@ export default function ClientsSection() {
           code_postal: '59000',
           numero_agrement: 'AGR-2024-001',
           nombre_adherents: 150,
-          mode_paiement: 'cheque' as const,
-          delai_paiement: 60,
-          taux_tva: 20,
-          conditions_paiement: 'Paiement par chèque à 60 jours',
           notes: 'Association partenaire pour l\'hébergement social'
         };
       default:
@@ -922,10 +839,9 @@ export default function ClientsSection() {
 
         {/* Form Tabs */}
         <Tabs value={activeFormTab} onValueChange={setActiveFormTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="informations">Informations</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
-            <TabsTrigger value="facturation">Facturation</TabsTrigger>
             <TabsTrigger value="referents">Référents</TabsTrigger>
             {(isEntreprise || isAssociation) && (
               <TabsTrigger value="conventions">Conventions</TabsTrigger>
@@ -1428,223 +1344,6 @@ export default function ClientsSection() {
                       value={formData.pays}
                       onChange={(e) => {
                         setFormData(prev => ({ ...prev, pays: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Facturation Tab */}
-          <TabsContent value="facturation">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations de facturation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="facturation_mode_paiement">Mode de paiement</Label>
-                    <select
-                      id="facturation_mode_paiement"
-                      value={formData.facturation_mode_paiement}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_mode_paiement: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="virement">Virement</option>
-                      <option value="cheque">Chèque</option>
-                      <option value="especes">Espèces</option>
-                      <option value="carte">Carte bancaire</option>
-                      <option value="prelevement">Prélèvement</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_delai_paiement">Délai de paiement (jours)</Label>
-                    <Input
-                      id="facturation_delai_paiement"
-                      type="number"
-                      value={formData.facturation_delai_paiement}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_delai_paiement: parseInt(e.target.value) || 30 }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="conditions_paiement">Conditions de paiement</Label>
-                    <Input
-                      id="conditions_paiement"
-                      value={formData.conditions_paiement}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, conditions_paiement: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="limite_credit">Limite de crédit (€)</Label>
-                    <Input
-                      id="limite_credit"
-                      type="number"
-                      value={formData.limite_credit || ''}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, limite_credit: e.target.value ? parseFloat(e.target.value) : undefined }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="facturation_tva_applicable"
-                      checked={formData.facturation_tva_applicable}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_tva_applicable: e.target.checked }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <Label htmlFor="facturation_tva_applicable">TVA applicable</Label>
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_remise_default">Remise par défaut (%)</Label>
-                    <Input
-                      id="facturation_remise_default"
-                      type="number"
-                      value={formData.facturation_remise_default || 0}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_remise_default: parseFloat(e.target.value) || 0 }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold mt-6">Adresse de facturation</h3>
-                
-                <div>
-                  <Label htmlFor="facturation_adresse">Adresse</Label>
-                  <Input
-                    id="facturation_adresse"
-                    value={formData.facturation_adresse}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, facturation_adresse: e.target.value }));
-                      setFormDirty(true);
-                    }}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="facturation_code_postal">Code postal</Label>
-                    <Input
-                      id="facturation_code_postal"
-                      value={formData.facturation_code_postal}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_code_postal: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_ville">Ville</Label>
-                    <Input
-                      id="facturation_ville"
-                      value={formData.facturation_ville}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_ville: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_pays">Pays</Label>
-                    <Input
-                      id="facturation_pays"
-                      value={formData.facturation_pays}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_pays: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-semibold mt-6">Informations bancaires</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="facturation_iban">IBAN</Label>
-                    <Input
-                      id="facturation_iban"
-                      value={formData.facturation_iban}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_iban: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      placeholder="FR76 0000 0000 0000 0000 0000 000"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_bic">BIC/SWIFT</Label>
-                    <Input
-                      id="facturation_bic"
-                      value={formData.facturation_bic}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_bic: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                      placeholder="XXXXXXXX"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="facturation_titulaire_compte">Titulaire du compte</Label>
-                    <Input
-                      id="facturation_titulaire_compte"
-                      value={formData.facturation_titulaire_compte}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_titulaire_compte: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="facturation_rib">RIB</Label>
-                    <Input
-                      id="facturation_rib"
-                      value={formData.facturation_rib}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, facturation_rib: e.target.value }));
                         setFormDirty(true);
                       }}
                       disabled={isReadOnly}
