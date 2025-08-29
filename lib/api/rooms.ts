@@ -16,7 +16,6 @@ const normalizeRoomData = (room: Room): Room => {
     equipment_ids: room.equipment_ids || [],
     // Provide default values for optional fields
     floor: room.floor ?? 0,
-    is_smoking: room.is_smoking ?? false,
     description: room.description || '',
     notes: room.notes || ''
   }
@@ -62,8 +61,6 @@ export const roomsApi = {
     statut?: 'disponible' | 'occupee' | 'maintenance'
     floor?: number
     bed_type?: string
-    view_type?: string
-    is_smoking?: boolean
     limit?: number
     offset?: number
   }): Promise<ApiListResponse<Room>> {
@@ -77,8 +74,6 @@ export const roomsApi = {
     statut?: 'disponible' | 'occupee' | 'maintenance'
     floor?: number
     bed_type?: string
-    view_type?: string
-    is_smoking?: boolean
     limit?: number
     offset?: number
   }): Promise<ApiListResponse<Room>> {
@@ -101,12 +96,6 @@ export const roomsApi = {
       }
       if (filters?.bed_type) {
         query = query.eq('bed_type', filters.bed_type)
-      }
-      if (filters?.view_type) {
-        query = query.eq('view_type', filters.view_type)
-      }
-      if (filters?.is_smoking !== undefined) {
-        query = query.eq('is_smoking', filters.is_smoking)
       }
 
       // Apply pagination
@@ -243,8 +232,7 @@ export const roomsApi = {
       const roomData: RoomInsert = {
         ...preparedData,
         statut: preparedData.statut || 'disponible',
-        is_smoking: preparedData.is_smoking || false,
-        images: preparedData.images || [],
+            images: preparedData.images || [],
         amenities: preparedData.amenities || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

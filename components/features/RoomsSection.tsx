@@ -148,8 +148,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
           floor: data.floor || 0,
           room_size: data.room_size,
           bed_type: data.bed_type,
-          view_type: data.view_type,
-          is_smoking: data.is_smoking || false,
           equipment_ids: data.equipment_ids || [],
           images: data.images || [],
           notes: data.notes,
@@ -234,8 +232,6 @@ export default function RoomsSection({ selectedHotelId }: RoomsSectionProps) {
       floor: editingRoom.floor || undefined,
       room_size: editingRoom.room_size || undefined,
       bed_type: editingRoom.bed_type || undefined,
-      view_type: editingRoom.view_type || undefined,
-      is_smoking: editingRoom.is_smoking || undefined,
       last_cleaned: editingRoom.last_cleaned || undefined,
       notes: editingRoom.notes || undefined,
       equipment_ids: equipmentIds, // IDs d'équipements comme number[]

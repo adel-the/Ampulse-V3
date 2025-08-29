@@ -21,8 +21,6 @@ interface RoomFormData {
   floor?: number;
   room_size?: number;
   bed_type?: string;
-  view_type?: string;
-  is_smoking?: boolean;
   equipment_ids?: number[];
   images?: string[];
   notes?: string;
@@ -55,8 +53,6 @@ export default function RoomFormModal({
     floor: initialData?.floor || 1,
     room_size: initialData?.room_size || 20,
     bed_type: initialData?.bed_type || 'double',
-    view_type: initialData?.view_type || '',
-    is_smoking: initialData?.is_smoking || false,
     equipment_ids: initialData?.equipment_ids || [],
     images: initialData?.images || [],
     notes: initialData?.notes || '',
@@ -410,39 +406,6 @@ export default function RoomFormModal({
                     </select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="view_type" className="text-sm font-medium text-gray-700">
-                      Type de vue
-                    </Label>
-                    <select
-                      id="view_type"
-                      value={formData.view_type || ''}
-                      onChange={(e) => handleInputChange('view_type', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Aucune vue particulière</option>
-                      <option value="mer">Vue mer</option>
-                      <option value="jardin">Vue jardin</option>
-                      <option value="ville">Vue ville</option>
-                      <option value="cour">Vue cour</option>
-                      <option value="montagne">Vue montagne</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="is_smoking" className="text-sm font-medium text-gray-700">
-                      Chambre fumeur
-                    </Label>
-                    <select
-                      id="is_smoking"
-                      value={formData.is_smoking ? 'oui' : 'non'}
-                      onChange={(e) => handleInputChange('is_smoking', e.target.value === 'oui')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="non">Non fumeur</option>
-                      <option value="oui">Fumeur</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div className="mt-6">

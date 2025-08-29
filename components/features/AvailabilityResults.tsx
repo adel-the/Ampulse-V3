@@ -288,12 +288,6 @@ export default function AvailabilityResults({
                         <span>{room.bed_type}</span>
                       </div>
                     )}
-                    {room.view_type && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span>{room.view_type}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Equipment/Amenities */}

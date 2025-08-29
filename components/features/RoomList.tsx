@@ -51,8 +51,6 @@ interface RoomFormData {
   description: string;
   room_size?: number;
   bed_type?: string;
-  view_type?: string;
-  is_smoking: boolean;
   amenities: string[];
   notes: string;
 }
@@ -133,8 +131,6 @@ export default function RoomList() {
     description: '',
     room_size: 18,
     bed_type: 'Lit simple',
-    view_type: 'Rue',
-    is_smoking: false,
     amenities: [],
     notes: ''
   });
@@ -249,8 +245,6 @@ export default function RoomList() {
       description: '',
       room_size: 18,
       bed_type: 'Lit simple',
-      view_type: 'Rue',
-      is_smoking: false,
       amenities: [],
       notes: ''
     });
@@ -274,8 +268,6 @@ export default function RoomList() {
           floor: formData.floor,
           room_size: formData.room_size || null,
           bed_type: formData.bed_type || null,
-          view_type: formData.view_type || null,
-          is_smoking: formData.is_smoking,
           amenities: formData.amenities.map(a => ({ name: a })),
           notes: formData.notes || null
         };
@@ -313,8 +305,6 @@ export default function RoomList() {
           floor: formData.floor,
           room_size: formData.room_size || null,
           bed_type: formData.bed_type || null,
-          view_type: formData.view_type || null,
-          is_smoking: formData.is_smoking,
           amenities: formData.amenities.map(a => ({ name: a })),
           notes: formData.notes || null
         };
@@ -351,8 +341,6 @@ export default function RoomList() {
       description: room.description || '',
       room_size: room.room_size ? Number(room.room_size) : undefined,
       bed_type: room.bed_type || 'Lit simple',
-      view_type: room.view_type || '',
-      is_smoking: room.is_smoking || false,
       amenities: amenitiesList,
       notes: room.notes || ''
     });
@@ -605,12 +593,6 @@ export default function RoomList() {
                       <div className="font-semibold">{room.room_size}m²</div>
                     </div>
                   )}
-                  {room.view_type && (
-                    <div>
-                      <span className="text-gray-500">Vue:</span>
-                      <div className="font-semibold">{room.view_type}</div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Équipements */}
@@ -649,14 +631,6 @@ export default function RoomList() {
                   </div>
                 )}
 
-                {/* Statut fumeur */}
-                {room.is_smoking && (
-                  <div className="pt-2 border-t">
-                    <Badge variant="outline" className="text-xs">
-                      Chambre fumeur
-                    </Badge>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -770,15 +744,6 @@ export default function RoomList() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="view_type">Vue</Label>
-                    <Input
-                      id="view_type"
-                      value={formData.view_type || ''}
-                      onChange={(e) => setFormData({...formData, view_type: e.target.value})}
-                      placeholder="Jardin, Ville, Mer..."
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -925,12 +890,6 @@ export default function RoomList() {
                   </div>
                   <div>
                     <Label htmlFor="edit-vue">Vue</Label>
-                    <Input
-                      id="edit-vue"
-                      value={formData.view_type || ''}
-                      onChange={(e) => setFormData({...formData, view_type: e.target.value})}
-                      placeholder="Jardin, Ville, Mer..."
-                    />
                   </div>
                 </div>
 

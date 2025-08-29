@@ -242,8 +242,6 @@ export interface Database {
           floor: number | null
           room_size: number | null
           bed_type: string | null
-          view_type: string | null
-          is_smoking: boolean | null
           images: Record<string, unknown>[] | null
           amenities: Record<string, unknown>[] | null
           equipment_ids: number[] | null
@@ -263,8 +261,6 @@ export interface Database {
           floor?: number | null
           room_size?: number | null
           bed_type?: string | null
-          view_type?: string | null
-          is_smoking?: boolean | null
           images?: Record<string, unknown>[] | null
           amenities?: Record<string, unknown>[] | null
           equipment_ids?: number[] | null
@@ -284,8 +280,6 @@ export interface Database {
           floor?: number | null
           room_size?: number | null
           bed_type?: string | null
-          view_type?: string | null
-          is_smoking?: boolean | null
           images?: Record<string, unknown>[] | null
           amenities?: Record<string, unknown>[] | null
           equipment_ids?: number[] | null
@@ -1388,8 +1382,6 @@ export interface RoomFilters {
   statut?: 'disponible' | 'occupee' | 'maintenance'
   floor?: number
   bed_type?: string
-  view_type?: string
-  is_smoking?: boolean
   limit?: number
   offset?: number
 }
