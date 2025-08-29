@@ -12,6 +12,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { clientsApi } from '@/lib/api/clients';
+import { conventionsApi } from '@/lib/api/conventions';
 import { useNotifications } from '@/hooks/useNotifications';
 import ConventionPrix from '../features/ConventionPrix';
 import type { ClientWithRelations, ClientFormData, ReferentFormData, ConventionFormData } from '@/lib/api/clients';
@@ -74,6 +75,9 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
     active: true
   });
   const [editingConventionId, setEditingConventionId] = useState<number | null>(null);
+  
+  // Pricing conventions data
+  const [pricingData, setPricingData] = useState<any[]>([]);
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -343,11 +347,79 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
       const response = await clientsApi.createClient(filteredClientData);
       console.log('API Response:', response);
 
-      if (response.success) {
+      if (response.success && response.data?.id) {
         console.log('Success - Client saved:', response.data);
-        addNotification('success', 'Prescripteur créé avec succès');
+        const clientId = response.data.id;
+        
+        // Save pricing conventions if any
+        if (pricingData && pricingData.length > 0 && formData.client_type !== 'Particulier') {
+          console.log('Saving pricing conventions for client:', clientId);
+          let successCount = 0;
+          let errorCount = 0;
+          
+          for (const categoryPricing of pricingData) {
+            // Skip if no pricing data
+            if (!categoryPricing.defaultPrice || categoryPricing.defaultPrice <= 0) {
+              continue;
+            }
+            
+            try {
+              // Clean monthly prices - remove undefined/0 values
+              const cleanedMonthlyPrices = {};
+              if (categoryPricing.monthlyPrices) {
+                for (const [month, price] of Object.entries(categoryPricing.monthlyPrices)) {
+                  if (price && price > 0) {
+                    cleanedMonthlyPrices[month] = price;
+                  }
+                }
+              }
+              
+              const conventionData = {
+                client_id: clientId,
+                category_id: parseInt(categoryPricing.categoryId),
+                hotel_id: 1, // Default hotel ID
+                date_debut: new Date().toISOString().split('T')[0],
+                date_fin: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                prix_defaut: categoryPricing.defaultPrice,
+                prix_mensuel: Object.keys(cleanedMonthlyPrices).length > 0 ? cleanedMonthlyPrices : null,
+                conditions: categoryPricing.conditions || '',
+                active: true
+              };
+              
+              const result = await conventionsApi.upsertConvention(conventionData);
+              
+              if (result.success) {
+                successCount++;
+                console.log(`Convention saved for category ${categoryPricing.categoryName}`);
+              } else {
+                errorCount++;
+                console.error(`Failed to save convention for category ${categoryPricing.categoryName}:`, result.error);
+              }
+            } catch (error) {
+              errorCount++;
+              console.error('Error saving convention:', error);
+            }
+          }
+          
+          if (successCount > 0) {
+            console.log(`${successCount} convention(s) tarifaire(s) sauvegardée(s)`);
+            if (errorCount > 0) {
+              addNotification('warning', `Prescripteur créé avec ${successCount} convention(s) sauvegardée(s), ${errorCount} erreur(s)`);
+            } else {
+              addNotification('success', `Prescripteur créé avec ${successCount} convention(s) tarifaire(s)`);
+            }
+          } else {
+            addNotification('success', 'Prescripteur créé avec succès');
+          }
+        } else {
+          addNotification('success', 'Prescripteur créé avec succès');
+        }
         
         // Navigate back to clients section
+        router.push('/');
+      } else if (response.success) {
+        // Success but no client ID returned
+        addNotification('success', 'Prescripteur créé avec succès');
         router.push('/');
       } else {
         console.error('API Error Response:', response);
@@ -1055,9 +1127,10 @@ export default function NewPrescripteurPage({ initialData }: NewPrescripteurPage
                 </CardHeader>
                 <CardContent>
                   <ConventionPrix 
-                    onSave={(pricingData) => {
-                      console.log('Pricing data saved:', pricingData);
-                      // TODO: Intégrer avec l'API pour sauvegarder les tarifs
+                    onSave={(data) => {
+                      console.log('Pricing data ready for save:', data);
+                      setPricingData(data);
+                      // Les données seront sauvegardées après la création du client
                     }}
                   />
                 </CardContent>
