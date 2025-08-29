@@ -63,7 +63,7 @@ const fallbackReservations: ReservationWithDetails[] = [
     hotel: "Hôtel Central",
     dateArrivee: "2024-01-15",
     dateDepart: "2024-01-20",
-    statut: "CONFIRMEE",
+    statut: "confirmed", // Updated to match database enum
     prescripteur: "Association Solidarité",
     prix: 450,
     duree: 5,
@@ -80,7 +80,7 @@ const fallbackReservations: ReservationWithDetails[] = [
     hotel: "Hôtel du Parc",
     dateArrivee: "2024-01-18",
     dateDepart: "2024-01-25",
-    statut: "EN_COURS",
+    statut: "pending", // Updated to match database enum
     prescripteur: "CCAS",
     prix: 630,
     duree: 7,
@@ -97,14 +97,13 @@ const fallbackReservations: ReservationWithDetails[] = [
     hotel: "Hôtel des Alpes",
     dateArrivee: "2024-01-20",
     dateDepart: "2024-01-22",
-    statut: "TERMINEE",
+    statut: "completed", // Updated to match database enum
     prescripteur: "Croix-Rouge",
     prix: 180,
     duree: 2,
     usagerDetails: { id: 3, nom: "Durand", prenom: "Pierre", telephone: "0555666777", email: "pierre.durand@email.com" },
     hotelDetails: { id: 3, nom: "Hôtel des Alpes", adresse: "789 Rue de la Montagne", ville: "Grenoble" },
-    chambreDetails: { id: 3, numero: "302", type: "Simple" },
-    operateurDetails: { id: 3, nom: "Leroy", prenom: "Claire", organisation: "Croix-Rouge" },
+    chambreDetails: { id: 3, nom: "Leroy", prenom: "Claire", organisation: "Croix-Rouge" },
     notes: "Séjour terminé"
   }
 ];
@@ -451,6 +450,7 @@ export default function ReservationsPage({
               onProlongReservation={handleProlongReservation}
               onEndCare={handleEndCare}
               onUpdateReservation={handleUpdateReservation}
+              onCancelReservation={handleCancelReservation}
             />
             {isNewReservationModalOpen && (
               <NewReservationModal
@@ -610,45 +610,89 @@ export default function ReservationsPage({
 
   const handleConfirmReservation = async (reservation: ReservationWithDetails) => {
     try {
-      console.log('Confirmation de la réservation:', reservation);
+      console.log('🔄 [DEBUG] Starting confirmation for reservation:', reservation.id);
+      
+      // Mise à jour optimiste de l'état local pour un feedback immédiat
+      console.log('⚡ [DEBUG] Applying optimistic update for confirmation...');
+      setReservations(prev => {
+        const updated = prev.map(r => 
+          r.id === reservation.id ? { ...r, statut: 'confirmed' } : r
+        );
+        console.log('📊 [DEBUG] Optimistic confirmation applied, new status:', updated.find(r => r.id === reservation.id)?.statut);
+        return updated;
+      });
       
       if (!useFallbackData) {
-        const { error } = await supabase
+        console.log('🔄 [DEBUG] Updating reservation status to confirmed in database...');
+        const { data, error } = await supabase
           .from('reservations')
-          .update({ statut: 'CONFIRMEE' })
-          .eq('id', reservation.id);
+          .update({ statut: 'confirmed' })
+          .eq('id', reservation.id)
+          .select();
 
         if (error) {
+          console.error('❌ [DEBUG] Database confirmation failed:', error);
+          // Rollback optimistic update on error
+          setReservations(prev => prev.map(r => 
+            r.id === reservation.id ? { ...r, statut: reservation.statut } : r
+          ));
           throw error;
         }
-      }
 
-      // Recharger les données
-      await loadReservations();
+        console.log('✅ [DEBUG] Database confirmation successful:', data);
+        console.log('✅ [DEBUG] Optimistic update is consistent with database, no reload needed');
+      }
+      
+      console.log('✅ [DEBUG] Confirmation completed successfully');
     } catch (error) {
-      console.error('Erreur lors de la confirmation:', error);
+      console.error('❌ [DEBUG] Error during confirmation:', error);
+      alert(`Erreur lors de la confirmation: ${error.message || 'Erreur inconnue'}`);
     }
   };
 
   const handleCancelReservation = async (reservation: ReservationWithDetails) => {
     try {
-      console.log('Annulation de la réservation:', reservation);
+      console.log('🔄 [DEBUG] Starting cancellation for reservation:', reservation.id);
+      console.log('📊 [DEBUG] Reservations count before cancellation:', reservations.length);
       
+      // Mise à jour optimiste de l'état local pour un feedback immédiat
+      console.log('⚡ [DEBUG] Applying optimistic update...');
+      setReservations(prev => {
+        const updated = prev.map(r => 
+          r.id === reservation.id ? { ...r, statut: 'cancelled' } : r
+        );
+        console.log('📊 [DEBUG] Optimistic update applied, cancelled reservation:', updated.find(r => r.id === reservation.id)?.statut);
+        return updated;
+      });
+
       if (!useFallbackData) {
-        const { error } = await supabase
+        console.log('🔄 [DEBUG] Updating reservation status to cancelled in database...');
+        const { data, error } = await supabase
           .from('reservations')
-          .update({ statut: 'ANNULEE' })
-          .eq('id', reservation.id);
+          .update({ statut: 'cancelled' })
+          .eq('id', reservation.id)
+          .select();
 
         if (error) {
+          console.error('❌ [DEBUG] Database update failed:', error);
+          // Rollback optimistic update on error
+          console.log('🔄 [DEBUG] Rolling back optimistic update due to error...');
+          setReservations(prev => prev.map(r => 
+            r.id === reservation.id ? { ...r, statut: reservation.statut } : r
+          ));
           throw error;
         }
+
+        console.log('✅ [DEBUG] Database update successful:', data);
+        console.log('✅ [DEBUG] Optimistic update is consistent with database, no reload needed');
+      } else {
+        console.log('⚠️ [DEBUG] Running in fallback mode - optimistic update is final');
       }
 
-      // Recharger les données
-      await loadReservations();
+      console.log('✅ [DEBUG] Cancellation completed successfully');
     } catch (error) {
-      console.error('Erreur lors de l\'annulation:', error);
+      console.error('❌ [DEBUG] Error during cancellation:', error);
+      alert(`Erreur lors de l'annulation: ${error.message || 'Erreur inconnue'}`);
     }
   };
 

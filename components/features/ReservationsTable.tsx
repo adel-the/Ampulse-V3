@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -35,9 +35,10 @@ interface ReservationsTableProps {
   onProlongReservation?: (reservation: Reservation) => void;
   onEndCare?: (reservation: Reservation) => void;
   onUpdateReservation?: (reservation: Reservation) => void;
+  onCancelReservation?: (reservation: Reservation) => void;
 }
 
-export default function ReservationsTable({ reservations, processus, hotels = [], templates, onReservationSelect, onProlongReservation, onEndCare, onUpdateReservation }: ReservationsTableProps) {
+export default function ReservationsTable({ reservations, processus, hotels = [], templates, onReservationSelect, onProlongReservation, onEndCare, onUpdateReservation, onCancelReservation }: ReservationsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -48,10 +49,14 @@ export default function ReservationsTable({ reservations, processus, hotels = []
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
-      case 'CONFIRMEE': return 'bg-green-100 text-green-800';
-      case 'EN_COURS': return 'bg-yellow-100 text-yellow-800';
-      case 'TERMINEE': return 'bg-blue-100 text-blue-800';
-      case 'ANNULEE': return 'bg-red-100 text-red-800';
+      case 'CONFIRMEE':
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'EN_COURS':
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'TERMINEE':
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'ANNULEE':
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -94,51 +99,69 @@ export default function ReservationsTable({ reservations, processus, hotels = []
     }
   };
 
-  const filteredReservations = reservations.filter(reservation => {
-    // Utiliser les données de détails si disponibles, sinon des valeurs par défaut
-    const usagerName = reservation.usager || 'Usager non spécifié';
-    const hotelName = reservation.hotel || 'Hôtel non spécifié';
-    const prescripteur = reservation.prescripteur || 'Non spécifié';
+  const filteredReservations = useMemo(() => {
+    console.log(`🔍 [TABLE-DEBUG] useMemo recalculating filteredReservations - Total: ${reservations.length}`);
     
-    const matchesSearch = 
-      usagerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hotelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prescripteur.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || reservation.statut === statusFilter;
-    
-    const matchesType = typeFilter === 'all' || (() => {
-      const prescripteurLower = prescripteur.toLowerCase();
-      if (typeFilter === 'entreprise') return prescripteurLower.includes('entreprise') || prescripteurLower.includes('sarl') || prescripteurLower.includes('sas');
-      if (typeFilter === 'association') return prescripteurLower.includes('association') || prescripteurLower.includes('asso');
-      if (typeFilter === 'institution') return prescripteurLower.includes('samusocial') || prescripteurLower.includes('social');
-      if (typeFilter === 'particulier') return !prescripteurLower.includes('entreprise') && !prescripteurLower.includes('association') && !prescripteurLower.includes('samusocial');
-      return true;
-    })();
-    
-    const matchesHotel = hotelFilter === 'all' || hotelName === hotelFilter;
-    
-    const matchesDate = dateFilter === 'all' || (() => {
-      const today = new Date();
-      const arrivalDate = new Date(reservation.dateArrivee);
-      const departureDate = new Date(reservation.dateDepart);
+    return reservations.filter(reservation => {
+      // DEBUG: Log all reservations and their status to track updates
+      if (reservation.id <= 5) { // Only log first few to avoid spam
+        console.log(`🔍 [TABLE-DEBUG] Reservation ${reservation.id} status:`, reservation.statut);
+      }
       
-      if (dateFilter === 'today') return arrivalDate.toDateString() === today.toDateString();
-      if (dateFilter === 'week') {
-        const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-        return arrivalDate >= today && arrivalDate <= weekFromNow;
+      // Utiliser les données de détails si disponibles, sinon des valeurs par défaut
+      const usagerName = reservation.usager || 'Usager non spécifié';
+      const hotelName = reservation.hotel || 'Hôtel non spécifié';
+      const prescripteur = reservation.prescripteur || 'Non spécifié';
+      
+      const matchesSearch = 
+        usagerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hotelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        prescripteur.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || reservation.statut === statusFilter;
+      
+      // DEBUG: Log status filtering
+      if (reservation.id <= 3 && reservation.statut === 'cancelled') {
+        console.log(`🔍 [FILTER-DEBUG] Reservation ${reservation.id} - Status: ${reservation.statut}, Filter: ${statusFilter}, Matches: ${matchesStatus}`);
       }
-      if (dateFilter === 'month') {
-        const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-        return arrivalDate >= today && arrivalDate <= monthFromNow;
-      }
-      if (dateFilter === 'past') return departureDate < today;
-      if (dateFilter === 'current') return arrivalDate <= today && departureDate >= today;
-      return true;
-    })();
-    
-    return matchesSearch && matchesStatus && matchesType && matchesHotel && matchesDate;
-  });
+      
+      const matchesType = typeFilter === 'all' || (() => {
+        const prescripteurLower = prescripteur.toLowerCase();
+        if (typeFilter === 'entreprise') return prescripteurLower.includes('entreprise') || prescripteurLower.includes('sarl') || prescripteurLower.includes('sas');
+        if (typeFilter === 'association') return prescripteurLower.includes('association') || prescripteurLower.includes('asso');
+        if (typeFilter === 'institution') return prescripteurLower.includes('samusocial') || prescripteurLower.includes('social');
+        if (typeFilter === 'particulier') return !prescripteurLower.includes('entreprise') && !prescripteurLower.includes('association') && !prescripteurLower.includes('samusocial');
+        return true;
+      })();
+      
+      const matchesHotel = hotelFilter === 'all' || hotelName === hotelFilter;
+      
+      const matchesDate = dateFilter === 'all' || (() => {
+        const today = new Date();
+        const arrivalDate = new Date(reservation.dateArrivee);
+        const departureDate = new Date(reservation.dateDepart);
+        
+        if (dateFilter === 'today') return arrivalDate.toDateString() === today.toDateString();
+        if (dateFilter === 'week') {
+          const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+          return arrivalDate >= today && arrivalDate <= weekFromNow;
+        }
+        if (dateFilter === 'month') {
+          const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+          return arrivalDate >= today && arrivalDate <= monthFromNow;
+        }
+        if (dateFilter === 'past') return departureDate < today;
+        if (dateFilter === 'current') return arrivalDate <= today && departureDate >= today;
+        return true;
+      })();
+      
+      return matchesSearch && matchesStatus && matchesType && matchesHotel && matchesDate;
+    });
+  }, [reservations, searchTerm, statusFilter, typeFilter, hotelFilter, dateFilter]);
+
+  // DEBUG: Log filtered results
+  console.log(`🔍 [TABLE-DEBUG] Filtered: ${filteredReservations.length}`);
+  console.log(`🔍 [TABLE-DEBUG] Filter states - Status: ${statusFilter}, Type: ${typeFilter}, Hotel: ${hotelFilter}, Date: ${dateFilter}`);
 
   const getProcessusForReservation = (reservationId: number) => {
     return processus.find(p => p.reservationId === reservationId);
@@ -188,7 +211,7 @@ export default function ReservationsTable({ reservations, processus, hotels = []
 
       // Mettre à jour le statut de la réservation
       if (onUpdateReservation) {
-        onUpdateReservation({ ...reservation, statut: 'CONFIRMEE' });
+        onUpdateReservation({ ...reservation, statut: 'confirmed' });
       }
 
     } catch (error) {
@@ -274,10 +297,10 @@ export default function ReservationsTable({ reservations, processus, hotels = []
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">Tous les statuts</option>
-                    <option value="CONFIRMEE">Confirmée</option>
-                    <option value="EN_COURS">En cours</option>
-                    <option value="TERMINEE">Terminée</option>
-                    <option value="ANNULEE">Annulée</option>
+                    <option value="confirmed">Confirmée</option>
+                    <option value="pending">En cours</option>
+                    <option value="completed">Terminée</option>
+                    <option value="cancelled">Annulée</option>
                   </select>
                 </div>
 
@@ -459,7 +482,7 @@ export default function ReservationsTable({ reservations, processus, hotels = []
                             <Eye className="h-4 w-4" />
                           </Button>
                           
-                          {reservation.statut === 'EN_COURS' && (
+                          {reservation.statut === 'pending' && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -492,6 +515,18 @@ export default function ReservationsTable({ reservations, processus, hotels = []
                               title="Fin de prise en charge"
                             >
                               <FileText className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {onCancelReservation && (reservation.statut === 'confirmed' || reservation.statut === 'pending') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onCancelReservation(reservation)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              title="Annuler la réservation"
+                            >
+                              <XCircle className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
