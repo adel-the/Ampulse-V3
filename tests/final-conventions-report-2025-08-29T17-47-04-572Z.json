@@ -1,0 +1,88 @@
+{
+  "summary": {
+    "totalTests": 9,
+    "passedTests": 9,
+    "failedTests": 0,
+    "warningsCount": 0,
+    "successRate": 100
+  },
+  "results": {
+    "passed": [
+      {
+        "category": "Database",
+        "test": "Query Conventions",
+        "success": true,
+        "message": "Found 2 conventions",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.511Z"
+      },
+      {
+        "category": "Database",
+        "test": "Data Structure",
+        "success": true,
+        "message": "All conventions have proper structure",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.512Z"
+      },
+      {
+        "category": "RPC",
+        "test": "upsert_convention_tarifaire",
+        "success": true,
+        "message": "Function executed successfully",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.546Z"
+      },
+      {
+        "category": "RPC",
+        "test": "get_convention_price (July)",
+        "success": true,
+        "message": "Expected: 130, Got: 130",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.550Z"
+      },
+      {
+        "category": "RPC",
+        "test": "get_convention_price (March)",
+        "success": true,
+        "message": "Expected: 100, Got: 100",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.553Z"
+      },
+      {
+        "category": "RPC",
+        "test": "check_convention_overlap",
+        "success": true,
+        "message": "Overlap detected: true (expected: true)",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.556Z"
+      },
+      {
+        "category": "API",
+        "test": "getClientConventions equivalent",
+        "success": true,
+        "message": "Found 0 conventions for client 30",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.566Z"
+      },
+      {
+        "category": "Integrity",
+        "test": "Foreign Key Constraints",
+        "success": true,
+        "message": "Checked 2 records, broken refs: clients=0, categories=0",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.569Z"
+      },
+      {
+        "category": "Integrity",
+        "test": "Data Consistency",
+        "success": true,
+        "message": "Price issues: 0, Date issues: 0",
+        "data": null,
+        "timestamp": "2025-08-29T17:47:04.571Z"
+      }
+    ],
+    "failed": [],
+    "warnings": []
+  },
+  "timestamp": "2025-08-29T17:47:04.572Z"
+}

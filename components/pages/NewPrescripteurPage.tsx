@@ -83,6 +83,57 @@ export default function NewPrescripteurPage({ initialData, mode = 'create' }: Ne
   });
   const [editingConventionId, setEditingConventionId] = useState<number | null>(null);
 
+  // State for transformed convention pricing data for ConventionPrix component
+  const [conventionPricingData, setConventionPricingData] = useState<any[]>([]);
+
+  // Function to transform database convention data to ConventionPrix component format
+  const transformConventionData = (conventions: any[]) => {
+    if (!conventions || conventions.length === 0) return [];
+    
+    // Group conventions by category
+    const groupedByCategory = conventions.reduce((acc: any, convention: any) => {
+      const categoryId = convention.category_id?.toString() || 'unknown';
+      const categoryName = convention.room_categories?.name || 'Catégorie inconnue';
+      
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          categoryId,
+          categoryName,
+          defaultPrice: convention.prix_defaut || 45,
+          monthlyPrices: {},
+          conditions: convention.conditions || ''
+        };
+      }
+      
+      // Transform monthly prices from database format to component format
+      const monthMapping = {
+        prix_janvier: 'janvier',
+        prix_fevrier: 'fevrier', 
+        prix_mars: 'mars',
+        prix_avril: 'avril',
+        prix_mai: 'mai',
+        prix_juin: 'juin',
+        prix_juillet: 'juillet',
+        prix_aout: 'aout',
+        prix_septembre: 'septembre',
+        prix_octobre: 'octobre',
+        prix_novembre: 'novembre',
+        prix_decembre: 'decembre'
+      };
+      
+      // Add monthly prices if they exist
+      Object.entries(monthMapping).forEach(([dbField, componentField]) => {
+        if (convention[dbField] && convention[dbField] > 0) {
+          acc[categoryId].monthlyPrices[componentField] = convention[dbField];
+        }
+      });
+      
+      return acc;
+    }, {});
+    
+    return Object.values(groupedByCategory);
+  };
+
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [testDataApplied, setTestDataApplied] = useState(false);
@@ -284,14 +335,25 @@ export default function NewPrescripteurPage({ initialData, mode = 'create' }: Ne
       
       // Charger les conventions tarifaires depuis la nouvelle API
       if (initialData.id) {
+        console.log('[NewPrescripteurPage] Loading conventions for client ID:', initialData.id);
         conventionsApi.getClientConventions(initialData.id).then(result => {
-          if (result.success && result.data) {
-            console.log('Conventions tarifaires chargées:', result.data);
-            // Les conventions tarifaires sont maintenant disponibles
+          console.log('[NewPrescripteurPage] API result:', result);
+          if (result.success && result.data && result.data.length > 0) {
+            console.log('[NewPrescripteurPage] Conventions tarifaires chargées:', result.data);
+            // Transform data for ConventionPrix component
+            const transformedData = transformConventionData(result.data);
+            console.log('[NewPrescripteurPage] Données transformées pour ConventionPrix:', transformedData);
+            setConventionPricingData(transformedData);
+          } else {
+            console.log('[NewPrescripteurPage] Aucune convention trouvée pour ce client');
+            setConventionPricingData([]);
           }
         }).catch(error => {
-          console.error('Erreur lors du chargement des conventions tarifaires:', error);
+          console.error('[NewPrescripteurPage] Erreur lors du chargement des conventions tarifaires:', error);
+          setConventionPricingData([]);
         });
+      } else {
+        console.log('[NewPrescripteurPage] Pas d\'ID client, pas de conventions à charger');
       }
     }
   }, [initialData]);
@@ -1225,6 +1287,7 @@ export default function NewPrescripteurPage({ initialData, mode = 'create' }: Ne
                 <CardContent>
                   <ConventionPrix 
                     ref={conventionPrixRef}
+                    initialData={conventionPricingData}
                     disabled={loading || isReadOnly}
                     showSaveButton={false}
                   />

@@ -123,6 +123,11 @@ export const conventionsApi = {
 
       if (error) throw error;
 
+      console.log(`[API conventions] Found ${data?.length || 0} conventions for client ${clientId}`);
+      if (data && data.length > 0) {
+        console.log('[API conventions] First convention sample:', data[0]);
+      }
+
       return {
         success: true,
         data: data as ConventionTarifaireWithRelations[]

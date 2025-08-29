@@ -1,0 +1,86 @@
+{
+  "totalTests": 11,
+  "passedTests": 9,
+  "failedTests": 2,
+  "successRate": 81.8,
+  "results": [
+    {
+      "test": "Schema Check",
+      "success": false,
+      "message": "Error checking schema: Could not find the table 'public.information_schema.columns' in the schema cache",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.265Z"
+    },
+    {
+      "test": "Data Query",
+      "success": true,
+      "message": "Found 2 conventions in database",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.274Z"
+    },
+    {
+      "test": "API User Access - Client 30",
+      "success": true,
+      "message": "Found 0 conventions for Innov Tech SASU",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.284Z"
+    },
+    {
+      "test": "API Admin Access - Client 30",
+      "success": true,
+      "message": "Found 0 conventions for Innov Tech SASU",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.289Z"
+    },
+    {
+      "test": "API User Access - Client 31",
+      "success": true,
+      "message": "Found 2 conventions for Entraide et Solidarité",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.295Z"
+    },
+    {
+      "test": "API Admin Access - Client 31",
+      "success": true,
+      "message": "Found 2 conventions for Entraide et Solidarité",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.300Z"
+    },
+    {
+      "test": "RPC Functions Check",
+      "success": false,
+      "message": "Error checking functions: Could not find the table 'public.information_schema.routines' in the schema cache",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.303Z"
+    },
+    {
+      "test": "Foreign Key Check",
+      "success": true,
+      "message": "All references are valid (2 records checked)",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.308Z"
+    },
+    {
+      "test": "Data Consistency",
+      "success": true,
+      "message": "Price inconsistencies: 0, Date inconsistencies: 0",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.312Z"
+    },
+    {
+      "test": "Test Data Creation",
+      "success": true,
+      "message": "Created test convention with ID: 66",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.325Z"
+    },
+    {
+      "test": "Test Data Verification",
+      "success": true,
+      "message": "All fields saved and retrieved correctly",
+      "data": null,
+      "timestamp": "2025-08-29T17:44:56.328Z"
+    }
+  ],
+  "timestamp": "2025-08-29T17:44:56.333Z"
+}

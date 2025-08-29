@@ -66,10 +66,16 @@ const ConventionPrix = forwardRef<ConventionPrixRef, ConventionPrixProps>(
 
   // Initialize pricing data when room categories are loaded
   useEffect(() => {
+    console.log('[ConventionPrix] useEffect triggered');
+    console.log('[ConventionPrix] roomCategories:', roomCategories);
+    console.log('[ConventionPrix] initialData:', initialData);
+    
     if (roomCategories && roomCategories.length > 0) {
       if (initialData && initialData.length > 0) {
+        console.log('[ConventionPrix] Setting pricing data from initialData:', initialData);
         setPricingData(initialData);
       } else {
+        console.log('[ConventionPrix] No initialData, using default values');
         // Initialize with default values based on room categories
         const initialPricing: CategoryPricing[] = roomCategories.map(category => ({
           categoryId: category.id.toString(),
