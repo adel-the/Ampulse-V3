@@ -839,22 +839,24 @@ export default function ClientsSection() {
 
         {/* Form Tabs */}
         <Tabs value={activeFormTab} onValueChange={setActiveFormTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="informations">Informations</TabsTrigger>
-            <TabsTrigger value="contact">Contact</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="informations">Informations & Contact</TabsTrigger>
             <TabsTrigger value="referents">Référents</TabsTrigger>
             {(isEntreprise || isAssociation) && (
               <TabsTrigger value="conventions">Conventions</TabsTrigger>
             )}
           </TabsList>
 
-          {/* Informations Tab */}
+          {/* Informations & Contact Tab */}
           <TabsContent value="informations">
             <Card>
               <CardHeader>
-                <CardTitle>Informations générales</CardTitle>
+                <CardTitle>Informations générales et contact</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Section Informations générales */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Informations générales</h3>
                 {/* Type de client */}
                 <div>
                   <Label htmlFor="client_type">Type de client *</Label>
@@ -1183,32 +1185,12 @@ export default function ClientsSection() {
                   </select>
                 </div>
 
-                {/* Notes */}
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, notes: e.target.value }));
-                      setFormDirty(true);
-                    }}
-                    disabled={isReadOnly}
-                    rows={3}
-                  />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Contact Tab */}
-          <TabsContent value="contact">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations de contact</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* Section Contact */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mt-6">Informations de contact</h3>
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -1349,6 +1331,22 @@ export default function ClientsSection() {
                       disabled={isReadOnly}
                     />
                   </div>
+                </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, notes: e.target.value }));
+                      setFormDirty(true);
+                    }}
+                    disabled={isReadOnly}
+                    rows={3}
+                  />
                 </div>
               </CardContent>
             </Card>
