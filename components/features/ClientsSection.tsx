@@ -160,6 +160,9 @@ export default function ClientsSection() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formDirty, setFormDirty] = useState(false);
   const [testDataApplied, setTestDataApplied] = useState(false);
+  
+  // Convention pricing data state
+  const [conventionPricingData, setConventionPricingData] = useState<any[]>([]);
 
   // Restore state from sessionStorage on component mount
   useEffect(() => {
@@ -359,6 +362,8 @@ export default function ClientsSection() {
       telephone: '',
       email: ''
     });
+    // Reset convention pricing data
+    setConventionPricingData([]);
   };
 
   // Handle create new client
@@ -389,6 +394,54 @@ export default function ClientsSection() {
     }
   };
 
+  // Function to transform database convention data to ConventionPrix component format
+  const transformConventionData = (conventions: any[]) => {
+    if (!conventions || conventions.length === 0) return [];
+    
+    // Group conventions by category
+    const groupedByCategory = conventions.reduce((acc: any, convention: any) => {
+      const categoryId = convention.category_id?.toString() || 'unknown';
+      const categoryName = convention.room_categories?.name || 'Catégorie inconnue';
+      
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          categoryId,
+          categoryName,
+          defaultPrice: convention.prix_defaut || 45,
+          monthlyPrices: {},
+          conditions: convention.conditions || ''
+        };
+      }
+      
+      // Transform monthly prices from database format to component format
+      const monthMapping = {
+        prix_janvier: 'janvier',
+        prix_fevrier: 'fevrier', 
+        prix_mars: 'mars',
+        prix_avril: 'avril',
+        prix_mai: 'mai',
+        prix_juin: 'juin',
+        prix_juillet: 'juillet',
+        prix_aout: 'aout',
+        prix_septembre: 'septembre',
+        prix_octobre: 'octobre',
+        prix_novembre: 'novembre',
+        prix_decembre: 'decembre'
+      };
+      
+      // Add monthly prices if they exist
+      Object.entries(monthMapping).forEach(([dbField, componentField]) => {
+        if (convention[dbField] && convention[dbField] > 0) {
+          acc[categoryId].monthlyPrices[componentField] = convention[dbField];
+        }
+      });
+      
+      return acc;
+    }, {});
+    
+    return Object.values(groupedByCategory);
+  };
+
   const handleEditClient = async (client: Client) => {
     setFormLoading(true);
     try {
@@ -410,6 +463,29 @@ export default function ClientsSection() {
           })));
         } else {
           setReferents([]);
+        }
+        
+        // Load pricing conventions for Entreprise and Association
+        if (result.data.id && (result.data.client_type === 'Entreprise' || result.data.client_type === 'Association')) {
+          console.log('[ClientsSection] Loading conventions for client ID:', result.data.id);
+          conventionsApi.getClientConventions(result.data.id).then(convResult => {
+            console.log('[ClientsSection] Conventions API result:', convResult);
+            if (convResult.success && convResult.data && convResult.data.length > 0) {
+              console.log('[ClientsSection] Conventions loaded:', convResult.data);
+              const transformedData = transformConventionData(convResult.data);
+              console.log('[ClientsSection] Transformed data for ConventionPrix:', transformedData);
+              setConventionPricingData(transformedData);
+            } else {
+              console.log('[ClientsSection] No conventions found for this client');
+              setConventionPricingData([]);
+            }
+          }).catch(error => {
+            console.error('[ClientsSection] Error loading conventions:', error);
+            setConventionPricingData([]);
+          });
+        } else {
+          console.log('[ClientsSection] Not loading conventions - Particulier or no ID');
+          setConventionPricingData([]);
         }
         
         setViewMode('edit');
@@ -1605,9 +1681,9 @@ export default function ClientsSection() {
                 <CardContent>
                   <ConventionPrix
                     ref={conventionPrixRef}
-                    clientId={selectedClient?.id}
-                    clientType={formData.client_type}
-                    readOnly={isReadOnly}
+                    initialData={conventionPricingData}
+                    disabled={isReadOnly || formLoading}
+                    showSaveButton={false}
                   />
                 </CardContent>
               </Card>
