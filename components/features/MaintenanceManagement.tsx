@@ -26,7 +26,8 @@ import {
   AlertCircle,
   TrendingUp,
   BarChart3,
-  Activity
+  Activity,
+  Building
 } from 'lucide-react';
 
 interface MaintenanceRoom {
@@ -467,39 +468,29 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900">Gestion de la Maintenance</h1>
-            {selectedHotel && (
-              <Badge className="bg-blue-100 text-blue-800 px-3 py-1">
-                <Bed className="h-3 w-3 mr-1" />
-                {selectedHotel}
-              </Badge>
-            )}
-          </div>
-          <p className="text-gray-600">
-            {viewMode === 'grid' 
-              ? `Vue d'ensemble des chambres en maintenance${selectedHotel ? ` - ${selectedHotel}` : ''}` 
-              : `Détails de la chambre ${selectedRoomForDetail?.numero}`
-            }
-          </p>
+      {/* En-tête ultra-compact */}
+      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2.5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Wrench className="h-4 w-4 text-blue-600 mt-0.5" />
+          <span className="text-lg font-semibold text-gray-900">Maintenance</span>
+          {selectedHotel && (
+            <Badge variant="secondary" className="text-xs px-2 py-0.5">
+              {selectedHotel}
+            </Badge>
+          )}
         </div>
-        <div className="flex space-x-2">
+        <div className="flex items-center gap-2">
           {viewMode === 'detail' && (
-            <Button variant="outline" onClick={handleBackToGrid}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Retour à la liste
+            <Button variant="outline" onClick={handleBackToGrid} size="sm">
+              <ArrowLeft className="h-3 w-3" />
             </Button>
           )}
-          <Button onClick={() => setShowAddRoomModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter une chambre
+          <Button onClick={() => setShowAddRoomModal(true)} size="sm" className="px-3 py-1.5 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Ajouter
           </Button>
-          <Button variant="outline" onClick={() => setShowAddItemModal(true)}>
-            <Settings className="h-4 w-4 mr-2" />
-            Éléments de maintenance
+          <Button variant="outline" onClick={() => setShowAddItemModal(true)} size="sm" className="px-3 py-1.5 text-xs">
+            <Settings className="h-3 w-3" />
           </Button>
         </div>
       </div>
