@@ -35,13 +35,14 @@ interface MaintenanceRoom {
   id: number;
   numero: string;
   hotel: string;
-  status: 'maintenance' | 'reparation' | 'commande' | 'termine';
+  status: 'maintenance' | 'reparation' | 'commande' | 'termine' | 'disponible' | 'occupee';
   dateDebut: string;
   dateFin?: string;
   description: string;
   priorite: 'basse' | 'moyenne' | 'haute' | 'critique';
   responsable?: string;
   coutEstime?: number;
+  isMaintenanceRoom?: boolean; // Indique si c'est une vraie chambre en maintenance
 }
 
 interface MaintenanceItem {
@@ -164,20 +165,23 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       // Transformer toutes les chambres avec enrichissement pour celles en maintenance
       const allRoomsData: MaintenanceRoom[] = realRooms
         .map((room, index) => {
+          const isMaintenanceRoom = room.statut === 'maintenance';
+          
           const baseRoom = {
             id: room.id,
             numero: room.numero,
             hotel: selectedHotel?.nom || 'Établissement',
-            status: room.statut as 'maintenance' | 'reparation' | 'commande' | 'termine',
+            status: room.statut as 'maintenance' | 'reparation' | 'commande' | 'termine' | 'disponible' | 'occupee',
             dateDebut: new Date().toISOString().split('T')[0],
             description: room.description || '',
             priorite: 'moyenne' as const,
-            responsable: 'Non assigné',
-            coutEstime: 0
+            responsable: undefined,
+            coutEstime: 0,
+            isMaintenanceRoom
           };
 
           // Enrichir les données pour les chambres en maintenance
-          if (room.statut === 'maintenance') {
+          if (isMaintenanceRoom) {
             return {
               ...baseRoom,
               description: room.description || generateMaintenanceDescription(room.numero),
@@ -190,8 +194,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
           // Pour les chambres disponibles et occupées, données basiques
           return {
             ...baseRoom,
-            description: `Chambre ${room.statut === 'disponible' ? 'disponible' : 'occupée'}`,
-            status: room.statut as 'maintenance'
+            description: `Chambre ${room.statut === 'disponible' ? 'disponible' : 'occupée'} - ${room.category_id ? 'Catégorie définie' : 'Standard'}`,
+            responsable: undefined
           };
         });
 
@@ -377,6 +381,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       case 'reparation': return 'bg-blue-100 text-blue-800';
       case 'commande': return 'bg-yellow-100 text-yellow-800';
       case 'termine': return 'bg-green-100 text-green-800';
+      case 'disponible': return 'bg-green-100 text-green-800';
+      case 'occupee': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -397,14 +403,23 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       case 'reparation': return <Settings className="h-4 w-4" />;
       case 'commande': return <Clock className="h-4 w-4" />;
       case 'termine': return <CheckCircle className="h-4 w-4" />;
+      case 'disponible': return <CheckCircle className="h-4 w-4" />;
+      case 'occupee': return <Bed className="h-4 w-4" />;
       default: return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
   // Fonctions pour la navigation
   const handleRoomClick = (room: MaintenanceRoom) => {
-    setSelectedRoomForDetail(room);
-    setViewMode('detail');
+    // Seules les chambres en maintenance peuvent accéder à la vue détaillée avec tâches
+    if (room.isMaintenanceRoom) {
+      setSelectedRoomForDetail(room);
+      setViewMode('detail');
+    } else {
+      // Pour les chambres disponibles/occupées, affichage d'informations basiques
+      console.log(`Chambre ${room.numero} - Statut: ${room.status}`);
+      // Ici on pourrait ouvrir un modal avec les informations de base
+    }
   };
 
   const handleBackToGrid = () => {
@@ -716,6 +731,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                     <option value="reparation">En réparation</option>
                     <option value="commande">Commande en cours</option>
                     <option value="termine">Terminé</option>
+                    <option value="disponible">Disponible</option>
+                    <option value="occupee">Occupée</option>
                   </select>
                   
                   {/* Priorité */}
@@ -754,8 +771,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <Bed className="h-5 w-5 mr-2" />
-                  Chambres en maintenance ({filteredRooms.length})
+                  <Building className="h-5 w-5 mr-2" />
+                  Toutes les chambres ({filteredRooms.length})
                   {selectedHotel && (
                     <span className="ml-2 text-sm text-blue-600">
                       ({selectedHotel.nom})
@@ -770,39 +787,80 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   {filteredRooms.map((room) => (
                     <div 
                       key={room.id} 
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className={`border rounded-lg p-4 transition-all duration-200 ${
+                        room.isMaintenanceRoom 
+                          ? 'border-orange-200 bg-orange-50 hover:bg-orange-100 cursor-pointer hover:shadow-md' 
+                          : room.status === 'disponible'
+                          ? 'border-green-200 bg-green-50 hover:bg-green-100 cursor-pointer hover:shadow-sm'
+                          : 'border-blue-200 bg-blue-50 hover:bg-blue-100 cursor-default'
+                      }`}
                       onClick={() => handleRoomClick(room)}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Chambre {room.numero}</h3>
-                        <Badge className={getStatusColor(room.status)}>
-                          {getStatusIcon(room.status)}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-gray-900">Chambre {room.numero}</h3>
+                          {room.isMaintenanceRoom && (
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getStatusColor(room.status)}>
+                            {getStatusIcon(room.status)}
+                            <span className="ml-1">
+                              {room.status === 'maintenance' ? 'Maintenance' :
+                               room.status === 'disponible' ? 'Disponible' :
+                               room.status === 'occupee' ? 'Occupée' :
+                               room.status}
+                            </span>
+                          </Badge>
+                          {room.isMaintenanceRoom && room.priorite && (
+                            <Badge variant="outline" className={getPriorityColor(room.priorite)}>
+                              {room.priorite}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="text-gray-600 text-sm mb-3 line-clamp-2">{room.description}</p>
                       
                       <div className="space-y-2 text-xs text-gray-500">
-                        <div className="flex items-center justify-between">
-                          <span>Priorité:</span>
-                          <Badge variant="outline" className={getPriorityColor(room.priorite)}>
-                            {room.priorite}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          <span>Début: {new Date(room.dateDebut).toLocaleDateString('fr-FR')}</span>
-                        </div>
-                        {room.responsable && (
-                          <div className="flex items-center">
-                            <User className="h-3 w-3 mr-1" />
-                            <span>{room.responsable}</span>
+                        {room.isMaintenanceRoom ? (
+                          // Informations détaillées pour les chambres en maintenance
+                          <>
+                            <div className="flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              <span>Début: {new Date(room.dateDebut).toLocaleDateString('fr-FR')}</span>
+                            </div>
+                            {room.responsable && (
+                              <div className="flex items-center">
+                                <User className="h-3 w-3 mr-1" />
+                                <span>{room.responsable}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span>Tâches:</span>
+                              <span className="font-medium">{getTodosForRoom(room.id).length}</span>
+                            </div>
+                            {room.coutEstime && room.coutEstime > 0 && (
+                              <div className="flex items-center justify-between">
+                                <span>Coût estimé:</span>
+                                <span className="font-medium text-orange-600">{room.coutEstime}€</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          // Informations basiques pour les chambres disponibles/occupées
+                          <div className="text-center py-2">
+                            <div className="text-sm text-gray-600 mb-1">
+                              {room.status === 'disponible' ? 'Chambre prête pour réservation' : 'Chambre actuellement occupée'}
+                            </div>
+                            {!room.isMaintenanceRoom && (
+                              <div className="text-xs text-gray-400">
+                                {room.status === 'disponible' ? 'Cliquer pour voir les détails' : 'Informations limitées'}
+                              </div>
+                            )}
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <span>Tâches:</span>
-                          <span className="font-medium">{getTodosForRoom(room.id).length}</span>
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -810,11 +868,11 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
               ) : (
                 <div className="text-center py-8">
                   <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune chambre en maintenance</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune chambre trouvée</h3>
                   <p className="text-gray-500">
                     {selectedHotel 
-                      ? `Aucune chambre en maintenance pour ${selectedHotel.nom}.`
-                      : 'Sélectionnez un établissement dans les paramètres pour voir les chambres en maintenance.'
+                      ? `Aucune chambre trouvée pour ${selectedHotel.nom} avec les critères actuels.`
+                      : 'Sélectionnez un établissement dans les paramètres pour voir les chambres.'
                     }
                     {roomsError && (
                       <span className="block mt-2 text-red-600">
