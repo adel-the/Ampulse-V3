@@ -409,7 +409,7 @@ export default function Home() {
       case 'maintenance':
         return (
           <MaintenanceManagement 
-            selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel)?.nom : undefined}
+            selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null}
           />
         );
 

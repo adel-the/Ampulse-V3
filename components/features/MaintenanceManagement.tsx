@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { useRooms } from '@/hooks/useSupabase';
 import { 
   Wrench, 
   Plus, 
@@ -67,11 +68,20 @@ interface MaintenanceTodo {
 }
 
 interface MaintenanceManagementProps {
-  selectedHotel?: string;
+  selectedHotel?: {
+    id: number;
+    nom: string;
+    chambresTotal: number;
+    chambresOccupees: number;
+    tauxOccupation: number;
+  } | null;
 }
 
 export default function MaintenanceManagement({ selectedHotel }: MaintenanceManagementProps) {
-  const [rooms, setRooms] = useState<MaintenanceRoom[]>([]);
+  // Récupérer les vraies chambres de l'établissement sélectionné
+  const { rooms: realRooms, loading: roomsLoading, error: roomsError } = useRooms(selectedHotel?.id);
+  
+  const [maintenanceRooms, setMaintenanceRooms] = useState<MaintenanceRoom[]>([]);
   const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([]);
   const [todos, setTodos] = useState<MaintenanceTodo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,48 +131,52 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     notes: ''
   });
 
-  // Générer des données de démonstration
+  // Fonctions utilitaires pour générer les données de maintenance
+  const generateMaintenanceDescription = (roomNumber: string): string => {
+    const descriptions = [
+      'Problème de climatisation',
+      'Réparation robinetterie',
+      'Attente pièces détachées',
+      'Maintenance électrique',
+      'Rénovation salle de bain',
+      'Changement revêtement sol',
+      'Réparation fenêtre',
+      'Maintenance chauffage'
+    ];
+    return descriptions[parseInt(roomNumber) % descriptions.length] || 'Maintenance générale';
+  };
+
+  const generatePriority = (index: number): 'basse' | 'moyenne' | 'haute' | 'critique' => {
+    const priorities: ('basse' | 'moyenne' | 'haute' | 'critique')[] = ['haute', 'moyenne', 'basse', 'critique'];
+    return priorities[index % priorities.length] || 'moyenne';
+  };
+
+  const generateResponsable = (index: number): string => {
+    const responsables = ['Jean Dupont', 'Marie Martin', 'Pierre Bernard', 'Sophie Dubois', 'Luc Moreau'];
+    return responsables[index % responsables.length] || 'Non assigné';
+  };
+
+  // Traiter les vraies données de chambres
   useEffect(() => {
-    const generateDemoData = () => {
-      // Utiliser l'établissement sélectionné ou 'Hôtel Central' par défaut
-      const currentHotel = selectedHotel || 'Hôtel Central';
-      
-      const demoRooms: MaintenanceRoom[] = [
-        {
-          id: 1,
-          numero: '101',
-          hotel: currentHotel,
-          status: 'maintenance',
-          dateDebut: '2024-01-15',
-          description: 'Problème de climatisation',
-          priorite: 'haute',
-          responsable: 'Jean Dupont',
-          coutEstime: 500
-        },
-        {
-          id: 2,
-          numero: '205',
-          hotel: currentHotel,
-          status: 'reparation',
-          dateDebut: '2024-01-10',
-          dateFin: '2024-01-20',
-          description: 'Réparation robinetterie',
-          priorite: 'moyenne',
-          responsable: 'Marie Martin',
-          coutEstime: 200
-        },
-        {
-          id: 3,
-          numero: '312',
-          hotel: currentHotel,
-          status: 'commande',
-          dateDebut: '2024-01-12',
-          description: 'Attente pièces détachées',
-          priorite: 'basse',
-          responsable: 'Pierre Bernard',
-          coutEstime: 150
-        }
-      ];
+    const processRealRooms = () => {
+      if (!realRooms) return;
+
+      // Filtrer les chambres en maintenance et les transformer
+      const maintenanceRoomsData: MaintenanceRoom[] = realRooms
+        .filter(room => room.statut === 'maintenance')
+        .map((room, index) => ({
+          id: room.id,
+          numero: room.numero,
+          hotel: selectedHotel?.nom || 'Établissement',
+          status: 'maintenance' as const,
+          dateDebut: new Date().toISOString().split('T')[0], // Date d'aujourd'hui par défaut
+          description: room.description || generateMaintenanceDescription(room.numero),
+          priorite: generatePriority(index),
+          responsable: generateResponsable(index),
+          coutEstime: Math.floor(Math.random() * 500) + 100
+        }));
+
+      setMaintenanceRooms(maintenanceRoomsData);
 
       const demoItems: MaintenanceItem[] = [
         {
@@ -228,24 +242,27 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
         }
       ];
 
-      setRooms(demoRooms);
       setMaintenanceItems(demoItems);
       setTodos(demoTodos);
       setLoading(false);
     };
 
-    setTimeout(generateDemoData, 1000);
-  }, [selectedHotel]); // Regénérer les données quand l'établissement change
+    if (!roomsLoading && realRooms) {
+      processRealRooms();
+    } else if (!selectedHotel) {
+      // Si aucun établissement sélectionné, vider les données
+      setMaintenanceRooms([]);
+      setLoading(false);
+    }
+  }, [realRooms, roomsLoading, selectedHotel]); // Regénérer les données quand les chambres ou l'établissement changent
 
-  // Filtrer les chambres par établissement et autres critères
-  const filteredRooms = rooms.filter(room => {
-    // Filtrer d'abord par établissement sélectionné
-    const matchesHotel = selectedHotel ? room.hotel === selectedHotel : true;
+  // Filtrer les chambres en maintenance par critères
+  const filteredRooms = maintenanceRooms.filter(room => {
     const matchesStatus = statusFilter === 'all' || room.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || room.priorite === priorityFilter;
     const matchesSearch = room.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          room.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesHotel && matchesStatus && matchesPriority && matchesSearch;
+    return matchesStatus && matchesPriority && matchesSearch;
   });
 
   // Obtenir les todos pour une chambre spécifique
@@ -265,7 +282,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       const room: MaintenanceRoom = {
         id: Date.now(),
         numero: newRoom.numero,
-        hotel: selectedHotel || 'Hôtel Central', // Utiliser l'établissement sélectionné
+        hotel: selectedHotel?.nom || 'Établissement',
         status: 'maintenance',
         dateDebut: new Date().toISOString().split('T')[0],
         description: newRoom.description,
@@ -273,7 +290,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
         responsable: newRoom.responsable,
         coutEstime: newRoom.coutEstime
       };
-      setRooms([...rooms, room]);
+      setMaintenanceRooms([...maintenanceRooms, room]);
       setNewRoom({
         numero: '',
         description: '',
@@ -416,18 +433,22 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
 
   // Calculer les statistiques
   const getStatistics = () => {
-    const totalRooms = rooms.length;
-    const criticalRooms = rooms.filter(room => room.priorite === 'critique').length;
-    const highPriorityRooms = rooms.filter(room => room.priorite === 'haute').length;
-    const mediumPriorityRooms = rooms.filter(room => room.priorite === 'moyenne').length;
-    const lowPriorityRooms = rooms.filter(room => room.priorite === 'basse').length;
+    const totalRoomsInEstablishment = realRooms?.length || 0;
+    const availableRooms = realRooms?.filter(room => room.statut === 'disponible').length || 0;
+    const occupiedRooms = realRooms?.filter(room => room.statut === 'occupee').length || 0;
+    const maintenanceCount = maintenanceRooms.length;
     
-    const maintenanceRooms = rooms.filter(room => room.status === 'maintenance').length;
-    const repairRooms = rooms.filter(room => room.status === 'reparation').length;
-    const orderRooms = rooms.filter(room => room.status === 'commande').length;
-    const completedRooms = rooms.filter(room => room.status === 'termine').length;
+    const criticalRooms = maintenanceRooms.filter(room => room.priorite === 'critique').length;
+    const highPriorityRooms = maintenanceRooms.filter(room => room.priorite === 'haute').length;
+    const mediumPriorityRooms = maintenanceRooms.filter(room => room.priorite === 'moyenne').length;
+    const lowPriorityRooms = maintenanceRooms.filter(room => room.priorite === 'basse').length;
     
-    const urgentRooms = rooms.filter(room => {
+    const maintenanceStatus = maintenanceRooms.filter(room => room.status === 'maintenance').length;
+    const repairRooms = maintenanceRooms.filter(room => room.status === 'reparation').length;
+    const orderRooms = maintenanceRooms.filter(room => room.status === 'commande').length;
+    const completedRooms = maintenanceRooms.filter(room => room.status === 'termine').length;
+    
+    const urgentRooms = maintenanceRooms.filter(room => {
       const startDate = new Date(room.dateDebut);
       const today = new Date();
       const daysDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -440,12 +461,15 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     const completedTodos = todos.filter(todo => todo.status === 'termine').length;
 
     return {
-      totalRooms,
+      totalRoomsInEstablishment,
+      availableRooms,
+      occupiedRooms,
+      maintenanceCount,
       criticalRooms,
       highPriorityRooms,
       mediumPriorityRooms,
       lowPriorityRooms,
-      maintenanceRooms,
+      maintenanceStatus,
       repairRooms,
       orderRooms,
       completedRooms,
@@ -457,7 +481,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     };
   };
 
-  if (loading) {
+  if (roomsLoading || loading) {
     return (
       <div className="flex items-center justify-center py-8">
         <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
@@ -475,7 +499,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
           <span className="text-lg font-semibold text-gray-900">Maintenance</span>
           {selectedHotel && (
             <Badge variant="secondary" className="text-xs px-2 py-0.5">
-              {selectedHotel}
+              {selectedHotel.nom}
             </Badge>
           )}
         </div>
@@ -571,11 +595,11 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                     <div className="relative">
                       <div className="flex items-center justify-between mb-1">
                         <Wrench className="h-5 w-5 text-white opacity-90" />
-                        <span className="text-2xl font-bold text-white">{getStatistics().maintenanceRooms}</span>
+                        <span className="text-2xl font-bold text-white">{getStatistics().maintenanceCount}</span>
                       </div>
                       <p className="text-xs text-white opacity-90 font-medium">Maintenance</p>
                       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white opacity-20">
-                        <div className="h-full bg-white opacity-60 animate-pulse" style={{width: `${(getStatistics().maintenanceRooms / (getStatistics().totalRooms || 1)) * 100}%`}}></div>
+                        <div className="h-full bg-white opacity-60 animate-pulse" style={{width: `${(getStatistics().maintenanceCount / (getStatistics().totalRoomsInEstablishment || 1)) * 100}%`}}></div>
                       </div>
                     </div>
                   </div>
@@ -614,12 +638,12 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                 <div className="mt-4 bg-gray-100 rounded-lg p-2">
                   <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                     <span>Progression globale</span>
-                    <span className="font-medium">{Math.round((getStatistics().completedRooms / (getStatistics().totalRooms || 1)) * 100)}%</span>
+                    <span className="font-medium">{Math.round((getStatistics().completedRooms / (getStatistics().totalRoomsInEstablishment || 1)) * 100)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
-                      style={{width: `${(getStatistics().completedRooms / (getStatistics().totalRooms || 1)) * 100}%`}}
+                      style={{width: `${(getStatistics().completedRooms / (getStatistics().totalRoomsInEstablishment || 1)) * 100}%`}}
                     ></div>
                   </div>
                 </div>
@@ -713,9 +737,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                 <div className="flex items-center">
                   <Bed className="h-5 w-5 mr-2" />
                   Chambres en maintenance ({filteredRooms.length})
-                  {!selectedHotel && (
-                    <span className="ml-2 text-sm text-amber-600">
-                      (Tous les établissements)
+                  {selectedHotel && (
+                    <span className="ml-2 text-sm text-blue-600">
+                      ({selectedHotel.nom})
                     </span>
                   )}
                 </div>
@@ -770,9 +794,14 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune chambre en maintenance</h3>
                   <p className="text-gray-500">
                     {selectedHotel 
-                      ? `Aucune chambre en maintenance pour ${selectedHotel}.`
+                      ? `Aucune chambre en maintenance pour ${selectedHotel.nom}.`
                       : 'Sélectionnez un établissement dans les paramètres pour voir les chambres en maintenance.'
                     }
+                    {roomsError && (
+                      <span className="block mt-2 text-red-600">
+                        Erreur lors du chargement des chambres.
+                      </span>
+                    )}
                   </p>
                 </div>
               )}
