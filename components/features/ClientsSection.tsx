@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -79,6 +79,7 @@ export default function ClientsSection() {
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [tableViewMode, setTableViewMode] = useState<'grid' | 'table'>('table');
   
   // Prescripteur filters
@@ -186,7 +187,16 @@ export default function ClientsSection() {
     }
   }, []);
 
-  // Load data based on active view
+  // Debounce search term for automatic search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Load data based on active view and filters
   useEffect(() => {
     if (activeView === 'prescripteurs') {
       loadClients();
@@ -195,13 +205,13 @@ export default function ClientsSection() {
       loadUsagers();
       loadUsagerStatistics();
     }
-  }, [activeView, selectedType, selectedStatus, selectedPrescripteur, selectedUsagerStatus, selectedAutonomie]);
+  }, [activeView, debouncedSearchTerm, selectedType, selectedStatus, selectedPrescripteur, selectedUsagerStatus, selectedAutonomie]);
 
   // Load prescripteurs/clients
   const loadClients = async () => {
     setLoading(true);
     try {
-      const response = await clientsApi.searchClients(searchTerm, selectedType || undefined, selectedStatus);
+      const response = await clientsApi.searchClients(debouncedSearchTerm, selectedType || undefined, selectedStatus);
       if (response.success && response.data) {
         setClients(response.data);
         calculateClientStats(response.data);
@@ -233,7 +243,7 @@ export default function ClientsSection() {
     setLoading(true);
     try {
       const response = await usagersApi.searchUsagers(
-        searchTerm,
+        debouncedSearchTerm,
         selectedPrescripteur || undefined,
         selectedUsagerStatus || undefined,
         selectedAutonomie || undefined
@@ -260,13 +270,29 @@ export default function ClientsSection() {
     }
   };
 
-  // Handle search
-  const handleSearch = () => {
-    if (activeView === 'prescripteurs') {
-      loadClients();
-    } else {
-      loadUsagers();
-    }
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    setSearchTerm('');
+    setSelectedType(null);
+    setSelectedStatus('');
+    setSelectedPrescripteur(null);
+    setSelectedUsagerStatus('');
+    setSelectedAutonomie('');
+  }, []);
+
+  // Check if any filter is active
+  const hasActiveFilters = searchTerm || selectedType || selectedStatus || selectedPrescripteur || selectedUsagerStatus || selectedAutonomie;
+
+  // Count active filters for display
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (selectedType) count++;
+    if (selectedStatus) count++;
+    if (selectedPrescripteur) count++;
+    if (selectedUsagerStatus) count++;
+    if (selectedAutonomie) count++;
+    return count;
   };
 
   // Initialize form data
@@ -1761,54 +1787,107 @@ export default function ClientsSection() {
             {/* Search and Filters */}
             <Card>
               <CardContent className="p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Rechercher un prescripteur..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-10"
-                    />
+                <div className="space-y-3">
+                  {/* Search Bar Row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[300px]">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Rechercher par nom, email, téléphone, raison sociale..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <Button onClick={handleCreateClient} variant="default">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nouveau prescripteur
+                    </Button>
                   </div>
-                  
-                  <select
-                    value={selectedType || ''}
-                    onChange={(e) => {
-                      const newValue = e.target.value ? e.target.value as ClientCategory : null;
-                      setSelectedType(newValue);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les types</option>
-                    {CLIENT_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => {
-                      setSelectedStatus(e.target.value);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les statuts</option>
-                    <option value="actif">Actif</option>
-                    <option value="inactif">Inactif</option>
-                    <option value="prospect">Prospect</option>
-                  </select>
-                  
-                  <Button onClick={handleSearch}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Rechercher
-                  </Button>
-                  
-                  <Button onClick={handleCreateClient} className="ml-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouveau prescripteur
-                  </Button>
+
+                  {/* Filters Row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Filtres:</span>
+                    </div>
+                    
+                    <select
+                      value={selectedType || ''}
+                      onChange={(e) => {
+                        const newValue = e.target.value ? e.target.value as ClientCategory : null;
+                        setSelectedType(newValue);
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Tous les types</option>
+                      {CLIENT_TYPES.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                    
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => {
+                        setSelectedStatus(e.target.value);
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Tous les statuts</option>
+                      <option value="actif">Actif</option>
+                      <option value="inactif">Inactif</option>
+                      <option value="prospect">Prospect</option>
+                    </select>
+
+                    {/* Active filter badges */}
+                    {hasActiveFilters && (
+                      <>
+                        <div className="flex items-center gap-2 ml-2">
+                          {searchTerm && (
+                            <Badge variant="secondary" className="text-xs">
+                              Recherche: "{searchTerm.substring(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
+                            </Badge>
+                          )}
+                          {selectedType && (
+                            <Badge variant="secondary" className="text-xs">
+                              Type: {selectedType}
+                            </Badge>
+                          )}
+                          {selectedStatus && (
+                            <Badge variant="secondary" className="text-xs">
+                              Statut: {selectedStatus}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <Button
+                          onClick={clearFilters}
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Réinitialiser ({getActiveFilterCount()})
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Results count */}
+                  {(searchTerm || selectedType || selectedStatus) && !loading && (
+                    <div className="text-sm text-gray-600">
+                      {clients.length} résultat{clients.length > 1 ? 's' : ''} trouvé{clients.length > 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1986,66 +2065,124 @@ export default function ClientsSection() {
             {/* Search and Filters */}
             <Card>
               <CardContent className="p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Rechercher un usager..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-10"
-                    />
+                <div className="space-y-3">
+                  {/* Search Bar Row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[300px]">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Rechercher par nom, prénom, téléphone..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-10"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <Button onClick={handleCreateUsager} variant="default">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nouvel usager
+                    </Button>
                   </div>
-                  
-                  <select
-                    value={selectedPrescripteur || ''}
-                    onChange={(e) => setSelectedPrescripteur(e.target.value ? Number(e.target.value) : null)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les prescripteurs</option>
-                    {clients
-                      .filter(c => c.statut === 'actif')
-                      .map(client => (
-                        <option key={client.id} value={client.id}>
-                          {client.client_type === 'Particulier' 
-                            ? `${client.nom} ${client.prenom || ''}`.trim()
-                            : client.raison_sociale || client.nom}
-                        </option>
-                      ))}
-                  </select>
-                  
-                  <select
-                    value={selectedUsagerStatus}
-                    onChange={(e) => setSelectedUsagerStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les statuts</option>
-                    <option value="actif">Actif</option>
-                    <option value="inactif">Inactif</option>
-                    <option value="archive">Archivé</option>
-                  </select>
-                  
-                  <select
-                    value={selectedAutonomie}
-                    onChange={(e) => setSelectedAutonomie(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les niveaux</option>
-                    <option value="Autonome">Autonome</option>
-                    <option value="Semi-autonome">Semi-autonome</option>
-                    <option value="Non-autonome">Non-autonome</option>
-                  </select>
-                  
-                  <Button onClick={handleSearch}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Rechercher
-                  </Button>
-                  
-                  <Button onClick={handleCreateUsager} className="ml-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouvel usager
-                  </Button>
+
+                  {/* Filters Row */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Filtres:</span>
+                    </div>
+                    
+                    <select
+                      value={selectedPrescripteur || ''}
+                      onChange={(e) => setSelectedPrescripteur(e.target.value ? Number(e.target.value) : null)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Tous les prescripteurs</option>
+                      {clients
+                        .filter(c => c.statut === 'actif')
+                        .map(client => (
+                          <option key={client.id} value={client.id}>
+                            [{client.client_type.substring(0, 3).toUpperCase()}] {client.client_type === 'Particulier' 
+                              ? `${client.nom} ${client.prenom || ''}`.trim()
+                              : client.raison_sociale || client.nom}
+                          </option>
+                        ))}
+                    </select>
+                    
+                    <select
+                      value={selectedUsagerStatus}
+                      onChange={(e) => setSelectedUsagerStatus(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Tous les statuts</option>
+                      <option value="actif">Actif</option>
+                      <option value="inactif">Inactif</option>
+                      <option value="archive">Archivé</option>
+                    </select>
+                    
+                    <select
+                      value={selectedAutonomie}
+                      onChange={(e) => setSelectedAutonomie(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Tous les niveaux</option>
+                      <option value="Autonome">Autonome</option>
+                      <option value="Semi-autonome">Semi-autonome</option>
+                      <option value="Non-autonome">Non-autonome</option>
+                    </select>
+
+                    {/* Active filter badges */}
+                    {hasActiveFilters && (
+                      <>
+                        <div className="flex items-center gap-2 ml-2">
+                          {searchTerm && (
+                            <Badge variant="secondary" className="text-xs">
+                              Recherche: "{searchTerm.substring(0, 20)}{searchTerm.length > 20 ? '...' : ''}"
+                            </Badge>
+                          )}
+                          {selectedPrescripteur && (
+                            <Badge variant="secondary" className="text-xs">
+                              Prescripteur sélectionné
+                            </Badge>
+                          )}
+                          {selectedUsagerStatus && (
+                            <Badge variant="secondary" className="text-xs">
+                              Statut: {selectedUsagerStatus}
+                            </Badge>
+                          )}
+                          {selectedAutonomie && (
+                            <Badge variant="secondary" className="text-xs">
+                              {selectedAutonomie}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <Button
+                          onClick={clearFilters}
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Réinitialiser ({getActiveFilterCount()})
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Results count */}
+                  {(searchTerm || selectedPrescripteur || selectedUsagerStatus || selectedAutonomie) && !loading && (
+                    <div className="text-sm text-gray-600">
+                      {usagers.length} résultat{usagers.length > 1 ? 's' : ''} trouvé{usagers.length > 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

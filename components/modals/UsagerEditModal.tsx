@@ -71,7 +71,7 @@ export default function UsagerEditModal({
     if (usager) {
       // Edit mode - use existing usager data
       return {
-        prescripteur_id: prescripteurId || usager.prescripteur_id || 0,
+        prescripteur_id: prescripteurId || usager.prescripteur_id || null,
         nom: usager.nom || '',
         prenom: usager.prenom || '',
         date_naissance: usager.date_naissance || '',
@@ -211,6 +211,7 @@ export default function UsagerEditModal({
         addNotification('error', response.error || 'Une erreur est survenue');
       }
     } catch (error) {
+      console.error('Error in handleSubmit:', error);
       addNotification('error', 'Une erreur est survenue');
     } finally {
       setLoading(false);
@@ -307,10 +308,16 @@ export default function UsagerEditModal({
                         <Users className="h-4 w-4 text-gray-500" />
                       )}
                       <div>
-                        <p className="font-medium">{getPrescripteurDisplayName(getSelectedPrescripteur()!)}</p>
-                        <p className="text-xs text-gray-500">
-                          {getSelectedPrescripteur()?.client_type} - {getSelectedPrescripteur()?.numero_client}
-                        </p>
+                        {getSelectedPrescripteur() ? (
+                          <>
+                            <p className="font-medium">{getPrescripteurDisplayName(getSelectedPrescripteur())}</p>
+                            <p className="text-xs text-gray-500">
+                              {getSelectedPrescripteur()?.client_type} - {getSelectedPrescripteur()?.numero_client}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-500">Aucun prescripteur sélectionné</p>
+                        )}
                       </div>
                     </div>
                     <Button
