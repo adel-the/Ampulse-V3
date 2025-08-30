@@ -29,6 +29,11 @@ export default function IndividualsSection({
   mainUsagerData,
   className = ""
 }: IndividualsSectionProps) {
+  console.log('IndividualsSection - Component initialized with:', {
+    individuals,
+    mainUsagerData,
+    hasOnUpdateIndividuals: !!onUpdateIndividuals
+  });
   const [isExpanded, setIsExpanded] = useState(individuals.length > 0);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,32 +43,57 @@ export default function IndividualsSection({
   const otherIndividuals = individuals.filter(ind => !ind.isChefFamille);
 
   const handleAddIndividual = useCallback((newIndividualData: Omit<Individual, 'id'>) => {
+    console.log('IndividualsSection - handleAddIndividual called:', {
+      newIndividualData,
+      currentIndividuals: individuals
+    });
+    
     const newIndividual: Individual = {
       ...newIndividualData,
       id: crypto.randomUUID(),
       isChefFamille: false // Les individus ajoutés ne peuvent pas être chef de famille
     };
     
-    onUpdateIndividuals([...individuals, newIndividual]);
+    const updatedIndividuals = [...individuals, newIndividual];
+    console.log('IndividualsSection - calling onUpdateIndividuals with:', updatedIndividuals);
+    
+    onUpdateIndividuals(updatedIndividuals);
     setShowAddForm(false);
   }, [individuals, onUpdateIndividuals]);
 
   const handleUpdateIndividual = useCallback((id: string, updates: Omit<Individual, 'id'>) => {
+    console.log('IndividualsSection - handleUpdateIndividual called:', {
+      id,
+      updates,
+      currentIndividuals: individuals
+    });
+    
     const updatedIndividuals = individuals.map(ind => 
       ind.id === id ? { ...ind, ...updates, id } : ind
     );
+    
+    console.log('IndividualsSection - calling onUpdateIndividuals with:', updatedIndividuals);
     onUpdateIndividuals(updatedIndividuals);
     setEditingId(null);
   }, [individuals, onUpdateIndividuals]);
 
   const handleRemoveIndividual = useCallback((id: string) => {
+    console.log('IndividualsSection - handleRemoveIndividual called:', {
+      id,
+      currentIndividuals: individuals
+    });
+    
     // Vérification supplémentaire pour éviter de supprimer le responsable
     const individual = individuals.find(ind => ind.id === id);
     if (individual?.isChefFamille) {
+      console.log('IndividualsSection - Cannot remove responsible individual');
       return;
     }
     
-    onUpdateIndividuals(individuals.filter(ind => ind.id !== id));
+    const updatedIndividuals = individuals.filter(ind => ind.id !== id);
+    console.log('IndividualsSection - calling onUpdateIndividuals with:', updatedIndividuals);
+    
+    onUpdateIndividuals(updatedIndividuals);
     setEditingId(null);
   }, [individuals, onUpdateIndividuals]);
 

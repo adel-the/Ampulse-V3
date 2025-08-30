@@ -14,6 +14,12 @@ import { clientsApi, type Client } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Individual } from '@/types/individuals';
 import IndividualsSection from '../features/IndividualsSection';
+import { 
+  createUsagerWithIndividuals, 
+  updateUsager,
+  validateUsagerIndividualsData,
+  type UsagerFormData 
+} from '@/lib/usagerIndividualsTransaction';
 
 interface UsagerEditModalProps {
   isOpen: boolean;
@@ -46,6 +52,11 @@ export default function UsagerEditModal({
   
   // State for individuals management
   const [individuals, setIndividuals] = useState<Individual[]>([]);
+  
+  // Debug: track individuals state changes
+  useEffect(() => {
+    console.log('UsagerEditModal - individuals state changed:', individuals);
+  }, [individuals]);
   
   // Form data with test values for new usager
   const getInitialFormData = () => {
@@ -128,63 +139,54 @@ export default function UsagerEditModal({
 
 
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.nom || !formData.prenom) {
-      addNotification('error', 'Le nom et le prénom sont obligatoires');
-      return;
-    }
-
-    if (!formData.prescripteur_id) {
-      addNotification('error', 'Un prescripteur doit être sélectionné');
+    const isCreating = !usager?.id;
+    
+    // Validation avec le module de transaction
+    const validationResult = validateUsagerIndividualsData(formData as UsagerFormData, individuals);
+    
+    if (!validationResult.isValid) {
+      validationResult.errors.forEach(error => addNotification('error', error));
       return;
     }
 
     setLoading(true);
 
     try {
-      let response;
-      
-      if (usager?.id) {
-        // Update existing usager
-        const { prescripteur_id, ...updates } = formData;
-        response = await usagersApi.updateUsager(usager.id, {
-          ...updates,
-          prescripteur_id: prescripteur_id
-        });
+      let result;
+
+      if (isCreating) {
+        // ========== CRÉATION AVEC TRANSACTION ==========
+        console.log('📦 Création nouvel usager avec', individuals.length, 'individus');
+        result = await createUsagerWithIndividuals(formData as UsagerFormData, individuals);
       } else {
-        // Create new usager
-        response = await usagersApi.createUsager(formData);
+        // ========== MISE À JOUR USAGER SEULEMENT ==========
+        // Les individus existants sont gérés directement par IndividualsSection
+        console.log('🔄 Mise à jour usager ID:', usager.id);
+        result = await updateUsager(usager.id, formData as UsagerFormData);
       }
 
-      if (response.success) {
-        // Handle individuals (front-end only for now)
-        if (individuals.length > 0) {
-          const individualsData = {
-            usager_id: response.data?.id,
-            individuals: individuals,
-            created_at: new Date().toISOString()
-          };
-          
-          // Store temporarily in localStorage
-          const storageKey = `usager_${response.data?.id}_individuals`;
-          localStorage.setItem(storageKey, JSON.stringify(individualsData));
-          
-          // Show notification with individuals count
-          const individualCount = individuals.length;
-          const individualsText = individualCount === 1 ? '1 personne liée' : `${individualCount} personnes liées`;
-          addNotification('success', `Usager ${usager ? 'mis à jour' : 'créé'} avec succès (${individualsText})`);
-        } else {
-          addNotification('success', usager ? 'Usager mis à jour avec succès' : 'Usager créé avec succès');
-        }
+      if (result.success) {
+        // ========== SUCCÈS ==========
+        const successMessage = isCreating
+          ? result.individuCount && result.individuCount > 0
+            ? `Usager créé avec succès (${result.individuCount} personne${result.individuCount > 1 ? 's' : ''} liée${result.individuCount > 1 ? 's' : ''})`
+            : 'Usager créé avec succès'
+          : 'Usager mis à jour avec succès';
+        
+        addNotification('success', successMessage);
+        console.log('✅ Opération réussie:', successMessage);
         
         if (onSuccess) onSuccess();
         handleClose();
       } else {
-        addNotification('error', response.error || 'Une erreur est survenue');
+        // ========== ÉCHEC ==========
+        addNotification('error', result.error || 'Une erreur est survenue');
+        console.error('❌ Erreur:', result.error);
       }
+      
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      addNotification('error', 'Une erreur est survenue');
+      console.error('🔥 Error in handleSubmit:', error);
+      addNotification('error', 'Une erreur inattendue est survenue');
     } finally {
       setLoading(false);
     }
