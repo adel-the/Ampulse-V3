@@ -41,7 +41,7 @@ export function individualToIndividuInsert(
     telephone: individual.telephone || null,
     email: individual.email || null,
     relation: individual.relation || null,
-    is_chef_famille: individual.isChefFamille,
+    is_chef_famille: individual.isChefFamille || false, // Conversion camelCase → snake_case
   }
 }
 
@@ -58,23 +58,101 @@ export function individualToIndividuUpdate(individual: Individual): IndividuUpda
     telephone: individual.telephone || null,
     email: individual.email || null,
     relation: individual.relation || null,
-    is_chef_famille: individual.isChefFamille,
+    is_chef_famille: individual.isChefFamille || false,
   }
 }
 
 /**
- * Convertit un tableau d'IndividuRow vers un tableau d'Individual
+ * Convertit une liste d'IndividuRow vers Individual[]
  */
 export function individuRowsToIndividuals(rows: IndividuRow[]): Individual[] {
   return rows.map(individuRowToIndividual)
 }
 
 /**
- * Prépare un batch d'individus pour l'insertion en BDD
+ * Convertit une liste d'Individual vers IndividuInsert[]
  */
-export function prepareBatchInsert(
-  individuals: Omit<Individual, 'id'>[],
+export function individualsToIndividuInserts(
+  individuals: Omit<Individual, 'id'>[], 
   usagerId: number
 ): IndividuInsert[] {
-  return individuals.map(ind => individualToIndividuInsert(ind, usagerId))
+  return individuals.map(individual => individualToIndividuInsert(individual, usagerId))
+}
+
+/**
+ * Utilitaire pour migrer les données localStorage vers la structure BDD
+ */
+export function migrateLocalStorageIndividuals(
+  localStorageData: Individual[],
+  usagerId: number
+): IndividuInsert[] {
+  return localStorageData.map(individual => ({
+    usager_id: usagerId,
+    nom: individual.nom,
+    prenom: individual.prenom,
+    date_naissance: individual.date_naissance || null,
+    lieu_naissance: individual.lieu_naissance || null,
+    sexe: individual.sexe || null,
+    telephone: individual.telephone || null,
+    email: individual.email || null,
+    relation: individual.relation || null,
+    is_chef_famille: individual.isChefFamille || false,
+  }))
+}
+
+/**
+ * Récupère les données localStorage pour un usager donné
+ */
+export function getLocalStorageIndividuals(usagerId: number): Individual[] {
+  if (typeof window === 'undefined') return []
+  
+  try {
+    const stored = localStorage.getItem(`usager_${usagerId}_individuals`)
+    return stored ? JSON.parse(stored) : []
+  } catch (error) {
+    console.warn('Error parsing localStorage individuals:', error)
+    return []
+  }
+}
+
+/**
+ * Sauvegarde les données dans localStorage (pour compatibilité temporaire)
+ */
+export function saveLocalStorageIndividuals(usagerId: number, individuals: Individual[]): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    localStorage.setItem(`usager_${usagerId}_individuals`, JSON.stringify(individuals))
+  } catch (error) {
+    console.warn('Error saving to localStorage:', error)
+  }
+}
+
+/**
+ * Nettoie le localStorage après migration réussie vers BDD
+ */
+export function clearLocalStorageIndividuals(usagerId: number): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    localStorage.removeItem(`usager_${usagerId}_individuals`)
+    console.log(`Cleared localStorage for usager ${usagerId}`)
+  } catch (error) {
+    console.warn('Error clearing localStorage:', error)
+  }
+}
+
+/**
+ * Vérifie si l'ID est temporaire (string) ou définitif (number en string)
+ */
+export function isTemporaryId(id: string): boolean {
+  // Les IDs temporaires sont des UUIDs ou des chaînes non numériques
+  return isNaN(Number(id)) || id.includes('-')
+}
+
+/**
+ * Génère un ID temporaire pour un nouvel individu
+ */
+export function generateTemporaryId(): string {
+  return crypto.randomUUID()
 }

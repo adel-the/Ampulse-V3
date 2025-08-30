@@ -346,6 +346,59 @@ export interface Database {
           updated_by?: string | null
         }
       }
+      individus: {
+        Row: {
+          id: number
+          usager_id: number
+          nom: string
+          prenom: string
+          date_naissance: string | null
+          lieu_naissance: string | null
+          sexe: 'M' | 'F' | 'Autre' | null
+          telephone: string | null
+          email: string | null
+          relation: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille: boolean
+          created_at: string
+          updated_at: string
+          created_by: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          usager_id: number
+          nom: string
+          prenom: string
+          date_naissance?: string | null
+          lieu_naissance?: string | null
+          sexe?: 'M' | 'F' | 'Autre' | null
+          telephone?: string | null
+          email?: string | null
+          relation?: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          usager_id?: number
+          nom?: string
+          prenom?: string
+          date_naissance?: string | null
+          lieu_naissance?: string | null
+          sexe?: 'M' | 'F' | 'Autre' | null
+          telephone?: string | null
+          email?: string | null
+          relation?: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+      }
       operateurs_sociaux: {
         Row: {
           id: number
@@ -1557,3 +1610,30 @@ export const equipmentHelpers = {
 // API Layer References
 // For establishments CRUD operations, use the dedicated API:
 // import { establishmentsApi } from '@/lib/api/establishments'
+
+// =============================================
+// INDIVIDUS TYPE ALIASES
+// =============================================
+
+// Type aliases for easier usage throughout the application
+export type IndividuRow = Database['public']['Tables']['individus']['Row']
+export type IndividuInsert = Database['public']['Tables']['individus']['Insert'] 
+export type IndividuUpdate = Database['public']['Tables']['individus']['Update']
+
+// Extended type with calculated fields (for frontend use)
+export interface IndividuWithExtras extends IndividuRow {
+  age?: number
+  usager?: {
+    nom: string
+    prenom: string
+  }
+}
+
+// Type for the statistics function result
+export interface IndividuStats {
+  total_count: number
+  adults_count: number
+  children_count: number
+  has_chef_famille: boolean
+  relations_summary: Record<string, number>
+}

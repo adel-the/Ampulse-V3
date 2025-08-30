@@ -353,7 +353,7 @@ class RoomsCRUDTester {
             roomsCreated++
 
             // Track room type distribution
-            const roomType = room.type
+            const roomType = room.bed_type
             this.testReport.summary.roomTypeDistribution[roomType] = 
               (this.testReport.summary.roomTypeDistribution[roomType] || 0) + 1
 
