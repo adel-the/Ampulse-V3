@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { useRooms } from '@/hooks/useSupabase';
+import { useRooms, useMaintenanceTasks } from '@/hooks/useSupabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { 
   DropdownMenu, 
@@ -91,6 +91,17 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   // Récupérer les vraies chambres de l'établissement sélectionné
   const { rooms: realRooms, loading: roomsLoading, error: roomsError, updateRoomStatus } = useRooms(selectedHotel?.id);
   const { addNotification } = useNotifications();
+  
+  // Récupérer les vraies tâches de maintenance
+  const {
+    tasks: maintenanceTasks,
+    loading: tasksLoading,
+    error: tasksError,
+    createTask,
+    updateTask,
+    deleteTask,
+    getTaskStatistics
+  } = useMaintenanceTasks(selectedHotel?.id);
   
   const [maintenanceRooms, setMaintenanceRooms] = useState<MaintenanceRoom[]>([]);
   const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([]);
@@ -307,9 +318,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
-  // Obtenir les todos pour une chambre spécifique
-  const getTodosForRoom = (roomId: number) => {
-    return todos.filter(todo => todo.roomId === roomId);
+  // Obtenir les tâches pour une chambre spécifique
+  const getTasksForRoom = (roomId: number) => {
+    return maintenanceTasks.filter(task => task.room_id === roomId);
   };
 
   // Obtenir le nom de l'élément de maintenance
@@ -366,31 +377,39 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     }
   };
 
-  const handleAddTodo = () => {
+  const handleAddTodo = async () => {
     if (newTodo.titre.trim() && selectedRoom) {
-      const todo: MaintenanceTodo = {
-        id: Date.now(),
-        roomId: selectedRoom.id,
-        itemId: 1, // Par défaut
-        titre: newTodo.titre,
-        description: newTodo.description,
-        status: 'a_faire',
-        priorite: newTodo.priorite,
-        dateCreation: new Date().toISOString().split('T')[0],
-        dateEcheance: newTodo.dateEcheance || undefined,
-        responsable: newTodo.responsable,
-        notes: newTodo.notes
-      };
-      setTodos([...todos, todo]);
-      setNewTodo({
-        titre: '',
-        description: '',
-        priorite: 'moyenne',
-        responsable: '',
-        dateEcheance: '',
-        notes: ''
-      });
-      setShowAddTodoModal(false);
+      try {
+        const taskData = {
+          titre: newTodo.titre,
+          description: newTodo.description || null,
+          priorite: newTodo.priorite as 'faible' | 'moyenne' | 'haute' | 'urgente',
+          responsable: newTodo.responsable || null,
+          date_echeance: newTodo.dateEcheance || null,
+          notes: newTodo.notes || null,
+          room_id: selectedRoom.id
+        };
+        
+        const result = await createTask(taskData);
+        
+        if (result.success) {
+          addNotification('success', 'Tâche ajoutée avec succès');
+          setNewTodo({
+            titre: '',
+            description: '',
+            priorite: 'moyenne',
+            responsable: '',
+            dateEcheance: '',
+            notes: ''
+          });
+          setShowAddTodoModal(false);
+        } else {
+          addNotification('error', result.error || 'Erreur lors de la création de la tâche');
+        }
+      } catch (error) {
+        console.error('Error creating task:', error);
+        addNotification('error', 'Erreur lors de la création de la tâche');
+      }
     }
   };
 
@@ -527,42 +546,47 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     setSelectedRoomForDetail(null);
   };
 
-  // Fonctions pour la gestion des tâches
-  const moveTodo = (todoId: number, direction: 'up' | 'down') => {
-    const roomTodos = todos.filter(todo => todo.roomId === selectedRoomForDetail?.id);
-    const todoIndex = roomTodos.findIndex(todo => todo.id === todoId);
-    
-    if (todoIndex === -1) return;
-    
-    const newTodos = [...todos];
-    const currentTodo = newTodos.find(todo => todo.id === todoId);
-    const targetIndex = direction === 'up' ? todoIndex - 1 : todoIndex + 1;
-    
-    if (targetIndex >= 0 && targetIndex < roomTodos.length) {
-      const targetTodo = roomTodos[targetIndex];
-      const targetTodoInNewTodos = newTodos.find(todo => todo.id === targetTodo.id);
-      
-      if (currentTodo && targetTodoInNewTodos) {
-        // Échanger les ordres (si on avait un champ order)
-        const temp = currentTodo;
-        newTodos[newTodos.findIndex(todo => todo.id === todoId)] = targetTodoInNewTodos;
-        newTodos[newTodos.findIndex(todo => todo.id === targetTodo.id)] = temp;
+  // Fonctions pour la gestion des tâches - utilise maintenant l'API
+  const updateTaskStatus = async (taskId: number, newStatus: 'en_attente' | 'en_cours' | 'terminee' | 'annulee') => {
+    try {
+      const result = await updateTask(taskId, { statut: newStatus });
+      if (result.success) {
+        addNotification('success', 'Statut mis à jour');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la mise à jour');
       }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      addNotification('error', 'Erreur lors de la mise à jour du statut');
     }
-    
-    setTodos(newTodos);
   };
 
-  const updateTodoStatus = (todoId: number, newStatus: 'a_faire' | 'en_cours' | 'termine') => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === todoId ? { ...todo, status: newStatus } : todo
-    ));
+  const updateTaskPriority = async (taskId: number, newPriority: 'faible' | 'moyenne' | 'haute' | 'urgente') => {
+    try {
+      const result = await updateTask(taskId, { priorite: newPriority });
+      if (result.success) {
+        addNotification('success', 'Priorité mise à jour');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la mise à jour');
+      }
+    } catch (error) {
+      console.error('Error updating task priority:', error);
+      addNotification('error', 'Erreur lors de la mise à jour de la priorité');
+    }
   };
 
-  const updateTodoPriority = (todoId: number, newPriority: 'basse' | 'moyenne' | 'haute' | 'critique') => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === todoId ? { ...todo, priorite: newPriority } : todo
-    ));
+  const deleteTaskHandler = async (taskId: number) => {
+    try {
+      const result = await deleteTask(taskId);
+      if (result.success) {
+        addNotification('success', 'Tâche supprimée');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      addNotification('error', 'Erreur lors de la suppression de la tâche');
+    }
   };
 
   // Calculer les statistiques
@@ -589,10 +613,12 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       return daysDiff > 7; // Plus de 7 jours
     }).length;
 
-    const totalTodos = todos.length;
-    const pendingTodos = todos.filter(todo => todo.status === 'a_faire').length;
-    const inProgressTodos = todos.filter(todo => todo.status === 'en_cours').length;
-    const completedTodos = todos.filter(todo => todo.status === 'termine').length;
+    // Utiliser les statistiques de l'API si disponibles, sinon calculer localement
+    const apiStats = getTaskStatistics ? getTaskStatistics() : null;
+    const totalTodos = apiStats?.total || maintenanceTasks.length;
+    const pendingTodos = apiStats?.enAttente || maintenanceTasks.filter(task => task.statut === 'en_attente').length;
+    const inProgressTodos = apiStats?.enCours || maintenanceTasks.filter(task => task.statut === 'en_cours').length;
+    const completedTodos = apiStats?.terminees || maintenanceTasks.filter(task => task.statut === 'terminee').length;
 
     return {
       totalRoomsInEstablishment,
@@ -615,7 +641,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     };
   };
 
-  if (roomsLoading || loading) {
+  if (roomsLoading || loading || tasksLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
@@ -980,7 +1006,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                             )}
                             <div className="flex items-center justify-between">
                               <span>Tâches:</span>
-                              <span className="font-medium">{getTodosForRoom(room.id).length}</span>
+                              <span className="font-medium">{getTasksForRoom(room.id).length}</span>
                             </div>
                             {room.coutEstime && room.coutEstime > 0 && (
                               <div className="flex items-center justify-between">
@@ -1109,8 +1135,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {getTodosForRoom(selectedRoomForDetail.id).length > 0 ? (
-                    getTodosForRoom(selectedRoomForDetail.id).map((todo, index) => (
+                  {getTasksForRoom(selectedRoomForDetail.id).length > 0 ? (
+                    getTasksForRoom(selectedRoomForDetail.id).map((task, index) => (
                       <div key={todo.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -1480,10 +1506,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   onChange={(e) => setNewTodo(prev => ({ ...prev, priorite: e.target.value as any }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="basse">Basse</option>
+                  <option value="faible">Faible</option>
                   <option value="moyenne">Moyenne</option>
                   <option value="haute">Haute</option>
-                  <option value="critique">Critique</option>
+                  <option value="urgente">Urgente</option>
                 </select>
               </div>
               

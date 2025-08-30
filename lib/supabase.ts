@@ -1105,6 +1105,59 @@ export interface Database {
           updated_at?: string
         }
       }
+      maintenance_tasks: {
+        Row: {
+          id: number
+          titre: string
+          description: string | null
+          priorite: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable: string | null
+          date_echeance: string | null
+          notes: string | null
+          statut: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id: number
+          hotel_id: number
+          user_owner_id: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: number
+          titre: string
+          description?: string | null
+          priorite?: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable?: string | null
+          date_echeance?: string | null
+          notes?: string | null
+          statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id: number
+          hotel_id: number
+          user_owner_id: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: number
+          titre?: string
+          description?: string | null
+          priorite?: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable?: string | null
+          date_echeance?: string | null
+          notes?: string | null
+          statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id?: number
+          hotel_id?: number
+          user_owner_id?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+      }
       equipment_assignments: {
         Row: {
           id: number
@@ -1212,6 +1265,9 @@ export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
+export type MaintenanceTask = Tables<'maintenance_tasks'>
+export type MaintenanceTaskInsert = Inserts<'maintenance_tasks'>
+export type MaintenanceTaskUpdate = Updates<'maintenance_tasks'>
 
 // Type for conventions_tarifaires with foreign key expansion
 // Used when querying with .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')

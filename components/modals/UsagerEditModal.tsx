@@ -12,6 +12,8 @@ import {
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
 import { clientsApi, type Client } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Individual } from '@/types/individuals';
+import IndividualsSection from '../features/IndividualsSection';
 
 interface UsagerEditModalProps {
   isOpen: boolean;
@@ -41,6 +43,9 @@ export default function UsagerEditModal({
   const [prescripteurs, setPrescripteurs] = useState<Client[]>([]);
   const [searchPrescripteur, setSearchPrescripteur] = useState('');
   const [showPrescripteurSearch, setShowPrescripteurSearch] = useState(false);
+  
+  // State for individuals management
+  const [individuals, setIndividuals] = useState<Individual[]>([]);
   
   // Form data with test values for new usager
   const getInitialFormData = () => {
@@ -81,6 +86,8 @@ export default function UsagerEditModal({
   useEffect(() => {
     if (isOpen) {
       setFormData(getInitialFormData());
+      // Reset individuals when modal opens
+      setIndividuals([]);
     }
   }, [isOpen, usager]);
   
@@ -150,7 +157,26 @@ export default function UsagerEditModal({
       }
 
       if (response.success) {
-        addNotification('success', usager ? 'Usager mis à jour avec succès' : 'Usager créé avec succès');
+        // Handle individuals (front-end only for now)
+        if (individuals.length > 0) {
+          const individualsData = {
+            usager_id: response.data?.id,
+            individuals: individuals,
+            created_at: new Date().toISOString()
+          };
+          
+          // Store temporarily in localStorage
+          const storageKey = `usager_${response.data?.id}_individuals`;
+          localStorage.setItem(storageKey, JSON.stringify(individualsData));
+          
+          // Show notification with individuals count
+          const individualCount = individuals.length;
+          const individualsText = individualCount === 1 ? '1 personne liée' : `${individualCount} personnes liées`;
+          addNotification('success', `Usager ${usager ? 'mis à jour' : 'créé'} avec succès (${individualsText})`);
+        } else {
+          addNotification('success', usager ? 'Usager mis à jour avec succès' : 'Usager créé avec succès');
+        }
+        
         if (onSuccess) onSuccess();
         handleClose();
       } else {
@@ -178,6 +204,7 @@ export default function UsagerEditModal({
       statut: 'actif'
     });
     setShowPrescripteurSearch(false);
+    setIndividuals([]); // Reset individuals
     onClose();
   };
 
@@ -415,6 +442,18 @@ export default function UsagerEditModal({
               </div>
             </div>
           </div>
+
+          {/* Individuals Management Section */}
+          <IndividualsSection
+            individuals={individuals}
+            onUpdateIndividuals={setIndividuals}
+            mainUsagerData={{
+              nom: formData.nom,
+              lieu_naissance: formData.lieu_naissance,
+              telephone: formData.telephone,
+              email: formData.email
+            }}
+          />
         </div>
 
         {/* Footer */}

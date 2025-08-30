@@ -34,7 +34,10 @@ import type {
   RoomUpdate,
   RoomCategory,
   RoomCategoryInsert,
-  RoomCategoryUpdate
+  RoomCategoryUpdate,
+  MaintenanceTask,
+  MaintenanceTaskInsert,
+  MaintenanceTaskUpdate
 } from '@/lib/supabase'
 
 // Types for API responses
@@ -2668,6 +2671,299 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
     createEquipment,
     updateEquipment,
     deleteEquipment
+  }
+}
+
+// ====================================
+// Maintenance Tasks Management Hook
+// ====================================
+
+// Hook for maintenance tasks (complete CRUD with multi-tenancy)
+export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?: HookOptions) => {
+  const [tasks, setTasks] = useState<MaintenanceTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (!user) {
+        setTasks([])
+        return
+      }
+
+      let query = supabase
+        .from('maintenance_tasks')
+        .select(`
+          *,
+          room:rooms(numero, type),
+          hotel:hotels(nom)
+        `)
+        .eq('user_owner_id', user.id)
+        .order('created_at', { ascending: false })
+
+      // Filter by hotel if provided
+      if (hotelId) {
+        query = query.eq('hotel_id', hotelId)
+      }
+
+      // Filter by room if provided
+      if (roomId) {
+        query = query.eq('room_id', roomId)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      setTasks(data || [])
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des tâches de maintenance'
+      setError(errorMessage)
+      console.error('Error fetching maintenance tasks:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createTask = async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
+    try {
+      if (!user) {
+        return { data: null, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      
+      const insertData: MaintenanceTaskInsert = {
+        ...taskData,
+        hotel_id: hotelId,
+        user_owner_id: user.id,
+        statut: 'en_attente',
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .insert(insertData)
+        .select(`
+          *,
+          room:rooms(numero, type),
+          hotel:hotels(nom)
+        `)
+        .single()
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => [data, ...prev])
+      
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche'
+      setError(errorMessage)
+      console.error('Error creating maintenance task:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateTask = async (id: number, updates: MaintenanceTaskUpdate): Promise<ApiResponse<MaintenanceTask>> => {
+    try {
+      if (!user) {
+        return { data: null, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      setError(null)
+      
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_owner_id', user.id) // Ensure user can only update their own tasks
+        .select(`
+          *,
+          room:rooms(numero, type),
+          hotel:hotels(nom)
+        `)
+        .single()
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => prev.map(task => task.id === id ? data : task))
+      
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la tâche'
+      setError(errorMessage)
+      console.error('Error updating maintenance task:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteTask = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      if (!user) {
+        return { data: false, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      setError(null)
+      
+      const { error } = await supabase
+        .from('maintenance_tasks')
+        .delete()
+        .eq('id', id)
+        .eq('user_owner_id', user.id) // Ensure user can only delete their own tasks
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => prev.filter(task => task.id !== id))
+      
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la tâche'
+      setError(errorMessage)
+      console.error('Error deleting maintenance task:', err)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const completeTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'terminee' })
+  }
+
+  const cancelTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'annulee' })
+  }
+
+  const startTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'en_cours' })
+  }
+
+  const getTaskStatistics = () => {
+    const total = tasks.length
+    const enAttente = tasks.filter(t => t.statut === 'en_attente').length
+    const enCours = tasks.filter(t => t.statut === 'en_cours').length
+    const terminees = tasks.filter(t => t.statut === 'terminee').length
+    const annulees = tasks.filter(t => t.statut === 'annulee').length
+    
+    const priorityStats = {
+      urgente: tasks.filter(t => t.priorite === 'urgente').length,
+      haute: tasks.filter(t => t.priorite === 'haute').length,
+      moyenne: tasks.filter(t => t.priorite === 'moyenne').length,
+      faible: tasks.filter(t => t.priorite === 'faible').length
+    }
+
+    return {
+      total,
+      enAttente,
+      enCours,
+      terminees,
+      annulees,
+      priorityStats
+    }
+  }
+
+  const getTaskById = (id: number): MaintenanceTask | undefined => {
+    return tasks.find(task => task.id === id)
+  }
+
+  const getTasksByRoom = (roomId: number): MaintenanceTask[] => {
+    return tasks.filter(task => task.room_id === roomId)
+  }
+
+  const getTasksByStatus = (status: string): MaintenanceTask[] => {
+    return tasks.filter(task => task.statut === status)
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !user) return
+
+    const channelName = hotelId ? `maintenance-tasks-${hotelId}` : `maintenance-tasks-user-${user.id}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'maintenance_tasks',
+          filter: hotelId ? `hotel_id=eq.${hotelId}` : `user_owner_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time maintenance task update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setTasks(prev => {
+                if (!prev.some(t => t.id === payload.new.id)) {
+                  return [payload.new as MaintenanceTask, ...prev]
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setTasks(prev => prev.map(task => 
+                task.id === payload.new.id ? payload.new as MaintenanceTask : task
+              ))
+              break
+            case 'DELETE':
+              setTasks(prev => prev.filter(task => task.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, hotelId, enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchTasks, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval, hotelId, roomId])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTasks()
+  }, [user, hotelId, roomId])
+
+  return { 
+    tasks, 
+    loading, 
+    error, 
+    fetchTasks, 
+    createTask, 
+    updateTask, 
+    deleteTask,
+    completeTask,
+    cancelTask,
+    startTask,
+    getTaskStatistics,
+    getTaskById,
+    getTasksByRoom,
+    getTasksByStatus
   }
 }
 
