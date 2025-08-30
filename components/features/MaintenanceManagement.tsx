@@ -156,27 +156,46 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     return responsables[index % responsables.length] || 'Non assigné';
   };
 
-  // Traiter les vraies données de chambres
+  // Traiter les vraies données de chambres - TOUTES les chambres
   useEffect(() => {
     const processRealRooms = () => {
       if (!realRooms) return;
 
-      // Filtrer les chambres en maintenance et les transformer
-      const maintenanceRoomsData: MaintenanceRoom[] = realRooms
-        .filter(room => room.statut === 'maintenance')
-        .map((room, index) => ({
-          id: room.id,
-          numero: room.numero,
-          hotel: selectedHotel?.nom || 'Établissement',
-          status: 'maintenance' as const,
-          dateDebut: new Date().toISOString().split('T')[0], // Date d'aujourd'hui par défaut
-          description: room.description || generateMaintenanceDescription(room.numero),
-          priorite: generatePriority(index),
-          responsable: generateResponsable(index),
-          coutEstime: Math.floor(Math.random() * 500) + 100
-        }));
+      // Transformer toutes les chambres avec enrichissement pour celles en maintenance
+      const allRoomsData: MaintenanceRoom[] = realRooms
+        .map((room, index) => {
+          const baseRoom = {
+            id: room.id,
+            numero: room.numero,
+            hotel: selectedHotel?.nom || 'Établissement',
+            status: room.statut as 'maintenance' | 'reparation' | 'commande' | 'termine',
+            dateDebut: new Date().toISOString().split('T')[0],
+            description: room.description || '',
+            priorite: 'moyenne' as const,
+            responsable: 'Non assigné',
+            coutEstime: 0
+          };
 
-      setMaintenanceRooms(maintenanceRoomsData);
+          // Enrichir les données pour les chambres en maintenance
+          if (room.statut === 'maintenance') {
+            return {
+              ...baseRoom,
+              description: room.description || generateMaintenanceDescription(room.numero),
+              priorite: generatePriority(index),
+              responsable: generateResponsable(index),
+              coutEstime: Math.floor(Math.random() * 500) + 100
+            };
+          }
+
+          // Pour les chambres disponibles et occupées, données basiques
+          return {
+            ...baseRoom,
+            description: `Chambre ${room.statut === 'disponible' ? 'disponible' : 'occupée'}`,
+            status: room.statut as 'maintenance'
+          };
+        });
+
+      setMaintenanceRooms(allRoomsData);
 
       const demoItems: MaintenanceItem[] = [
         {
