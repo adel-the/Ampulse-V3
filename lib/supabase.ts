@@ -300,20 +300,9 @@ export interface Database {
           date_naissance: string | null
           lieu_naissance: string | null
           nationalite: string | null
-          adresse: string | null
-          ville: string | null
-          code_postal: string | null
           telephone: string | null
           email: string | null
-          numero_secu: string | null
-          caf_number: string | null
-          situation_familiale: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
-          nombre_enfants: number
-          revenus: number | null
-          type_revenus: string | null
-          prestations: string[] | null
           autonomie_level: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
-          observations: string | null
           statut: 'actif' | 'inactif' | 'archive'
           created_at: string
           updated_at: string
@@ -329,20 +318,9 @@ export interface Database {
           date_naissance?: string | null
           lieu_naissance?: string | null
           nationalite?: string | null
-          adresse?: string | null
-          ville?: string | null
-          code_postal?: string | null
           telephone?: string | null
           email?: string | null
-          numero_secu?: string | null
-          caf_number?: string | null
-          situation_familiale?: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
-          nombre_enfants?: number
-          revenus?: number | null
-          type_revenus?: string | null
-          prestations?: string[] | null
           autonomie_level?: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
-          observations?: string | null
           statut?: 'actif' | 'inactif' | 'archive'
           created_at?: string
           updated_at?: string
@@ -358,21 +336,63 @@ export interface Database {
           date_naissance?: string | null
           lieu_naissance?: string | null
           nationalite?: string | null
-          adresse?: string | null
-          ville?: string | null
-          code_postal?: string | null
           telephone?: string | null
           email?: string | null
-          numero_secu?: string | null
-          caf_number?: string | null
-          situation_familiale?: 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' | null
-          nombre_enfants?: number
-          revenus?: number | null
-          type_revenus?: string | null
-          prestations?: string[] | null
           autonomie_level?: 'Autonome' | 'Semi-autonome' | 'Non-autonome' | null
-          observations?: string | null
           statut?: 'actif' | 'inactif' | 'archive'
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+      }
+      individus: {
+        Row: {
+          id: number
+          usager_id: number
+          nom: string
+          prenom: string
+          date_naissance: string | null
+          lieu_naissance: string | null
+          sexe: 'M' | 'F' | 'Autre' | null
+          telephone: string | null
+          email: string | null
+          relation: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille: boolean
+          created_at: string
+          updated_at: string
+          created_by: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          usager_id: number
+          nom: string
+          prenom: string
+          date_naissance?: string | null
+          lieu_naissance?: string | null
+          sexe?: 'M' | 'F' | 'Autre' | null
+          telephone?: string | null
+          email?: string | null
+          relation?: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          usager_id?: number
+          nom?: string
+          prenom?: string
+          date_naissance?: string | null
+          lieu_naissance?: string | null
+          sexe?: 'M' | 'F' | 'Autre' | null
+          telephone?: string | null
+          email?: string | null
+          relation?: 'Conjoint' | 'Enfant' | 'Parent' | 'Frère/Sœur' | 'Grand-parent' | 'Petit-enfant' | 'Autre' | null
+          is_chef_famille?: boolean
           created_at?: string
           updated_at?: string
           created_by?: string | null
@@ -1138,6 +1158,59 @@ export interface Database {
           updated_at?: string
         }
       }
+      maintenance_tasks: {
+        Row: {
+          id: number
+          titre: string
+          description: string | null
+          priorite: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable: string | null
+          date_echeance: string | null
+          notes: string | null
+          statut: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id: number
+          hotel_id: number
+          user_owner_id: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: number
+          titre: string
+          description?: string | null
+          priorite?: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable?: string | null
+          date_echeance?: string | null
+          notes?: string | null
+          statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id: number
+          hotel_id: number
+          user_owner_id: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: number
+          titre?: string
+          description?: string | null
+          priorite?: 'faible' | 'moyenne' | 'haute' | 'urgente'
+          responsable?: string | null
+          date_echeance?: string | null
+          notes?: string | null
+          statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
+          room_id?: number
+          hotel_id?: number
+          user_owner_id?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+        }
+      }
       equipment_assignments: {
         Row: {
           id: number
@@ -1245,6 +1318,9 @@ export type Notification = Tables<'notifications'>
 export type Client = Tables<'clients'>
 export type Referent = Tables<'referents'>
 export type ConventionTarifaire = Tables<'conventions_tarifaires'>
+export type MaintenanceTask = Tables<'maintenance_tasks'>
+export type MaintenanceTaskInsert = Inserts<'maintenance_tasks'>
+export type MaintenanceTaskUpdate = Updates<'maintenance_tasks'>
 
 // Type for conventions_tarifaires with foreign key expansion
 // Used when querying with .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')
@@ -1534,3 +1610,30 @@ export const equipmentHelpers = {
 // API Layer References
 // For establishments CRUD operations, use the dedicated API:
 // import { establishmentsApi } from '@/lib/api/establishments'
+
+// =============================================
+// INDIVIDUS TYPE ALIASES
+// =============================================
+
+// Type aliases for easier usage throughout the application
+export type IndividuRow = Database['public']['Tables']['individus']['Row']
+export type IndividuInsert = Database['public']['Tables']['individus']['Insert'] 
+export type IndividuUpdate = Database['public']['Tables']['individus']['Update']
+
+// Extended type with calculated fields (for frontend use)
+export interface IndividuWithExtras extends IndividuRow {
+  age?: number
+  usager?: {
+    nom: string
+    prenom: string
+  }
+}
+
+// Type for the statistics function result
+export interface IndividuStats {
+  total_count: number
+  adults_count: number
+  children_count: number
+  has_chef_famille: boolean
+  relations_summary: Record<string, number>
+}

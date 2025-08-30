@@ -34,7 +34,15 @@ import type {
   RoomUpdate,
   RoomCategory,
   RoomCategoryInsert,
-  RoomCategoryUpdate
+  RoomCategoryUpdate,
+  MaintenanceTask,
+  MaintenanceTaskInsert,
+  MaintenanceTaskUpdate,
+  IndividuRow,
+  IndividuInsert,
+  IndividuUpdate,
+  IndividuWithExtras,
+  IndividuStats
 } from '@/lib/supabase'
 
 // Types for API responses
@@ -319,7 +327,7 @@ export const useReservations = () => {
           *,
           clients:usager_id (nom, prenom, telephone, email),
           hotels:hotel_id (nom, adresse, ville),
-          rooms:chambre_id (numero, type)
+          rooms:chambre_id (numero, bed_type)
         `)
         .order('date_arrivee', { ascending: false })
 
@@ -341,7 +349,7 @@ export const useReservations = () => {
           *,
           clients:usager_id (nom, prenom),
           hotels:hotel_id (nom, adresse),
-          rooms:chambre_id (numero, type)
+          rooms:chambre_id (numero, bed_type)
         `)
         .single()
 
@@ -364,7 +372,7 @@ export const useReservations = () => {
           *,
           clients:usager_id (nom, prenom),
           hotels:hotel_id (nom, adresse),
-          rooms:chambre_id (numero, type)
+          rooms:chambre_id (numero, bed_type)
         `)
         .single()
 
@@ -2668,6 +2676,550 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
     createEquipment,
     updateEquipment,
     deleteEquipment
+  }
+}
+
+// ====================================
+// Maintenance Tasks Management Hook
+// ====================================
+
+// Hook for maintenance tasks (complete CRUD with multi-tenancy)
+export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?: HookOptions) => {
+  const [tasks, setTasks] = useState<MaintenanceTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (!user) {
+        setTasks([])
+        return
+      }
+
+      let query = supabase
+        .from('maintenance_tasks')
+        .select(`
+          *,
+          room:rooms(numero, bed_type),
+          hotel:hotels(nom)
+        `)
+        .eq('user_owner_id', user.id)
+        .order('created_at', { ascending: false })
+
+      // Filter by hotel if provided
+      if (hotelId) {
+        query = query.eq('hotel_id', hotelId)
+      }
+
+      // Filter by room if provided
+      if (roomId) {
+        query = query.eq('room_id', roomId)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      setTasks(data || [])
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des tâches de maintenance'
+      setError(errorMessage)
+      console.error('Error fetching maintenance tasks:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createTask = async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
+    try {
+      // For development: use fallback user ID if no user is authenticated
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      const fallbackUserId = '39b87d6a-dea8-40e3-8087-e8199532a167' // Test user we created
+      
+      if (!user && !isDevelopment) {
+        return { data: null, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      if (!hotelId) {
+        return { data: null, error: 'ID d\'hôtel requis', success: false }
+      }
+
+      setError(null)
+      
+      const userId = user?.id || (isDevelopment ? fallbackUserId : null)
+      if (!userId) {
+        return { data: null, error: 'ID utilisateur requis', success: false }
+      }
+      
+      const insertData: MaintenanceTaskInsert = {
+        ...taskData,
+        hotel_id: hotelId,
+        user_owner_id: userId,
+        statut: 'en_attente',
+        created_by: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .insert(insertData)
+        .select(`
+          *,
+          room:rooms(numero, bed_type),
+          hotel:hotels(nom)
+        `)
+        .single()
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => [data, ...prev])
+      
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche'
+      setError(errorMessage)
+      console.error('Error creating maintenance task:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const updateTask = async (id: number, updates: MaintenanceTaskUpdate): Promise<ApiResponse<MaintenanceTask>> => {
+    try {
+      // For development: use fallback user ID if no user is authenticated
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      const fallbackUserId = '39b87d6a-dea8-40e3-8087-e8199532a167'
+      
+      if (!user && !isDevelopment) {
+        return { data: null, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      setError(null)
+      
+      const userId = user?.id || (isDevelopment ? fallbackUserId : null)
+      if (!userId) {
+        return { data: null, error: 'ID utilisateur requis', success: false }
+      }
+      
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_owner_id', userId) // Ensure user can only update their own tasks
+        .select(`
+          *,
+          room:rooms(numero, bed_type),
+          hotel:hotels(nom)
+        `)
+        .single()
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => prev.map(task => task.id === id ? data : task))
+      
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la tâche'
+      setError(errorMessage)
+      console.error('Error updating maintenance task:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  const deleteTask = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      // For development: use fallback user ID if no user is authenticated
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      const fallbackUserId = '39b87d6a-dea8-40e3-8087-e8199532a167'
+      
+      if (!user && !isDevelopment) {
+        return { data: false, error: 'Utilisateur non authentifié', success: false }
+      }
+
+      setError(null)
+      
+      const userId = user?.id || (isDevelopment ? fallbackUserId : null)
+      if (!userId) {
+        return { data: false, error: 'ID utilisateur requis', success: false }
+      }
+      
+      const { error } = await supabase
+        .from('maintenance_tasks')
+        .delete()
+        .eq('id', id)
+        .eq('user_owner_id', userId) // Ensure user can only delete their own tasks
+
+      if (error) throw error
+      
+      // Update local state optimistically
+      setTasks(prev => prev.filter(task => task.id !== id))
+      
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la tâche'
+      setError(errorMessage)
+      console.error('Error deleting maintenance task:', err)
+      return { data: false, error: errorMessage, success: false }
+    }
+  }
+
+  const completeTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'terminee' })
+  }
+
+  const cancelTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'annulee' })
+  }
+
+  const startTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+    return updateTask(id, { statut: 'en_cours' })
+  }
+
+  const getTaskStatistics = () => {
+    const total = tasks.length
+    const enAttente = tasks.filter(t => t.statut === 'en_attente').length
+    const enCours = tasks.filter(t => t.statut === 'en_cours').length
+    const terminees = tasks.filter(t => t.statut === 'terminee').length
+    const annulees = tasks.filter(t => t.statut === 'annulee').length
+    
+    const priorityStats = {
+      urgente: tasks.filter(t => t.priorite === 'urgente').length,
+      haute: tasks.filter(t => t.priorite === 'haute').length,
+      moyenne: tasks.filter(t => t.priorite === 'moyenne').length,
+      faible: tasks.filter(t => t.priorite === 'faible').length
+    }
+
+    return {
+      total,
+      enAttente,
+      enCours,
+      terminees,
+      annulees,
+      priorityStats
+    }
+  }
+
+  const getTaskById = (id: number): MaintenanceTask | undefined => {
+    return tasks.find(task => task.id === id)
+  }
+
+  const getTasksByRoom = (roomId: number): MaintenanceTask[] => {
+    return tasks.filter(task => task.room_id === roomId)
+  }
+
+  const getTasksByStatus = (status: string): MaintenanceTask[] => {
+    return tasks.filter(task => task.statut === status)
+  }
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!enableRealTime || !user) return
+
+    const channelName = hotelId ? `maintenance-tasks-${hotelId}` : `maintenance-tasks-user-${user.id}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'maintenance_tasks',
+          filter: hotelId ? `hotel_id=eq.${hotelId}` : `user_owner_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time maintenance task update:', payload)
+          
+          switch (payload.eventType) {
+            case 'INSERT':
+              setTasks(prev => {
+                if (!prev.some(t => t.id === payload.new.id)) {
+                  return [payload.new as MaintenanceTask, ...prev]
+                }
+                return prev
+              })
+              break
+            case 'UPDATE':
+              setTasks(prev => prev.map(task => 
+                task.id === payload.new.id ? payload.new as MaintenanceTask : task
+              ))
+              break
+            case 'DELETE':
+              setTasks(prev => prev.filter(task => task.id !== payload.old.id))
+              break
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, hotelId, enableRealTime])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(fetchTasks, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, refreshInterval, hotelId, roomId])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTasks()
+  }, [user, hotelId, roomId])
+
+  return { 
+    tasks, 
+    loading, 
+    error, 
+    fetchTasks, 
+    createTask, 
+    updateTask, 
+    deleteTask,
+    completeTask,
+    cancelTask,
+    startTask,
+    getTaskStatistics,
+    getTaskById,
+    getTasksByRoom,
+    getTasksByStatus
+  }
+}
+
+// =============================================
+// INDIVIDUS HOOKS
+// =============================================
+
+/**
+ * Hook pour gérer les individus d'un usager
+ */
+export function useIndividus(usagerId?: number) {
+  const [individus, setIndividus] = useState<IndividuRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  // Récupérer les individus d'un usager
+  const fetchIndividus = async (targetUsagerId?: number) => {
+    if (!targetUsagerId && !usagerId) return
+
+    const id = targetUsagerId || usagerId
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('individus')
+        .select('*')
+        .eq('usager_id', id)
+        .order('is_chef_famille', { ascending: false })
+        .order('created_at', { ascending: true })
+
+      if (fetchError) throw fetchError
+
+      setIndividus(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la récupération des individus')
+      console.error('Error fetching individus:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Créer un nouvel individu
+  const createIndividu = async (individuData: IndividuInsert): Promise<ApiResponse<IndividuRow>> => {
+    try {
+      const { data, error: createError } = await supabase
+        .from('individus')
+        .insert({
+          ...individuData,
+          created_by: user?.id,
+          updated_by: user?.id
+        })
+        .select()
+        .single()
+
+      if (createError) throw createError
+
+      // Rafraîchir la liste
+      if (usagerId || individuData.usager_id) {
+        await fetchIndividus(individuData.usager_id)
+      }
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création'
+      console.error('Error creating individu:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Mettre à jour un individu
+  const updateIndividu = async (id: number, updates: IndividuUpdate): Promise<ApiResponse<IndividuRow>> => {
+    try {
+      const { data, error: updateError } = await supabase
+        .from('individus')
+        .update({
+          ...updates,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateError) throw updateError
+
+      // Rafraîchir la liste
+      if (usagerId) {
+        await fetchIndividus()
+      }
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour'
+      console.error('Error updating individu:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Supprimer un individu
+  const deleteIndividu = async (id: number): Promise<ApiResponse<boolean>> => {
+    try {
+      const { error: deleteError } = await supabase
+        .from('individus')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) throw deleteError
+
+      // Rafraîchir la liste
+      if (usagerId) {
+        await fetchIndividus()
+      }
+
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression'
+      console.error('Error deleting individu:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Obtenir les statistiques des individus d'un usager
+  const getIndividuStats = async (targetUsagerId?: number): Promise<ApiResponse<IndividuStats>> => {
+    const id = targetUsagerId || usagerId
+    if (!id) return { data: null, error: 'ID usager manquant', success: false }
+
+    try {
+      const { data, error: statsError } = await supabase
+        .rpc('get_usager_individus_stats', { usager_id_param: id })
+        .single()
+
+      if (statsError) throw statsError
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la récupération des statistiques'
+      console.error('Error getting individu stats:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Définir un individu comme chef de famille
+  const setChefFamille = async (id: number): Promise<ApiResponse<boolean>> => {
+    if (!usagerId) return { data: null, error: 'ID usager manquant', success: false }
+
+    try {
+      // D'abord, retirer le statut de chef de famille de tous les autres
+      await supabase
+        .from('individus')
+        .update({ is_chef_famille: false })
+        .eq('usager_id', usagerId)
+
+      // Puis définir le nouveau chef de famille
+      const { error: updateError } = await supabase
+        .from('individus')
+        .update({ 
+          is_chef_famille: true,
+          updated_by: user?.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (updateError) throw updateError
+
+      // Rafraîchir la liste
+      await fetchIndividus()
+
+      return { data: true, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la définition du chef de famille'
+      console.error('Error setting chef famille:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Créer plusieurs individus en batch
+  const createIndividusBatch = async (individusList: IndividuInsert[]): Promise<ApiResponse<IndividuRow[]>> => {
+    try {
+      const individuData = individusList.map(individu => ({
+        ...individu,
+        created_by: user?.id,
+        updated_by: user?.id
+      }))
+
+      const { data, error: createError } = await supabase
+        .from('individus')
+        .insert(individuData)
+        .select()
+
+      if (createError) throw createError
+
+      // Rafraîchir la liste si on a un usagerId
+      if (usagerId) {
+        await fetchIndividus()
+      }
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création batch'
+      console.error('Error creating individus batch:', err)
+      return { data: null, error: errorMessage, success: false }
+    }
+  }
+
+  // Effect pour charger les données au montage
+  useEffect(() => {
+    if (usagerId) {
+      fetchIndividus()
+    }
+  }, [usagerId, user])
+
+  return {
+    individus,
+    loading,
+    error,
+    fetchIndividus,
+    createIndividu,
+    updateIndividu,
+    deleteIndividu,
+    setChefFamille,
+    getIndividuStats,
+    createIndividusBatch
   }
 }
 

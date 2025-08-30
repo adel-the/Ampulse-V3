@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Alert, AlertDescription } from '../ui/alert';
 import { 
   Bed, 
   Users, 
@@ -19,11 +22,22 @@ import {
   Accessibility,
   Check,
   AlertCircle,
-  Hotel
+  Hotel,
+  Calendar,
+  CreditCard,
+  FileText,
+  ArrowLeft,
+  Search,
+  X,
+  Edit
 } from 'lucide-react';
-import { Room, RoomCategory, Hotel as HotelType, HotelEquipment } from '@/lib/supabase';
+import { Room, RoomCategory, Hotel as HotelType, HotelEquipment, Client, CLIENT_TYPES, ClientCategory } from '@/lib/supabase';
 import { AvailabilitySearchCriteria } from './AvailabilitySearchForm';
-import CreateReservationModal from '../modals/CreateReservationModal';
+import { useNotifications } from '@/hooks/useNotifications';
+import { clientsApi } from '@/lib/api/clients';
+import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
+import { reservationsApi, type SimpleReservationInsert } from '@/lib/api/reservations';
+import UsagerEditModal from '../modals/UsagerEditModal';
 
 export interface AvailableRoom extends Room {
   category?: RoomCategory;
@@ -114,9 +128,23 @@ export default function AvailabilityResults({
   onReservationCreated,
   className = ''
 }: AvailabilityResultsProps) {
+  const { addNotification } = useNotifications();
   const [groupBy, setGroupBy] = useState<'category' | 'price' | 'hotel'>('category');
   const [selectedRoom, setSelectedRoom] = useState<AvailableRoom | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showRoomDetails, setShowRoomDetails] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [usagers, setUsagers] = useState<UsagerWithPrescripteur[]>([]);
+  const [usagersLoading, setUsagersLoading] = useState(false);
+  const [selectedUsagerId, setSelectedUsagerId] = useState<number | null>(null);
+  const [selectedPrescripteurType, setSelectedPrescripteurType] = useState<ClientCategory | ''>('');
+  const [usagerInputValue, setUsagerInputValue] = useState('');
+  const [showUsagerSuggestions, setShowUsagerSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [specialRequests, setSpecialRequests] = useState('');
+  const [reservationLoading, setReservationLoading] = useState(false);
+  const [showEditUsagerModal, setShowEditUsagerModal] = useState(false);
+  const usagerInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   // Calculate number of nights
   const nights = criteria.checkInDate && criteria.checkOutDate
@@ -134,22 +162,188 @@ export default function AvailabilityResults({
   const totalResults = results.length;
   const availableResults = results.filter(r => r.isAvailable).length;
 
-  // Handle room selection for reservation
+  // Load clients and usagers when a room is selected
+  useEffect(() => {
+    if (showRoomDetails && selectedRoom) {
+      loadClients();
+      loadUsagers();
+    }
+  }, [showRoomDetails, selectedRoom]);
+
+  const loadClients = async () => {
+    try {
+      const response = await clientsApi.getClients();
+      if (response.success && response.data) {
+        const activeClients = response.data.filter(client => client.statut === 'actif');
+        setClients(activeClients);
+      }
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
+  const loadUsagers = async () => {
+    setUsagersLoading(true);
+    try {
+      const response = await usagersApi.searchUsagers();
+      if (response.success && response.data) {
+        const activeUsagers = response.data.filter(usager => usager.statut === 'actif');
+        setUsagers(activeUsagers);
+      } else {
+        addNotification('error', 'Erreur lors du chargement des usagers');
+      }
+    } catch (error) {
+      console.error('Error loading usagers:', error);
+      addNotification('error', 'Erreur lors du chargement des usagers');
+    } finally {
+      setUsagersLoading(false);
+    }
+  };
+
+  // Filter usagers based on search and prescripteur type
+  const getFilteredUsagers = useCallback(() => {
+    return usagers.filter(usager => {
+      // Filter by prescripteur type
+      if (selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
+        return false;
+      }
+      // Filter by search term (from input)
+      if (usagerInputValue) {
+        const searchLower = usagerInputValue.toLowerCase();
+        const fullName = `${usager.nom} ${usager.prenom || ''}`.toLowerCase();
+        const email = (usager.email || '').toLowerCase();
+        const phone = (usager.telephone || '').toLowerCase();
+        const numero = (usager.numero_usager || '').toLowerCase();
+        
+        return fullName.includes(searchLower) ||
+               email.includes(searchLower) ||
+               phone.includes(searchLower) ||
+               numero.includes(searchLower);
+      }
+      return true;
+    });
+  }, [usagers, selectedPrescripteurType, usagerInputValue]);
+
+  // Handle usager selection from suggestions
+  const handleUsagerSelect = (usager: UsagerWithPrescripteur) => {
+    setSelectedUsagerId(usager.id);
+    const prescripteurName = usager.prescripteur?.client_type === 'Particulier' 
+      ? `${usager.prescripteur.nom} ${usager.prescripteur.prenom || ''}`.trim()
+      : usager.prescripteur?.raison_sociale || usager.prescripteur?.nom || 'Sans prescripteur';
+    setUsagerInputValue(`${usager.nom} ${usager.prenom} - ${prescripteurName}`);
+    setShowUsagerSuggestions(false);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const filteredUsagers = getFilteredUsagers();
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => 
+        prev < filteredUsagers.length - 1 ? prev + 1 : prev
+      );
+      setShowUsagerSuggestions(true);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredUsagers.length) {
+        handleUsagerSelect(filteredUsagers[highlightedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowUsagerSuggestions(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
+          usagerInputRef.current && !usagerInputRef.current.contains(event.target as Node)) {
+        setShowUsagerSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle room selection
   const handleRoomSelect = (room: AvailableRoom) => {
     setSelectedRoom(room);
-    setIsModalOpen(true);
+    setShowRoomDetails(true);
     onRoomSelect?.(room);
   };
 
-  // Handle modal close
-  const handleModalClose = () => {
-    setIsModalOpen(false);
+  // Handle back to list
+  const handleBackToList = () => {
+    setShowRoomDetails(false);
     setSelectedRoom(null);
+    setSelectedUsagerId(null);
+    setSelectedPrescripteurType('');
+    setUsagerInputValue('');
+    setShowUsagerSuggestions(false);
+    setHighlightedIndex(-1);
+    setSpecialRequests('');
   };
 
-  // Handle reservation success
-  const handleReservationSuccess = () => {
-    onReservationCreated?.();
+  // Handle reservation creation
+  const handleCreateReservation = async () => {
+    if (!selectedUsagerId || !selectedRoom) {
+      addNotification('error', 'Veuillez sélectionner un usager');
+      return;
+    }
+
+    setReservationLoading(true);
+    try {
+      const reservationData: SimpleReservationInsert = {
+        hotel_id: selectedRoom.hotel_id,
+        chambre_id: selectedRoom.id,
+        usager_id: selectedUsagerId,
+        date_arrivee: criteria.checkInDate,
+        date_depart: criteria.checkOutDate,
+        adults_count: criteria.adults,
+        children_count: criteria.children,
+        room_rate: selectedRoom.prix,
+        total_amount: selectedRoom.prix * nights,
+        special_requests: specialRequests.trim() || undefined,
+        statut: 'confirmed'
+      };
+
+      const response = await reservationsApi.createReservation(reservationData);
+
+      if (response.success && response.data) {
+        addNotification('success', `Réservation ${response.data.reservation_number} créée avec succès`);
+        onReservationCreated?.();
+        handleBackToList();
+      } else {
+        addNotification('error', response.error || 'Erreur lors de la création de la réservation');
+      }
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      addNotification('error', 'Erreur lors de la création de la réservation');
+    } finally {
+      setReservationLoading(false);
+    }
+  };
+
+  // Handle usager update success
+  const handleUsagerUpdateSuccess = async () => {
+    // Reload usagers to get updated data
+    await loadUsagers();
+    
+    // Ensure the selected usager is still valid after reload
+    if (selectedUsagerId) {
+      // The usager list has been reloaded, selectedUsager will be updated automatically
+      // through the derived state on next render
+    }
+    
+    setShowEditUsagerModal(false);
+    addNotification('success', 'Usager mis à jour avec succès');
   };
 
   if (isLoading) {
@@ -176,6 +370,348 @@ export default function AvailabilityResults({
           </p>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Show room details view if a room is selected
+  if (showRoomDetails && selectedRoom) {
+    const checkInDate = new Date(criteria.checkInDate);
+    const checkOutDate = new Date(criteria.checkOutDate);
+    const roomRate = selectedRoom.prix;
+    const totalAmount = roomRate * nights;
+    const selectedUsager = selectedUsagerId ? usagers.find(u => u.id === selectedUsagerId) : null;
+
+    return (
+      <>
+        <div className={`w-full space-y-6 ${className}`}>
+          {/* Back button */}
+          <Button
+            variant="outline"
+            onClick={handleBackToList}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour à la liste
+          </Button>
+
+        {/* Compact Room & Reservation Details */}
+        <Card className="p-3">
+          <div className="flex justify-between items-center mb-1.5">
+            <h3 className="text-base font-semibold flex items-center gap-1.5">
+              <Hotel className="h-4 w-4 text-blue-600" />
+              Chambre {selectedRoom.numero} - {selectedRoom.hotel?.nom}
+            </h3>
+            <div className="text-right">
+              <span className="text-lg font-bold text-blue-600">{totalAmount}€</span>
+              <span className="text-xs text-gray-500 ml-1">({roomRate}€×{nights}n)</span>
+            </div>
+          </div>
+          
+          {/* Ultra Compact Info - Single Line */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-1.5">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <strong>Arrivée:</strong> {checkInDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+            </span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <strong>Départ:</strong> {checkOutDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+            </span>
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              <strong>Voyageurs:</strong> {criteria.adults + criteria.children}
+            </span>
+            <span className="flex items-center gap-1">
+              <Bed className="h-3 w-3" />
+              <strong>Lit:</strong> {selectedRoom.bed_type || 'Standard'}
+            </span>
+          </div>
+
+          {/* Equipment - Ultra Compact */}
+          {selectedRoom.equipmentDetails && selectedRoom.equipmentDetails.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {selectedRoom.equipmentDetails.slice(0, 6).map((equipment) => (
+                <span
+                  key={equipment.id}
+                  className="inline-flex items-center gap-0.5 bg-gray-100 rounded px-1.5 py-0.5 text-xs"
+                >
+                  {getEquipmentIcon('general')}
+                  {`Équipement ${equipment.equipment_id}`}
+                </span>
+              ))}
+              {selectedRoom.equipmentDetails.length > 6 && (
+                <span className="bg-gray-100 rounded px-1.5 py-0.5 text-xs">
+                  +{selectedRoom.equipmentDetails.length - 6}
+                </span>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* Usager Selection */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5 text-purple-600" />
+              Sélection de l'usager (bénéficiaire)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {usagersLoading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600">Chargement des usagers...</p>
+              </div>
+            ) : usagers.length === 0 ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Aucun usager actif trouvé. Veuillez d'abord créer un usager.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-3">
+                {/* Type de prescripteur filter */}
+                <div>
+                  <Label htmlFor="prescripteur-type-filter">Filtrer par type de prescripteur</Label>
+                  <select
+                    id="prescripteur-type-filter"
+                    value={selectedPrescripteurType}
+                    onChange={(e) => {
+                      setSelectedPrescripteurType(e.target.value as ClientCategory | '');
+                      setSelectedUsagerId(null); // Reset selected usager when type changes
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Tous les prescripteurs</option>
+                    {CLIENT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Active filter display for prescripteur type only */}
+                {selectedPrescripteurType && (
+                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded-md">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600">Filtre actif:</span>
+                      <Badge variant="secondary" className="text-xs">
+                        Prescripteur: {selectedPrescripteurType}
+                      </Badge>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedPrescripteurType('');
+                        setSelectedUsagerId(null);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <X className="h-3 w-3" />
+                      Effacer
+                    </button>
+                  </div>
+                )}
+
+                {/* Usager selection with autocomplete */}
+                <div className="relative">
+                  <div className="flex justify-between items-center mb-1">
+                    <Label htmlFor="usager-input">Usager (bénéficiaire) *</Label>
+                    <span className="text-xs text-gray-500">
+                      {getFilteredUsagers().length} usager{getFilteredUsagers().length > 1 ? 's' : ''} trouvé{getFilteredUsagers().length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+                  {/* Autocomplete Input */}
+                  <div className="relative">
+                    <input
+                      ref={usagerInputRef}
+                      id="usager-input"
+                      type="text"
+                      placeholder="Tapez pour rechercher un usager..."
+                      value={usagerInputValue}
+                      onChange={(e) => {
+                        setUsagerInputValue(e.target.value);
+                        setSelectedUsagerId(null);
+                        setShowUsagerSuggestions(true);
+                        setHighlightedIndex(-1);
+                      }}
+                      onFocus={() => setShowUsagerSuggestions(true)}
+                      onKeyDown={handleKeyDown}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!selectedUsagerId}
+                    />
+                    
+                    {/* Clear button */}
+                    {usagerInputValue && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUsagerInputValue('');
+                          setSelectedUsagerId(null);
+                          setShowUsagerSuggestions(false);
+                          usagerInputRef.current?.focus();
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {showUsagerSuggestions && getFilteredUsagers().length > 0 && (
+                    <div
+                      ref={suggestionsRef}
+                      className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg"
+                    >
+                      {getFilteredUsagers().map((usager, index) => {
+                        const prescripteurName = usager.prescripteur?.client_type === 'Particulier' 
+                          ? `${usager.prescripteur.nom} ${usager.prescripteur.prenom || ''}`.trim()
+                          : usager.prescripteur?.raison_sociale || usager.prescripteur?.nom || 'Sans prescripteur';
+                        
+                        return (
+                          <div
+                            key={usager.id}
+                            onClick={() => handleUsagerSelect(usager)}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            className={`px-3 py-2 cursor-pointer ${
+                              index === highlightedIndex ? 'bg-blue-100' : 'hover:bg-gray-100'
+                            } ${selectedUsagerId === usager.id ? 'bg-blue-50' : ''}`}
+                          >
+                            <div className="font-medium">
+                              {usager.nom} {usager.prenom}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              [{usager.prescripteur?.client_type?.substring(0, 3).toUpperCase() || 'N/A'}] {prescripteurName}
+                              {usager.telephone && ` • ${usager.telephone}`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* No results message */}
+                  {showUsagerSuggestions && usagerInputValue && getFilteredUsagers().length === 0 && (
+                    <div className="absolute z-10 w-full mt-1 p-3 bg-white border border-gray-300 rounded-md shadow-lg">
+                      <p className="text-sm text-gray-500">Aucun usager trouvé</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Usager Info */}
+                {selectedUsager && (
+                  <div className="bg-gray-50 rounded-lg p-3 border">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-gray-900">Informations usager</h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowEditUsagerModal(true)}
+                        className="flex items-center gap-1"
+                      >
+                        <Edit className="h-3 w-3" />
+                        Modifier
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-600">Nom:</span>
+                        <span className="ml-2 text-gray-900">{selectedUsager.nom} {selectedUsager.prenom}</span>
+                      </div>
+                      {selectedUsager.email && (
+                        <div>
+                          <span className="text-gray-600">Email:</span>
+                          <span className="ml-2 text-gray-900">{selectedUsager.email}</span>
+                        </div>
+                      )}
+                      {selectedUsager.telephone && (
+                        <div>
+                          <span className="text-gray-600">Téléphone:</span>
+                          <span className="ml-2 text-gray-900">{selectedUsager.telephone}</span>
+                        </div>
+                      )}
+                      {selectedUsager.prescripteur && (
+                        <div className="col-span-2">
+                          <span className="text-gray-600">Prescripteur:</span>
+                          <span className="ml-2 text-gray-900">
+                            [{selectedUsager.prescripteur?.client_type?.substring(0, 3).toUpperCase() || 'N/A'}] 
+                            {selectedUsager.prescripteur?.client_type === 'Particulier' 
+                              ? `${selectedUsager.prescripteur?.nom || ''} ${selectedUsager.prescripteur?.prenom || ''}`.trim()
+                              : selectedUsager.prescripteur?.raison_sociale || selectedUsager.prescripteur?.nom || 'Sans prescripteur'}
+                          </span>
+                        </div>
+                      )}
+                      {selectedUsager.autonomie_level && (
+                        <div>
+                          <span className="text-gray-600">Autonomie:</span>
+                          <span className="ml-2 text-gray-900">{selectedUsager.autonomie_level}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Special Requests */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-orange-600" />
+              Demandes spéciales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={specialRequests}
+              onChange={(e) => setSpecialRequests(e.target.value)}
+              placeholder="Demandes particulières du client (facultatif)..."
+              rows={3}
+              className="w-full"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="outline" onClick={handleBackToList}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleCreateReservation}
+            disabled={reservationLoading || !selectedUsagerId || usagers.length === 0}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {reservationLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Création...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Confirmer la réservation
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      
+      {/* Usager Edit Modal */}
+      {selectedUsager && (
+        <UsagerEditModal
+          isOpen={showEditUsagerModal}
+          onClose={() => setShowEditUsagerModal(false)}
+          usager={selectedUsager}
+          onSuccess={handleUsagerUpdateSuccess}
+        />
+      )}
+      </>
     );
   }
 
@@ -300,8 +836,8 @@ export default function AvailabilityResults({
                             key={equipment.id}
                             className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-xs"
                           >
-                            {getEquipmentIcon(equipment.categorie)}
-                            <span>{equipment.nom}</span>
+                            {getEquipmentIcon('general')}
+                            <span>Équipement {equipment.equipment_id}</span>
                           </div>
                         ))}
                         {room.equipmentDetails.length > 6 && (
@@ -347,16 +883,6 @@ export default function AvailabilityResults({
         </div>
       ))}
 
-      {/* Reservation Modal */}
-      {selectedRoom && (
-        <CreateReservationModal
-          isOpen={isModalOpen}
-          onClose={handleModalClose}
-          roomData={selectedRoom}
-          searchCriteria={criteria}
-          onSuccess={handleReservationSuccess}
-        />
-      )}
     </div>
   );
 }

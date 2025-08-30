@@ -4,17 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { 
-  X, User, MapPin, Shield, Heart, Search, Building, Users, 
-  Save, Phone, Mail, Calendar
+  X, User, Search, Building, Users, Save
 } from 'lucide-react';
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
 import { clientsApi, type Client } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Individual } from '@/types/individuals';
+import IndividualsSection from '../features/IndividualsSection';
+import { 
+  createUsagerWithIndividuals, 
+  updateUsager, 
+  validateUsagerIndividualsData,
+  type UsagerFormData
+} from '@/lib/usagerIndividualsTransaction';
 
 interface UsagerEditModalProps {
   isOpen: boolean;
@@ -25,30 +30,10 @@ interface UsagerEditModalProps {
   onSuccess?: () => void;
 }
 
-const SITUATION_FAMILIALE_OPTIONS = [
-  'Célibataire',
-  'Marié(e)',
-  'Divorcé(e)',
-  'Veuf/Veuve',
-  'Pacsé(e)',
-  'Union libre'
-];
-
 const AUTONOMIE_LEVELS = [
   { value: 'Autonome', label: 'Autonome', color: 'bg-green-100 text-green-800' },
   { value: 'Semi-autonome', label: 'Semi-autonome', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'Non-autonome', label: 'Non-autonome', color: 'bg-red-100 text-red-800' }
-];
-
-const TYPE_REVENUS_OPTIONS = [
-  'RSA',
-  'Salaire',
-  'Retraite',
-  'AAH',
-  'ASS',
-  'Allocation familiale',
-  'Pension alimentaire',
-  'Autre'
 ];
 
 export default function UsagerEditModal({
@@ -61,36 +46,27 @@ export default function UsagerEditModal({
 }: UsagerEditModalProps) {
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('general');
   const [prescripteurs, setPrescripteurs] = useState<Client[]>([]);
   const [searchPrescripteur, setSearchPrescripteur] = useState('');
   const [showPrescripteurSearch, setShowPrescripteurSearch] = useState(false);
+  
+  // State for individuals management
+  const [individuals, setIndividuals] = useState<Individual[]>([]);
   
   // Form data with test values for new usager
   const getInitialFormData = () => {
     if (usager) {
       // Edit mode - use existing usager data
       return {
-        prescripteur_id: prescripteurId || usager.prescripteur_id || 0,
+        prescripteur_id: prescripteurId || usager.prescripteur_id || null,
         nom: usager.nom || '',
         prenom: usager.prenom || '',
         date_naissance: usager.date_naissance || '',
         lieu_naissance: usager.lieu_naissance || '',
         nationalite: usager.nationalite || 'Française',
-        adresse: usager.adresse || '',
-        ville: usager.ville || '',
-        code_postal: usager.code_postal || '',
         telephone: usager.telephone || '',
         email: usager.email || '',
-        numero_secu: usager.numero_secu || '',
-        caf_number: usager.caf_number || '',
-        situation_familiale: usager.situation_familiale || null,
-        nombre_enfants: usager.nombre_enfants || 0,
-        revenus: usager.revenus || null,
-        type_revenus: usager.type_revenus || '',
-        prestations: usager.prestations || [],
         autonomie_level: usager.autonomie_level || 'Autonome',
-        observations: usager.observations || '',
         statut: usager.statut || 'actif'
       };
     } else {
@@ -102,20 +78,9 @@ export default function UsagerEditModal({
         date_naissance: '1985-03-15',
         lieu_naissance: 'Paris',
         nationalite: 'Française',
-        adresse: '12 Rue de la République',
-        ville: 'Paris',
-        code_postal: '75011',
         telephone: '06 12 34 56 78',
         email: 'jean.martin@email.fr',
-        numero_secu: '1850375011234',
-        caf_number: 'CAF75123456',
-        situation_familiale: 'Célibataire',
-        nombre_enfants: 2,
-        revenus: 850.00,
-        type_revenus: 'RSA',
-        prestations: ['RSA', 'APL'],
         autonomie_level: 'Autonome',
-        observations: 'Personne autonome, recherche active d\'emploi. Suivi social hebdomadaire. Bonne intégration dans le centre d\'hébergement.',
         statut: 'actif'
       };
     }
@@ -127,6 +92,8 @@ export default function UsagerEditModal({
   useEffect(() => {
     if (isOpen) {
       setFormData(getInitialFormData());
+      // Reset individuals when modal opens
+      setIndividuals([]);
     }
   }, [isOpen, usager]);
   
@@ -165,53 +132,50 @@ export default function UsagerEditModal({
     }));
   };
 
-  const handlePrestationToggle = (prestation: string) => {
-    setFormData(prev => ({
-      ...prev,
-      prestations: prev.prestations?.includes(prestation)
-        ? prev.prestations.filter(p => p !== prestation)
-        : [...(prev.prestations || []), prestation]
-    }));
-  };
-
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.nom || !formData.prenom) {
-      addNotification('error', 'Le nom et le prénom sont obligatoires');
-      return;
-    }
-
-    if (!formData.prescripteur_id) {
-      addNotification('error', 'Un prescripteur doit être sélectionné');
+    const isCreating = !usager?.id;
+    
+    // ========== VALIDATION ==========
+    const validationResult = validateUsagerIndividualsData(formData as UsagerFormData, individuals);
+    if (!validationResult.isValid) {
+      validationResult.errors.forEach(error => addNotification('error', error));
       return;
     }
 
     setLoading(true);
 
     try {
-      let response;
-      
-      if (usager?.id) {
-        // Update existing usager
-        const { prescripteur_id, ...updates } = formData;
-        response = await usagersApi.updateUsager(usager.id, {
-          ...updates,
-          prescripteur_id: prescripteur_id
-        });
+      let result;
+
+      if (isCreating) {
+        // ========== CRÉATION AVEC TRANSACTION ==========
+        result = await createUsagerWithIndividuals(formData as UsagerFormData, individuals);
       } else {
-        // Create new usager
-        response = await usagersApi.createUsager(formData);
+        // ========== MISE À JOUR USAGER SEULEMENT ==========
+        // Les individus existants sont gérés directement par IndividualsSection
+        result = await updateUsager(usager.id, formData as UsagerFormData);
       }
 
-      if (response.success) {
-        addNotification('success', usager ? 'Usager mis à jour avec succès' : 'Usager créé avec succès');
+      if (result.success) {
+        // ========== SUCCÈS ==========
+        const successMessage = isCreating
+          ? result.individuCount && result.individuCount > 0
+            ? `Usager créé avec succès (${result.individuCount} personne${result.individuCount > 1 ? 's' : ''} liée${result.individuCount > 1 ? 's' : ''})`
+            : 'Usager créé avec succès'
+          : 'Usager mis à jour avec succès';
+        
+        addNotification('success', successMessage);
+        
         if (onSuccess) onSuccess();
         handleClose();
       } else {
-        addNotification('error', response.error || 'Une erreur est survenue');
+        // ========== ÉCHEC ==========
+        addNotification('error', result.error || 'Une erreur est survenue');
       }
+      
     } catch (error) {
-      addNotification('error', 'Une erreur est survenue');
+      console.error('Error in handleSubmit:', error);
+      addNotification('error', 'Une erreur inattendue est survenue');
     } finally {
       setLoading(false);
     }
@@ -225,24 +189,13 @@ export default function UsagerEditModal({
       date_naissance: '',
       lieu_naissance: '',
       nationalite: 'Française',
-      adresse: '',
-      ville: '',
-      code_postal: '',
       telephone: '',
       email: '',
-      numero_secu: '',
-      caf_number: '',
-      situation_familiale: null,
-      nombre_enfants: 0,
-      revenus: null,
-      type_revenus: '',
-      prestations: [],
       autonomie_level: 'Autonome',
-      observations: '',
       statut: 'actif'
     });
-    setActiveTab('general');
     setShowPrescripteurSearch(false);
+    setIndividuals([]); // Reset individuals
     onClose();
   };
 
@@ -307,10 +260,16 @@ export default function UsagerEditModal({
                         <Users className="h-4 w-4 text-gray-500" />
                       )}
                       <div>
-                        <p className="font-medium">{getPrescripteurDisplayName(getSelectedPrescripteur()!)}</p>
-                        <p className="text-xs text-gray-500">
-                          {getSelectedPrescripteur()?.client_type} - {getSelectedPrescripteur()?.numero_client}
-                        </p>
+                        {getSelectedPrescripteur() ? (
+                          <>
+                            <p className="font-medium">{getPrescripteurDisplayName(getSelectedPrescripteur())}</p>
+                            <p className="text-xs text-gray-500">
+                              {getSelectedPrescripteur()?.client_type} - {getSelectedPrescripteur()?.numero_client}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-500">Aucun prescripteur sélectionné</p>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -371,78 +330,79 @@ export default function UsagerEditModal({
             </CardContent>
           </Card>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="general">
-                <User className="h-4 w-4 mr-2" />
-                Général
-              </TabsTrigger>
-              <TabsTrigger value="contact">
-                <MapPin className="h-4 w-4 mr-2" />
-                Contact
-              </TabsTrigger>
-              <TabsTrigger value="social">
-                <Heart className="h-4 w-4 mr-2" />
-                Social
-              </TabsTrigger>
-              <TabsTrigger value="administratif">
-                <Shield className="h-4 w-4 mr-2" />
-                Administratif
-              </TabsTrigger>
-            </TabsList>
-
-            {/* General Tab */}
-            <TabsContent value="general" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="nom">Nom *</Label>
-                  <Input
-                    id="nom"
-                    value={formData.nom}
-                    onChange={(e) => handleInputChange('nom', e.target.value.toUpperCase())}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="prenom">Prénom *</Label>
-                  <Input
-                    id="prenom"
-                    value={formData.prenom}
-                    onChange={(e) => handleInputChange('prenom', e.target.value)}
-                    required
-                  />
-                </div>
+          {/* Formulaire simplifié sans onglets */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="nom">Nom *</Label>
+                <Input
+                  id="nom"
+                  value={formData.nom}
+                  onChange={(e) => handleInputChange('nom', e.target.value.toUpperCase())}
+                  required
+                />
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="date_naissance">Date de naissance</Label>
-                  <Input
-                    id="date_naissance"
-                    type="date"
-                    value={formData.date_naissance}
-                    onChange={(e) => handleInputChange('date_naissance', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lieu_naissance">Lieu de naissance</Label>
-                  <Input
-                    id="lieu_naissance"
-                    value={formData.lieu_naissance}
-                    onChange={(e) => handleInputChange('lieu_naissance', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="nationalite">Nationalité</Label>
-                  <Input
-                    id="nationalite"
-                    value={formData.nationalite}
-                    onChange={(e) => handleInputChange('nationalite', e.target.value)}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="prenom">Prénom *</Label>
+                <Input
+                  id="prenom"
+                  value={formData.prenom}
+                  onChange={(e) => handleInputChange('prenom', e.target.value)}
+                  required
+                />
               </div>
+            </div>
 
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="date_naissance">Date de naissance</Label>
+                <Input
+                  id="date_naissance"
+                  type="date"
+                  value={formData.date_naissance}
+                  onChange={(e) => handleInputChange('date_naissance', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="lieu_naissance">Lieu de naissance</Label>
+                <Input
+                  id="lieu_naissance"
+                  value={formData.lieu_naissance}
+                  onChange={(e) => handleInputChange('lieu_naissance', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="nationalite">Nationalité</Label>
+                <Input
+                  id="nationalite"
+                  value={formData.nationalite}
+                  onChange={(e) => handleInputChange('nationalite', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="telephone">Téléphone</Label>
+                <Input
+                  id="telephone"
+                  type="tel"
+                  value={formData.telephone}
+                  onChange={(e) => handleInputChange('telephone', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="autonomie">Niveau d'autonomie</Label>
                 <select
@@ -458,7 +418,6 @@ export default function UsagerEditModal({
                   ))}
                 </select>
               </div>
-
               <div>
                 <Label htmlFor="statut">Statut</Label>
                 <select
@@ -472,167 +431,26 @@ export default function UsagerEditModal({
                   <option value="archive">Archivé</option>
                 </select>
               </div>
-            </TabsContent>
+            </div>
+          </div>
 
-            {/* Contact Tab */}
-            <TabsContent value="contact" className="space-y-4">
-              <div>
-                <Label htmlFor="adresse">Adresse</Label>
-                <Input
-                  id="adresse"
-                  value={formData.adresse}
-                  onChange={(e) => handleInputChange('adresse', e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="code_postal">Code postal</Label>
-                  <Input
-                    id="code_postal"
-                    value={formData.code_postal}
-                    onChange={(e) => handleInputChange('code_postal', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ville">Ville</Label>
-                  <Input
-                    id="ville"
-                    value={formData.ville}
-                    onChange={(e) => handleInputChange('ville', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="telephone">Téléphone</Label>
-                  <Input
-                    id="telephone"
-                    type="tel"
-                    value={formData.telephone}
-                    onChange={(e) => handleInputChange('telephone', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Social Tab */}
-            <TabsContent value="social" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="situation_familiale">Situation familiale</Label>
-                  <select
-                    id="situation_familiale"
-                    value={formData.situation_familiale || ''}
-                    onChange={(e) => handleInputChange('situation_familiale', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {SITUATION_FAMILIALE_OPTIONS.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="nombre_enfants">Nombre d'enfants</Label>
-                  <Input
-                    id="nombre_enfants"
-                    type="number"
-                    min="0"
-                    value={formData.nombre_enfants}
-                    onChange={(e) => handleInputChange('nombre_enfants', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="revenus">Revenus mensuels (€)</Label>
-                  <Input
-                    id="revenus"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.revenus || ''}
-                    onChange={(e) => handleInputChange('revenus', parseFloat(e.target.value) || null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="type_revenus">Type de revenus</Label>
-                  <select
-                    id="type_revenus"
-                    value={formData.type_revenus}
-                    onChange={(e) => handleInputChange('type_revenus', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {TYPE_REVENUS_OPTIONS.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <Label>Prestations sociales</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {['RSA', 'AAH', 'ASS', 'APL', 'Allocation familiale', 'Prime d\'activité'].map(prestation => (
-                    <label key={prestation} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.prestations?.includes(prestation) || false}
-                        onChange={() => handlePrestationToggle(prestation)}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{prestation}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Administratif Tab */}
-            <TabsContent value="administratif" className="space-y-4">
-              <div>
-                <Label htmlFor="numero_secu">Numéro de sécurité sociale</Label>
-                <Input
-                  id="numero_secu"
-                  value={formData.numero_secu}
-                  onChange={(e) => handleInputChange('numero_secu', e.target.value)}
-                  placeholder="1 23 45 67 890 123 45"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="caf_number">Numéro allocataire CAF</Label>
-                <Input
-                  id="caf_number"
-                  value={formData.caf_number}
-                  onChange={(e) => handleInputChange('caf_number', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="observations">Observations</Label>
-                <Textarea
-                  id="observations"
-                  value={formData.observations}
-                  onChange={(e) => handleInputChange('observations', e.target.value)}
-                  rows={4}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+          {/* Individuals Management Section */}
+          <IndividualsSection
+            usagerId={usager?.id} // Utiliser l'ID de l'usager pour la gestion BDD
+            mainUsagerData={{
+              nom: formData.nom,
+              lieu_naissance: formData.lieu_naissance,
+              telephone: formData.telephone,
+              email: formData.email
+            }}
+            enableTestData={true}
+            onTestDataGenerated={(generatedIndividuals) => {
+              addNotification('success', `${generatedIndividuals.length} personne${generatedIndividuals.length > 1 ? 's' : ''} générée${generatedIndividuals.length > 1 ? 's' : ''} avec succès`);
+            }}
+            // Props de compatibilité pour les nouveaux usagers (pas encore en BDD)
+            individuals={usager?.id ? undefined : individuals}
+            onUpdateIndividuals={usager?.id ? undefined : setIndividuals}
+          />
         </div>
 
         {/* Footer */}

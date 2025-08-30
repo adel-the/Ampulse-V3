@@ -68,11 +68,7 @@ export default function ClientsSection() {
     total: 0,
     actifs: 0,
     inactifs: 0,
-    archives: 0,
-    autonomes: 0,
-    semi_autonomes: 0,
-    non_autonomes: 0,
-    by_prescripteur_type: {}
+    archives: 0
   });
   
   // Shared state
@@ -88,7 +84,6 @@ export default function ClientsSection() {
   // Usager filters
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<number | null>(null);
   const [selectedUsagerStatus, setSelectedUsagerStatus] = useState<string>('');
-  const [selectedAutonomie, setSelectedAutonomie] = useState<string>('');
   
   // Modal states
   const [showUsagerEditModal, setShowUsagerEditModal] = useState(false);
@@ -124,21 +119,11 @@ export default function ClientsSection() {
     raison_sociale: '',
     email: '',
     telephone: '',
-    telephone_mobile: '',
-    fax: '',
-    site_web: '',
     adresse: '',
-    complement_adresse: '',
     ville: '',
     code_postal: '',
-    pays: 'France',
     // Entreprise fields
     siret: '',
-    siren: '',
-    tva_intracommunautaire: '',
-    secteur_activite: '',
-    taille_entreprise: '',
-    chiffre_affaires: undefined,
     nombre_employes: undefined,
     // Association fields
     numero_agrement: '',
@@ -176,7 +161,6 @@ export default function ClientsSection() {
         setSelectedStatus(state.selectedStatus || '');
         setSelectedPrescripteur(state.selectedPrescripteur || null);
         setSelectedUsagerStatus(state.selectedUsagerStatus || '');
-        setSelectedAutonomie(state.selectedAutonomie || '');
         
         // Clear the saved state after restoring
         sessionStorage.removeItem('clientsSectionState');
@@ -193,9 +177,8 @@ export default function ClientsSection() {
     } else {
       loadClients(); // Also load clients for prescripteur filter dropdown
       loadUsagers();
-      loadUsagerStatistics();
-    }
-  }, [activeView, selectedType, selectedStatus, selectedPrescripteur, selectedUsagerStatus, selectedAutonomie]);
+          }
+  }, [activeView, selectedType, selectedStatus, selectedPrescripteur, selectedUsagerStatus]);
 
   // Load prescripteurs/clients
   const loadClients = async () => {
@@ -235,11 +218,12 @@ export default function ClientsSection() {
       const response = await usagersApi.searchUsagers(
         searchTerm,
         selectedPrescripteur || undefined,
-        selectedUsagerStatus || undefined,
-        selectedAutonomie || undefined
+        selectedUsagerStatus || undefined
       );
       if (response.success && response.data) {
         setUsagers(response.data);
+        // Calculate statistics after loading data
+        setTimeout(() => calculateUsagerStats(), 0);
       } else {
         addNotification('error', response.error || 'Erreur lors du chargement des usagers');
       }
@@ -248,16 +232,15 @@ export default function ClientsSection() {
     }
   };
 
-  // Load usager statistics
-  const loadUsagerStatistics = async () => {
-    try {
-      const response = await usagersApi.getUsagerStatistics();
-      if (response.success && response.data) {
-        setUsagerStats(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading usager statistics:', error);
-    }
+  // Calculate usager statistics from loaded data
+  const calculateUsagerStats = () => {
+    const stats = {
+      total: usagers.length,
+      actifs: usagers.filter(u => u.statut === 'actif').length,
+      inactifs: usagers.filter(u => u.statut === 'inactif').length,
+      archives: usagers.filter(u => u.statut === 'archive').length
+    };
+    setUsagerStats(stats);
   };
 
   // Handle search
@@ -279,7 +262,6 @@ export default function ClientsSection() {
         raison_sociale: client.raison_sociale || '',
         email: client.email || '',
         telephone: client.telephone || '',
-        telephone_mobile: client.telephone_mobile || '',
         fax: client.fax || '',
         site_web: client.site_web || '',
         adresse: client.adresse || '',
@@ -319,22 +301,18 @@ export default function ClientsSection() {
         raison_sociale: '',
         email: '',
         telephone: '',
-        telephone_mobile: '',
         fax: '',
         site_web: '',
         adresse: '',
-        complement_adresse: '',
-        ville: '',
+            ville: '',
         code_postal: '',
-        pays: 'France',
-        // Entreprise fields
+            // Entreprise fields
         siret: '',
         siren: '',
         tva_intracommunautaire: '',
         secteur_activite: '',
         taille_entreprise: '',
-        chiffre_affaires: undefined,
-        nombre_employes: undefined,
+            nombre_employes: undefined,
         // Association fields
         numero_agrement: '',
         date_agrement: '',
@@ -557,8 +535,7 @@ export default function ClientsSection() {
           loadClients();
         } else {
           loadUsagers();
-          loadUsagerStatistics();
-        }
+                  }
       } else {
         addNotification('error', response.error || 'Erreur lors de la suppression');
       }
@@ -588,15 +565,6 @@ export default function ClientsSection() {
     }
   };
 
-  // Get autonomie color
-  const getAutonomieColor = (level: string | null) => {
-    switch (level) {
-      case 'Autonome': return 'bg-green-100 text-green-800';
-      case 'Semi-autonome': return 'bg-yellow-100 text-yellow-800';
-      case 'Non-autonome': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   // Get type icon
   const getTypeIcon = (clientType: ClientCategory) => {
@@ -672,7 +640,6 @@ export default function ClientsSection() {
       // Contact info
       if (formData.email?.trim()) filteredClientData.email = formData.email.trim();
       if (formData.telephone?.trim()) filteredClientData.telephone = formData.telephone.trim();
-      if (formData.telephone_mobile?.trim()) filteredClientData.telephone_mobile = formData.telephone_mobile.trim();
       if (formData.fax?.trim()) filteredClientData.fax = formData.fax.trim();
       if (formData.site_web?.trim()) filteredClientData.site_web = formData.site_web.trim();
       
@@ -1303,18 +1270,6 @@ export default function ClientsSection() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="telephone_mobile">Téléphone mobile</Label>
-                    <Input
-                      id="telephone_mobile"
-                      value={formData.telephone_mobile}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, telephone_mobile: e.target.value }));
-                        setFormDirty(true);
-                      }}
-                      disabled={isReadOnly}
-                    />
-                  </div>
                   <div>
                     <Label htmlFor="fax">Fax</Label>
                     <Input
@@ -1959,28 +1914,6 @@ export default function ClientsSection() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Autonomes</p>
-                      <p className="text-2xl font-bold">{usagerStats.autonomes}</p>
-                    </div>
-                    <Shield className="h-8 w-8 text-blue-400" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Semi/Non autonomes</p>
-                      <p className="text-2xl font-bold">{usagerStats.semi_autonomes + usagerStats.non_autonomes}</p>
-                    </div>
-                    <Heart className="h-8 w-8 text-orange-400" />
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Search and Filters */}
@@ -2026,17 +1959,6 @@ export default function ClientsSection() {
                     <option value="archive">Archivé</option>
                   </select>
                   
-                  <select
-                    value={selectedAutonomie}
-                    onChange={(e) => setSelectedAutonomie(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tous les niveaux</option>
-                    <option value="Autonome">Autonome</option>
-                    <option value="Semi-autonome">Semi-autonome</option>
-                    <option value="Non-autonome">Non-autonome</option>
-                  </select>
-                  
                   <Button onClick={handleSearch}>
                     <Search className="h-4 w-4 mr-2" />
                     Rechercher
@@ -2073,7 +1995,6 @@ export default function ClientsSection() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prescripteur</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Situation</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Autonomie</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -2147,11 +2068,6 @@ export default function ClientsSection() {
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge className={getAutonomieColor(usager.autonomie_level)}>
-                                {usager.autonomie_level || 'Non défini'}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
                               <Badge className={getStatusColor(usager.statut)}>
                                 {usager.statut}
                               </Badge>
@@ -2207,8 +2123,7 @@ export default function ClientsSection() {
         )}
         onSuccess={() => {
           loadUsagers();
-          loadUsagerStatistics();
-          setShowUsagerEditModal(false);
+                    setShowUsagerEditModal(false);
         }}
       />
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { useRooms } from '@/hooks/useSupabase';
+import { useRooms, useMaintenanceTasks } from '@/hooks/useSupabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { 
   DropdownMenu, 
@@ -91,6 +91,17 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   // Récupérer les vraies chambres de l'établissement sélectionné
   const { rooms: realRooms, loading: roomsLoading, error: roomsError, updateRoomStatus } = useRooms(selectedHotel?.id);
   const { addNotification } = useNotifications();
+  
+  // Récupérer les vraies tâches de maintenance
+  const {
+    tasks: maintenanceTasks,
+    loading: tasksLoading,
+    error: tasksError,
+    createTask,
+    updateTask,
+    deleteTask,
+    getTaskStatistics
+  } = useMaintenanceTasks(selectedHotel?.id);
   
   const [maintenanceRooms, setMaintenanceRooms] = useState<MaintenanceRoom[]>([]);
   const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([]);
@@ -307,9 +318,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
-  // Obtenir les todos pour une chambre spécifique
-  const getTodosForRoom = (roomId: number) => {
-    return todos.filter(todo => todo.roomId === roomId);
+  // Obtenir les tâches pour une chambre spécifique
+  const getTasksForRoom = (roomId: number) => {
+    return maintenanceTasks.filter(task => task.room_id === roomId);
   };
 
   // Obtenir le nom de l'élément de maintenance
@@ -366,32 +377,101 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     }
   };
 
-  const handleAddTodo = () => {
-    if (newTodo.titre.trim() && selectedRoom) {
-      const todo: MaintenanceTodo = {
-        id: Date.now(),
-        roomId: selectedRoom.id,
-        itemId: 1, // Par défaut
-        titre: newTodo.titre,
-        description: newTodo.description,
-        status: 'a_faire',
-        priorite: newTodo.priorite,
-        dateCreation: new Date().toISOString().split('T')[0],
-        dateEcheance: newTodo.dateEcheance || undefined,
-        responsable: newTodo.responsable,
-        notes: newTodo.notes
-      };
-      setTodos([...todos, todo]);
-      setNewTodo({
-        titre: '',
-        description: '',
-        priorite: 'moyenne',
-        responsable: '',
-        dateEcheance: '',
-        notes: ''
-      });
-      setShowAddTodoModal(false);
+  // Validation function for task data
+  const validateTaskData = (taskData: any): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Required field validations
+    if (!taskData.titre?.trim()) {
+      errors.push('Le titre est requis');
     }
+    if (!taskData.room_id) {
+      errors.push('L\'ID de la chambre est requis');
+    }
+    
+    // Priority validation
+    const validPriorities = ['faible', 'moyenne', 'haute', 'urgente'];
+    if (taskData.priorite && !validPriorities.includes(taskData.priorite)) {
+      errors.push('Priorité invalide');
+    }
+    
+    // Status validation
+    const validStatuses = ['en_attente', 'en_cours', 'terminee', 'annulee'];
+    if (taskData.statut && !validStatuses.includes(taskData.statut)) {
+      errors.push('Statut invalide');
+    }
+    
+    // Date validation
+    if (taskData.date_echeance) {
+      const echeanceDate = new Date(taskData.date_echeance);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (isNaN(echeanceDate.getTime())) {
+        errors.push('Date d\'échéance invalide');
+      } else if (echeanceDate < today) {
+        errors.push('La date d\'échéance ne peut pas être dans le passé');
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
+  const handleAddTodo = async () => {
+    if (!newTodo.titre.trim() || !selectedRoom) {
+      addNotification('error', 'Titre et chambre requis');
+      return;
+    }
+
+    try {
+      // Validate and map priority values correctly
+      const priorityMapping: Record<string, 'faible' | 'moyenne' | 'haute' | 'urgente'> = {
+        'basse': 'faible',
+        'moyenne': 'moyenne', 
+        'haute': 'haute',
+        'critique': 'urgente'
+      };
+      
+      const taskData = {
+        titre: newTodo.titre.trim(),
+        description: newTodo.description?.trim() || null,
+        priorite: priorityMapping[newTodo.priorite] || 'moyenne',
+        responsable: newTodo.responsable?.trim() || null,
+        date_echeance: newTodo.dateEcheance || null,
+        notes: newTodo.notes?.trim() || null,
+        room_id: selectedRoom.id
+      };
+
+      // Validate the task data
+      const validation = validateTaskData(taskData);
+      if (!validation.isValid) {
+        addNotification('error', `Erreurs de validation: ${validation.errors.join(', ')}`);
+        return;
+      }
+        
+      const result = await createTask(taskData);
+        
+      if (result.success) {
+        addNotification('success', 'Tâche ajoutée avec succès');
+        setNewTodo({
+          titre: '',
+          description: '',
+          priorite: 'moyenne',
+          responsable: '',
+          dateEcheance: '',
+          notes: ''
+        });
+        setShowAddTodoModal(false);
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la création de la tâche');
+      }
+      } catch (error) {
+        console.error('Error creating task:', error);
+        addNotification('error', 'Erreur lors de la création de la tâche');
+      }
   };
 
   const getStatusColor = (status: string) => {
@@ -527,42 +607,47 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     setSelectedRoomForDetail(null);
   };
 
-  // Fonctions pour la gestion des tâches
-  const moveTodo = (todoId: number, direction: 'up' | 'down') => {
-    const roomTodos = todos.filter(todo => todo.roomId === selectedRoomForDetail?.id);
-    const todoIndex = roomTodos.findIndex(todo => todo.id === todoId);
-    
-    if (todoIndex === -1) return;
-    
-    const newTodos = [...todos];
-    const currentTodo = newTodos.find(todo => todo.id === todoId);
-    const targetIndex = direction === 'up' ? todoIndex - 1 : todoIndex + 1;
-    
-    if (targetIndex >= 0 && targetIndex < roomTodos.length) {
-      const targetTodo = roomTodos[targetIndex];
-      const targetTodoInNewTodos = newTodos.find(todo => todo.id === targetTodo.id);
-      
-      if (currentTodo && targetTodoInNewTodos) {
-        // Échanger les ordres (si on avait un champ order)
-        const temp = currentTodo;
-        newTodos[newTodos.findIndex(todo => todo.id === todoId)] = targetTodoInNewTodos;
-        newTodos[newTodos.findIndex(todo => todo.id === targetTodo.id)] = temp;
+  // Fonctions pour la gestion des tâches - utilise maintenant l'API
+  const updateTaskStatus = async (taskId: number, newStatus: 'en_attente' | 'en_cours' | 'terminee' | 'annulee') => {
+    try {
+      const result = await updateTask(taskId, { statut: newStatus });
+      if (result.success) {
+        addNotification('success', 'Statut mis à jour');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la mise à jour');
       }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      addNotification('error', 'Erreur lors de la mise à jour du statut');
     }
-    
-    setTodos(newTodos);
   };
 
-  const updateTodoStatus = (todoId: number, newStatus: 'a_faire' | 'en_cours' | 'termine') => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === todoId ? { ...todo, status: newStatus } : todo
-    ));
+  const updateTaskPriority = async (taskId: number, newPriority: 'faible' | 'moyenne' | 'haute' | 'urgente') => {
+    try {
+      const result = await updateTask(taskId, { priorite: newPriority });
+      if (result.success) {
+        addNotification('success', 'Priorité mise à jour');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la mise à jour');
+      }
+    } catch (error) {
+      console.error('Error updating task priority:', error);
+      addNotification('error', 'Erreur lors de la mise à jour de la priorité');
+    }
   };
 
-  const updateTodoPriority = (todoId: number, newPriority: 'basse' | 'moyenne' | 'haute' | 'critique') => {
-    setTodos(prev => prev.map(todo => 
-      todo.id === todoId ? { ...todo, priorite: newPriority } : todo
-    ));
+  const deleteTaskHandler = async (taskId: number) => {
+    try {
+      const result = await deleteTask(taskId);
+      if (result.success) {
+        addNotification('success', 'Tâche supprimée');
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      addNotification('error', 'Erreur lors de la suppression de la tâche');
+    }
   };
 
   // Calculer les statistiques
@@ -589,10 +674,12 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       return daysDiff > 7; // Plus de 7 jours
     }).length;
 
-    const totalTodos = todos.length;
-    const pendingTodos = todos.filter(todo => todo.status === 'a_faire').length;
-    const inProgressTodos = todos.filter(todo => todo.status === 'en_cours').length;
-    const completedTodos = todos.filter(todo => todo.status === 'termine').length;
+    // Utiliser les statistiques de l'API si disponibles, sinon calculer localement
+    const apiStats = getTaskStatistics ? getTaskStatistics() : null;
+    const totalTodos = apiStats?.total || maintenanceTasks.length;
+    const pendingTodos = apiStats?.enAttente || maintenanceTasks.filter(task => task.statut === 'en_attente').length;
+    const inProgressTodos = apiStats?.enCours || maintenanceTasks.filter(task => task.statut === 'en_cours').length;
+    const completedTodos = apiStats?.terminees || maintenanceTasks.filter(task => task.statut === 'terminee').length;
 
     return {
       totalRoomsInEstablishment,
@@ -613,9 +700,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       inProgressTodos,
       completedTodos
     };
-  };
+  }
 
-  if (roomsLoading || loading) {
+  if (roomsLoading || loading || tasksLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
@@ -980,7 +1067,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                             )}
                             <div className="flex items-center justify-between">
                               <span>Tâches:</span>
-                              <span className="font-medium">{getTodosForRoom(room.id).length}</span>
+                              <span className="font-medium">{getTasksForRoom(room.id).length}</span>
                             </div>
                             {room.coutEstime && room.coutEstime > 0 && (
                               <div className="flex items-center justify-between">
@@ -1109,89 +1196,77 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {getTodosForRoom(selectedRoomForDetail.id).length > 0 ? (
-                    getTodosForRoom(selectedRoomForDetail.id).map((todo, index) => (
-                      <div key={todo.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                  {getTasksForRoom(selectedRoomForDetail.id).length > 0 ? (
+                    getTasksForRoom(selectedRoomForDetail.id).map((task, index) => (
+                      <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => moveTodo(todo.id, 'up')}
-                                  disabled={index === 0}
-                                >
-                                  <ChevronUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => moveTodo(todo.id, 'down')}
-                                  disabled={index === getTodosForRoom(selectedRoomForDetail.id).length - 1}
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <h4 className="font-medium text-gray-900">{todo.titre}</h4>
-                              <Badge className={getPriorityColor(todo.priorite)}>
-                                {todo.priorite}
+                              <h4 className="font-medium text-gray-900">{task.titre}</h4>
+                              <Badge className={getPriorityColor(task.priorite)}>
+                                {task.priorite}
                               </Badge>
                               <Badge variant="outline" className={
-                                todo.status === 'termine' ? 'bg-green-100 text-green-800' :
-                                todo.status === 'en_cours' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                task.statut === 'terminee' ? 'bg-green-100 text-green-800' :
+                                task.statut === 'en_cours' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                               }>
-                                {todo.status === 'termine' ? 'Terminé' :
-                                 todo.status === 'en_cours' ? 'En cours' : 'À faire'}
+                                {task.statut === 'terminee' ? 'Terminé' :
+                                 task.statut === 'en_cours' ? 'En cours' : 'En attente'}
                               </Badge>
                             </div>
                             
-                            <p className="text-gray-600 text-sm mb-3">{todo.description}</p>
+                            <p className="text-gray-600 text-sm mb-3">{task.description}</p>
                             
                             <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              {todo.responsable && (
+                              {task.responsable && (
                                 <span className="flex items-center">
                                   <User className="h-3 w-3 mr-1" />
-                                  {todo.responsable}
+                                  {task.responsable}
                                 </span>
                               )}
-                              {todo.dateEcheance && (
+                              {task.date_echeance && (
                                 <span className="flex items-center">
                                   <Calendar className="h-3 w-3 mr-1" />
-                                  Échéance: {new Date(todo.dateEcheance).toLocaleDateString('fr-FR')}
+                                  Échéance: {new Date(task.date_echeance).toLocaleDateString('fr-FR')}
                                 </span>
                               )}
                             </div>
                             
-                            {todo.notes && (
+                            {task.notes && (
                               <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                                <span className="font-medium">Notes:</span> {todo.notes}
+                                <span className="font-medium">Notes:</span> {task.notes}
                               </div>
                             )}
                           </div>
                           
                           <div className="flex items-center space-x-2">
                             <select
-                              value={todo.status}
-                              onChange={(e) => updateTodoStatus(todo.id, e.target.value as any)}
+                              value={task.statut}
+                              onChange={(e) => updateTaskStatus(task.id, e.target.value as any)}
                               className="text-xs px-2 py-1 border border-gray-300 rounded"
                             >
-                              <option value="a_faire">À faire</option>
+                              <option value="en_attente">En attente</option>
                               <option value="en_cours">En cours</option>
-                              <option value="termine">Terminé</option>
+                              <option value="terminee">Terminé</option>
+                              <option value="annulee">Annulé</option>
                             </select>
                             <select
-                              value={todo.priorite}
-                              onChange={(e) => updateTodoPriority(todo.id, e.target.value as any)}
+                              value={task.priorite}
+                              onChange={(e) => updateTaskPriority(task.id, e.target.value as any)}
                               className="text-xs px-2 py-1 border border-gray-300 rounded"
                             >
-                              <option value="basse">Basse</option>
+                              <option value="faible">Faible</option>
                               <option value="moyenne">Moyenne</option>
                               <option value="haute">Haute</option>
-                              <option value="critique">Critique</option>
+                              <option value="urgente">Urgente</option>
                             </select>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => deleteTaskHandler(task.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>

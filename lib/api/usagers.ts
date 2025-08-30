@@ -22,27 +22,11 @@ export interface UsagerStats {
   actifs: number;
   inactifs: number;
   archives: number;
-  autonomes: number;
-  semi_autonomes: number;
-  non_autonomes: number;
-  by_prescripteur_type: {
-    Particulier?: number;
-    Entreprise?: number;
-    Association?: number;
-  };
 }
 
 // Type guards
 export const isValidUsagerStatut = (statut: string): statut is 'actif' | 'inactif' | 'archive' => {
   return ['actif', 'inactif', 'archive'].includes(statut);
-};
-
-export const isValidAutonomieLevel = (level: string): level is 'Autonome' | 'Semi-autonome' | 'Non-autonome' => {
-  return ['Autonome', 'Semi-autonome', 'Non-autonome'].includes(level);
-};
-
-export const isValidSituationFamiliale = (situation: string): situation is 'Célibataire' | 'Marié(e)' | 'Divorcé(e)' | 'Veuf/Veuve' | 'Pacsé(e)' | 'Union libre' => {
-  return ['Célibataire', 'Marié(e)', 'Divorcé(e)', 'Veuf/Veuve', 'Pacsé(e)', 'Union libre'].includes(situation);
 };
 
 // API response type
@@ -57,113 +41,54 @@ class UsagersAPI {
   async searchUsagers(
     searchTerm?: string,
     prescripteurId?: number,
-    statut?: string,
-    autonomieLevel?: string
+    statut?: string
   ): Promise<ApiResponse<UsagerWithPrescripteur[]>> {
     try {
-      // Try RPC function first
-      const { data: rpcData, error: rpcError } = await supabase.rpc('search_usagers', {
-        search_term: searchTerm || null,
-        prescripteur_filter: prescripteurId || null,
-        statut_filter: statut || null,
-        autonomie_filter: autonomieLevel || null
-      });
-
-      // If RPC fails, fallback to direct query
-      if (rpcError) {
-        console.warn('RPC search_usagers failed, falling back to direct query:', rpcError);
-        
-        // Build query with filters
-        let query = supabase
-          .from('usagers')
-          .select(`
-            *,
-            prescripteur:clients!prescripteur_id (
-              id,
-              nom,
-              prenom,
-              raison_sociale,
-              client_type,
-              numero_client
-            )
-          `)
-          .order('created_at', { ascending: false });
-        
-        // Apply filters
-        if (prescripteurId) {
-          query = query.eq('prescripteur_id', prescripteurId);
-        }
-        if (statut) {
-          query = query.eq('statut', statut);
-        }
-        if (autonomieLevel) {
-          query = query.eq('autonomie_level', autonomieLevel);
-        }
-        
-        const { data: fallbackData, error: fallbackError } = await query;
-        
-        if (fallbackError) {
-          console.error('Both RPC and fallback failed:', fallbackError);
-          return { success: false, error: fallbackError.message };
-        }
-        
-        // Filter by search term on client side if needed
-        let filteredData = fallbackData || [];
-        if (searchTerm && searchTerm.trim() !== '') {
-          const term = searchTerm.toLowerCase();
-          filteredData = filteredData.filter((usager: any) => 
-            usager.nom?.toLowerCase().includes(term) ||
-            usager.prenom?.toLowerCase().includes(term) ||
-            usager.numero_usager?.toLowerCase().includes(term) ||
-            usager.email?.toLowerCase().includes(term) ||
-            usager.telephone?.includes(term)
-          );
-        }
-        
-        return { success: true, data: filteredData as UsagerWithPrescripteur[] };
+      // Build query with filters
+      let query = supabase
+        .from('usagers')
+        .select(`
+          *,
+          prescripteur:clients!prescripteur_id (
+            id,
+            nom,
+            prenom,
+            raison_sociale,
+            client_type,
+            numero_client
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      // Apply filters
+      if (prescripteurId) {
+        query = query.eq('prescripteur_id', prescripteurId);
+      }
+      if (statut) {
+        query = query.eq('statut', statut);
       }
       
-      // RPC succeeded, continue with original logic
-      const data = rpcData;
-      const error = rpcError;
+      const { data, error } = await query;
       
       if (error) {
         console.error('Error searching usagers:', error);
         return { success: false, error: error.message };
       }
-
-      // Transform the data to include prescripteur object using database-computed values
-      const transformedData = (data || []).map((item: any) => ({
-        ...item,
-        // Ensure all required fields are present with proper defaults
-        lieu_naissance: item.lieu_naissance || null,
-        nationalite: item.nationalite || null,
-        adresse: item.adresse || null,
-        code_postal: item.code_postal || null,
-        numero_secu: item.numero_secu || null,
-        caf_number: item.caf_number || null,
-        nombre_enfants: item.nombre_enfants || 0,
-        revenus: item.revenus || null,
-        type_revenus: item.type_revenus || null,
-        prestations: item.prestations || null,
-        observations: item.observations || null,
-        updated_at: item.updated_at || null,
-        created_by: item.created_by || null,
-        updated_by: item.updated_by || null,
-        // Use the prescripteur data from the database join
-        prescripteur: item.prescripteur_id ? {
-          id: item.prescripteur_id,
-          nom: item.prescripteur_nom,
-          prenom: item.prescripteur_type === 'Particulier' ? 
-            (item.prescripteur_display_name?.split(' ')[1] || null) : null,
-          raison_sociale: item.prescripteur_raison_sociale,
-          client_type: item.prescripteur_type,
-          numero_client: item.prescripteur_numero || null,
-          display_name: item.prescripteur_display_name
-        } : undefined
-      }));
-
-      return { success: true, data: transformedData };
+      
+      // Filter by search term on client side if needed
+      let filteredData = data || [];
+      if (searchTerm && searchTerm.trim() !== '') {
+        const term = searchTerm.toLowerCase();
+        filteredData = filteredData.filter((usager: any) => 
+          usager.nom?.toLowerCase().includes(term) ||
+          usager.prenom?.toLowerCase().includes(term) ||
+          usager.numero_usager?.toLowerCase().includes(term) ||
+          usager.email?.toLowerCase().includes(term) ||
+          usager.telephone?.includes(term)
+        );
+      }
+      
+      return { success: true, data: filteredData as UsagerWithPrescripteur[] };
     } catch (error: any) {
       console.error('Error in searchUsagers:', error);
       return { success: false, error: error.message || 'Erreur lors de la recherche des usagers' };
@@ -213,12 +138,7 @@ class UsagersAPI {
             prenom,
             raison_sociale,
             client_type,
-            numero_client,
-            email,
-            telephone,
-            adresse,
-            ville,
-            code_postal
+            numero_client
           )
         `)
         .eq('id', id)
@@ -270,14 +190,6 @@ class UsagersAPI {
         return { success: false, error: 'Statut invalide' };
       }
 
-      if (usager.autonomie_level && !isValidAutonomieLevel(usager.autonomie_level)) {
-        return { success: false, error: 'Niveau d\'autonomie invalide' };
-      }
-
-      if (usager.situation_familiale && !isValidSituationFamiliale(usager.situation_familiale)) {
-        return { success: false, error: 'Situation familiale invalide' };
-      }
-
       const { data, error } = await supabase
         .from('usagers')
         .insert(usager)
@@ -302,14 +214,6 @@ class UsagersAPI {
       // Validate enums if provided
       if (updates.statut && !isValidUsagerStatut(updates.statut)) {
         return { success: false, error: 'Statut invalide' };
-      }
-
-      if (updates.autonomie_level && !isValidAutonomieLevel(updates.autonomie_level)) {
-        return { success: false, error: 'Niveau d\'autonomie invalide' };
-      }
-
-      if (updates.situation_familiale && !isValidSituationFamiliale(updates.situation_familiale)) {
-        return { success: false, error: 'Situation familiale invalide' };
       }
 
       const { data, error } = await supabase
@@ -350,69 +254,6 @@ class UsagersAPI {
       return { success: false, error: error.message || 'Erreur lors de la suppression de l\'usager' };
     }
   }
-
-  // Get usager statistics
-  async getUsagerStatistics(): Promise<ApiResponse<UsagerStats>> {
-    try {
-      const { data, error } = await supabase.rpc('get_usager_statistics');
-
-      if (error) {
-        console.error('Error fetching usager statistics:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data: data as UsagerStats };
-    } catch (error: any) {
-      console.error('Error in getUsagerStatistics:', error);
-      return { success: false, error: error.message || 'Erreur lors de la récupération des statistiques' };
-    }
-  }
-
-  // Generate usager number
-  async generateUsagerNumber(): Promise<ApiResponse<string>> {
-    try {
-      const { data, error } = await supabase.rpc('generate_usager_number');
-
-      if (error) {
-        console.error('Error generating usager number:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data: data as string };
-    } catch (error: any) {
-      console.error('Error in generateUsagerNumber:', error);
-      return { success: false, error: error.message || 'Erreur lors de la génération du numéro d\'usager' };
-    }
-  }
-
-  // Check if usager exists
-  async checkUsagerExists(nom: string, prenom: string, dateNaissance?: string): Promise<ApiResponse<boolean>> {
-    try {
-      let query = supabase
-        .from('usagers')
-        .select('id')
-        .eq('nom', nom.toUpperCase())
-        .eq('prenom', prenom);
-
-      if (dateNaissance) {
-        query = query.eq('date_naissance', dateNaissance);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error checking usager existence:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data: (data && data.length > 0) };
-    } catch (error: any) {
-      console.error('Error in checkUsagerExists:', error);
-      return { success: false, error: error.message || 'Erreur lors de la vérification de l\'existence de l\'usager' };
-    }
-  }
-
-  // Bulk operations
 
   // Archive multiple usagers
   async archiveUsagers(ids: number[]): Promise<ApiResponse<void>> {
