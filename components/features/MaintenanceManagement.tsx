@@ -377,40 +377,101 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     }
   };
 
+  // Validation function for task data
+  const validateTaskData = (taskData: any): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Required field validations
+    if (!taskData.titre?.trim()) {
+      errors.push('Le titre est requis');
+    }
+    if (!taskData.room_id) {
+      errors.push('L\'ID de la chambre est requis');
+    }
+    
+    // Priority validation
+    const validPriorities = ['faible', 'moyenne', 'haute', 'urgente'];
+    if (taskData.priorite && !validPriorities.includes(taskData.priorite)) {
+      errors.push('Priorité invalide');
+    }
+    
+    // Status validation
+    const validStatuses = ['en_attente', 'en_cours', 'terminee', 'annulee'];
+    if (taskData.statut && !validStatuses.includes(taskData.statut)) {
+      errors.push('Statut invalide');
+    }
+    
+    // Date validation
+    if (taskData.date_echeance) {
+      const echeanceDate = new Date(taskData.date_echeance);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (isNaN(echeanceDate.getTime())) {
+        errors.push('Date d\'échéance invalide');
+      } else if (echeanceDate < today) {
+        errors.push('La date d\'échéance ne peut pas être dans le passé');
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
   const handleAddTodo = async () => {
-    if (newTodo.titre.trim() && selectedRoom) {
-      try {
-        const taskData = {
-          titre: newTodo.titre,
-          description: newTodo.description || null,
-          priorite: newTodo.priorite as 'faible' | 'moyenne' | 'haute' | 'urgente',
-          responsable: newTodo.responsable || null,
-          date_echeance: newTodo.dateEcheance || null,
-          notes: newTodo.notes || null,
-          room_id: selectedRoom.id
-        };
+    if (!newTodo.titre.trim() || !selectedRoom) {
+      addNotification('error', 'Titre et chambre requis');
+      return;
+    }
+
+    try {
+      // Validate and map priority values correctly
+      const priorityMapping: Record<string, 'faible' | 'moyenne' | 'haute' | 'urgente'> = {
+        'basse': 'faible',
+        'moyenne': 'moyenne', 
+        'haute': 'haute',
+        'critique': 'urgente'
+      };
+      
+      const taskData = {
+        titre: newTodo.titre.trim(),
+        description: newTodo.description?.trim() || null,
+        priorite: priorityMapping[newTodo.priorite] || 'moyenne',
+        responsable: newTodo.responsable?.trim() || null,
+        date_echeance: newTodo.dateEcheance || null,
+        notes: newTodo.notes?.trim() || null,
+        room_id: selectedRoom.id
+      };
+
+      // Validate the task data
+      const validation = validateTaskData(taskData);
+      if (!validation.isValid) {
+        addNotification('error', `Erreurs de validation: ${validation.errors.join(', ')}`);
+        return;
+      }
         
-        const result = await createTask(taskData);
+      const result = await createTask(taskData);
         
-        if (result.success) {
-          addNotification('success', 'Tâche ajoutée avec succès');
-          setNewTodo({
-            titre: '',
-            description: '',
-            priorite: 'moyenne',
-            responsable: '',
-            dateEcheance: '',
-            notes: ''
-          });
-          setShowAddTodoModal(false);
-        } else {
-          addNotification('error', result.error || 'Erreur lors de la création de la tâche');
-        }
+      if (result.success) {
+        addNotification('success', 'Tâche ajoutée avec succès');
+        setNewTodo({
+          titre: '',
+          description: '',
+          priorite: 'moyenne',
+          responsable: '',
+          dateEcheance: '',
+          notes: ''
+        });
+        setShowAddTodoModal(false);
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la création de la tâche');
+      }
       } catch (error) {
         console.error('Error creating task:', error);
         addNotification('error', 'Erreur lors de la création de la tâche');
       }
-    }
   };
 
   const getStatusColor = (status: string) => {
@@ -639,7 +700,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       inProgressTodos,
       completedTodos
     };
-  };
+  }
 
   if (roomsLoading || loading || tasksLoading) {
     return (
@@ -1137,87 +1198,75 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                 <div className="space-y-3">
                   {getTasksForRoom(selectedRoomForDetail.id).length > 0 ? (
                     getTasksForRoom(selectedRoomForDetail.id).map((task, index) => (
-                      <div key={todo.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => moveTodo(todo.id, 'up')}
-                                  disabled={index === 0}
-                                >
-                                  <ChevronUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => moveTodo(todo.id, 'down')}
-                                  disabled={index === getTodosForRoom(selectedRoomForDetail.id).length - 1}
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <h4 className="font-medium text-gray-900">{todo.titre}</h4>
-                              <Badge className={getPriorityColor(todo.priorite)}>
-                                {todo.priorite}
+                              <h4 className="font-medium text-gray-900">{task.titre}</h4>
+                              <Badge className={getPriorityColor(task.priorite)}>
+                                {task.priorite}
                               </Badge>
                               <Badge variant="outline" className={
-                                todo.status === 'termine' ? 'bg-green-100 text-green-800' :
-                                todo.status === 'en_cours' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                task.statut === 'terminee' ? 'bg-green-100 text-green-800' :
+                                task.statut === 'en_cours' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                               }>
-                                {todo.status === 'termine' ? 'Terminé' :
-                                 todo.status === 'en_cours' ? 'En cours' : 'À faire'}
+                                {task.statut === 'terminee' ? 'Terminé' :
+                                 task.statut === 'en_cours' ? 'En cours' : 'En attente'}
                               </Badge>
                             </div>
                             
-                            <p className="text-gray-600 text-sm mb-3">{todo.description}</p>
+                            <p className="text-gray-600 text-sm mb-3">{task.description}</p>
                             
                             <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              {todo.responsable && (
+                              {task.responsable && (
                                 <span className="flex items-center">
                                   <User className="h-3 w-3 mr-1" />
-                                  {todo.responsable}
+                                  {task.responsable}
                                 </span>
                               )}
-                              {todo.dateEcheance && (
+                              {task.date_echeance && (
                                 <span className="flex items-center">
                                   <Calendar className="h-3 w-3 mr-1" />
-                                  Échéance: {new Date(todo.dateEcheance).toLocaleDateString('fr-FR')}
+                                  Échéance: {new Date(task.date_echeance).toLocaleDateString('fr-FR')}
                                 </span>
                               )}
                             </div>
                             
-                            {todo.notes && (
+                            {task.notes && (
                               <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                                <span className="font-medium">Notes:</span> {todo.notes}
+                                <span className="font-medium">Notes:</span> {task.notes}
                               </div>
                             )}
                           </div>
                           
                           <div className="flex items-center space-x-2">
                             <select
-                              value={todo.status}
-                              onChange={(e) => updateTodoStatus(todo.id, e.target.value as any)}
+                              value={task.statut}
+                              onChange={(e) => updateTaskStatus(task.id, e.target.value as any)}
                               className="text-xs px-2 py-1 border border-gray-300 rounded"
                             >
-                              <option value="a_faire">À faire</option>
+                              <option value="en_attente">En attente</option>
                               <option value="en_cours">En cours</option>
-                              <option value="termine">Terminé</option>
+                              <option value="terminee">Terminé</option>
+                              <option value="annulee">Annulé</option>
                             </select>
                             <select
-                              value={todo.priorite}
-                              onChange={(e) => updateTodoPriority(todo.id, e.target.value as any)}
+                              value={task.priorite}
+                              onChange={(e) => updateTaskPriority(task.id, e.target.value as any)}
                               className="text-xs px-2 py-1 border border-gray-300 rounded"
                             >
-                              <option value="basse">Basse</option>
+                              <option value="faible">Faible</option>
                               <option value="moyenne">Moyenne</option>
                               <option value="haute">Haute</option>
-                              <option value="critique">Critique</option>
+                              <option value="urgente">Urgente</option>
                             </select>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => deleteTaskHandler(task.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
@@ -1506,10 +1555,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   onChange={(e) => setNewTodo(prev => ({ ...prev, priorite: e.target.value as any }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="faible">Faible</option>
+                  <option value="basse">Basse</option>
                   <option value="moyenne">Moyenne</option>
                   <option value="haute">Haute</option>
-                  <option value="urgente">Urgente</option>
+                  <option value="critique">Critique</option>
                 </select>
               </div>
               

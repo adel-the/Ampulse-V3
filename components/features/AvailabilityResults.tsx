@@ -436,7 +436,7 @@ export default function AvailabilityResults({
                   className="inline-flex items-center gap-0.5 bg-gray-100 rounded px-1.5 py-0.5 text-xs"
                 >
                   {getEquipmentIcon('general')}
-                  {equipment.equipment?.nom || `Équipement ${equipment.equipment_id}`}
+                  {`Équipement ${equipment.equipment_id}`}
                 </span>
               ))}
               {selectedRoom.equipmentDetails.length > 6 && (
@@ -837,7 +837,7 @@ export default function AvailabilityResults({
                             className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-xs"
                           >
                             {getEquipmentIcon('general')}
-                            <span>{equipment.nom}</span>
+                            <span>Équipement {equipment.equipment_id}</span>
                           </div>
                         ))}
                         {room.equipmentDetails.length > 6 && (

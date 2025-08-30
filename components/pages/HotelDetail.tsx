@@ -252,7 +252,7 @@ export default function HotelDetail({ hotel, onBack, onEditHotel }: HotelDetailP
                       <div className="font-medium text-gray-900">{room.numero}</div>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="text-sm text-gray-900">{getCategoryName(room.category_id) || room.type}</div>
+                      <div className="text-sm text-gray-900">{getCategoryName(room.category_id) || room.bed_type}</div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center text-sm font-medium text-gray-900">
