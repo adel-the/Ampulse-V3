@@ -4,7 +4,7 @@ import { Bell, Search, Settings, User, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Notification } from '../../types';
+import { Notification } from '@/lib/supabase';
 import Link from 'next/link';
 
 interface HeaderProps {

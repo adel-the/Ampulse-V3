@@ -14,6 +14,12 @@ import { clientsApi, type Client } from '@/lib/api/clients';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Individual } from '@/types/individuals';
 import IndividualsSection from '../features/IndividualsSection';
+import { 
+  createUsagerWithIndividuals, 
+  updateUsager, 
+  validateUsagerIndividualsData,
+  type UsagerFormData
+} from '@/lib/usagerIndividualsTransaction';
 
 interface UsagerEditModalProps {
   isOpen: boolean;
@@ -126,65 +132,50 @@ export default function UsagerEditModal({
     }));
   };
 
-
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.nom || !formData.prenom) {
-      addNotification('error', 'Le nom et le prénom sont obligatoires');
-      return;
-    }
-
-    if (!formData.prescripteur_id) {
-      addNotification('error', 'Un prescripteur doit être sélectionné');
+    const isCreating = !usager?.id;
+    
+    // ========== VALIDATION ==========
+    const validationResult = validateUsagerIndividualsData(formData as UsagerFormData, individuals);
+    if (!validationResult.isValid) {
+      validationResult.errors.forEach(error => addNotification('error', error));
       return;
     }
 
     setLoading(true);
 
     try {
-      let response;
-      
-      if (usager?.id) {
-        // Update existing usager
-        const { prescripteur_id, ...updates } = formData;
-        response = await usagersApi.updateUsager(usager.id, {
-          ...updates,
-          prescripteur_id: prescripteur_id
-        });
+      let result;
+
+      if (isCreating) {
+        // ========== CRÉATION AVEC TRANSACTION ==========
+        result = await createUsagerWithIndividuals(formData as UsagerFormData, individuals);
       } else {
-        // Create new usager
-        response = await usagersApi.createUsager(formData);
+        // ========== MISE À JOUR USAGER SEULEMENT ==========
+        // Les individus existants sont gérés directement par IndividualsSection
+        result = await updateUsager(usager.id, formData as UsagerFormData);
       }
 
-      if (response.success) {
-        // Handle individuals (front-end only for now)
-        if (individuals.length > 0) {
-          const individualsData = {
-            usager_id: response.data?.id,
-            individuals: individuals,
-            created_at: new Date().toISOString()
-          };
-          
-          // Store temporarily in localStorage
-          const storageKey = `usager_${response.data?.id}_individuals`;
-          localStorage.setItem(storageKey, JSON.stringify(individualsData));
-          
-          // Show notification with individuals count
-          const individualCount = individuals.length;
-          const individualsText = individualCount === 1 ? '1 personne liée' : `${individualCount} personnes liées`;
-          addNotification('success', `Usager ${usager ? 'mis à jour' : 'créé'} avec succès (${individualsText})`);
-        } else {
-          addNotification('success', usager ? 'Usager mis à jour avec succès' : 'Usager créé avec succès');
-        }
+      if (result.success) {
+        // ========== SUCCÈS ==========
+        const successMessage = isCreating
+          ? result.individuCount && result.individuCount > 0
+            ? `Usager créé avec succès (${result.individuCount} personne${result.individuCount > 1 ? 's' : ''} liée${result.individuCount > 1 ? 's' : ''})`
+            : 'Usager créé avec succès'
+          : 'Usager mis à jour avec succès';
+        
+        addNotification('success', successMessage);
         
         if (onSuccess) onSuccess();
         handleClose();
       } else {
-        addNotification('error', response.error || 'Une erreur est survenue');
+        // ========== ÉCHEC ==========
+        addNotification('error', result.error || 'Une erreur est survenue');
       }
+      
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      addNotification('error', 'Une erreur est survenue');
+      addNotification('error', 'Une erreur inattendue est survenue');
     } finally {
       setLoading(false);
     }
@@ -445,14 +436,20 @@ export default function UsagerEditModal({
 
           {/* Individuals Management Section */}
           <IndividualsSection
-            individuals={individuals}
-            onUpdateIndividuals={setIndividuals}
+            usagerId={usager?.id} // Utiliser l'ID de l'usager pour la gestion BDD
             mainUsagerData={{
               nom: formData.nom,
               lieu_naissance: formData.lieu_naissance,
               telephone: formData.telephone,
               email: formData.email
             }}
+            enableTestData={true}
+            onTestDataGenerated={(generatedIndividuals) => {
+              addNotification('success', `${generatedIndividuals.length} personne${generatedIndividuals.length > 1 ? 's' : ''} générée${generatedIndividuals.length > 1 ? 's' : ''} avec succès`);
+            }}
+            // Props de compatibilité pour les nouveaux usagers (pas encore en BDD)
+            individuals={usager?.id ? undefined : individuals}
+            onUpdateIndividuals={usager?.id ? undefined : setIndividuals}
           />
         </div>
 
