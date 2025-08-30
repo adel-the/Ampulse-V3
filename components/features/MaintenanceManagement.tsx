@@ -123,11 +123,14 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   // Générer des données de démonstration
   useEffect(() => {
     const generateDemoData = () => {
+      // Utiliser l'établissement sélectionné ou 'Hôtel Central' par défaut
+      const currentHotel = selectedHotel || 'Hôtel Central';
+      
       const demoRooms: MaintenanceRoom[] = [
         {
           id: 1,
           numero: '101',
-          hotel: 'Hôtel Central',
+          hotel: currentHotel,
           status: 'maintenance',
           dateDebut: '2024-01-15',
           description: 'Problème de climatisation',
@@ -138,7 +141,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
         {
           id: 2,
           numero: '205',
-          hotel: 'Hôtel Central',
+          hotel: currentHotel,
           status: 'reparation',
           dateDebut: '2024-01-10',
           dateFin: '2024-01-20',
@@ -150,7 +153,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
         {
           id: 3,
           numero: '312',
-          hotel: 'Hôtel Central',
+          hotel: currentHotel,
           status: 'commande',
           dateDebut: '2024-01-12',
           description: 'Attente pièces détachées',
@@ -231,15 +234,17 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     };
 
     setTimeout(generateDemoData, 1000);
-  }, []);
+  }, [selectedHotel]); // Regénérer les données quand l'établissement change
 
-  // Filtrer les chambres
+  // Filtrer les chambres par établissement et autres critères
   const filteredRooms = rooms.filter(room => {
+    // Filtrer d'abord par établissement sélectionné
+    const matchesHotel = selectedHotel ? room.hotel === selectedHotel : true;
     const matchesStatus = statusFilter === 'all' || room.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || room.priorite === priorityFilter;
     const matchesSearch = room.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          room.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesPriority && matchesSearch;
+    return matchesHotel && matchesStatus && matchesPriority && matchesSearch;
   });
 
   // Obtenir les todos pour une chambre spécifique
@@ -259,7 +264,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       const room: MaintenanceRoom = {
         id: Date.now(),
         numero: newRoom.numero,
-        hotel: selectedHotel || 'Hôtel Central',
+        hotel: selectedHotel || 'Hôtel Central', // Utiliser l'établissement sélectionné
         status: 'maintenance',
         dateDebut: new Date().toISOString().split('T')[0],
         description: newRoom.description,
@@ -465,10 +470,18 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       {/* En-tête */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion de la Maintenance</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900">Gestion de la Maintenance</h1>
+            {selectedHotel && (
+              <Badge className="bg-blue-100 text-blue-800 px-3 py-1">
+                <Bed className="h-3 w-3 mr-1" />
+                {selectedHotel}
+              </Badge>
+            )}
+          </div>
           <p className="text-gray-600">
             {viewMode === 'grid' 
-              ? 'Vue d\'ensemble des chambres en maintenance' 
+              ? `Vue d'ensemble des chambres en maintenance${selectedHotel ? ` - ${selectedHotel}` : ''}` 
               : `Détails de la chambre ${selectedRoomForDetail?.numero}`
             }
           </p>
@@ -709,6 +722,11 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                 <div className="flex items-center">
                   <Bed className="h-5 w-5 mr-2" />
                   Chambres en maintenance ({filteredRooms.length})
+                  {!selectedHotel && (
+                    <span className="ml-2 text-sm text-amber-600">
+                      (Tous les établissements)
+                    </span>
+                  )}
                 </div>
               </CardTitle>
             </CardHeader>
@@ -760,7 +778,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune chambre en maintenance</h3>
                   <p className="text-gray-500">
-                    Aucune chambre ne correspond aux critères de recherche.
+                    {selectedHotel 
+                      ? `Aucune chambre en maintenance pour ${selectedHotel}.`
+                      : 'Sélectionnez un établissement dans les paramètres pour voir les chambres en maintenance.'
+                    }
                   </p>
                 </div>
               )}
