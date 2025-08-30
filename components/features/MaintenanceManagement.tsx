@@ -89,6 +89,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // États pour les sections collapsibles
+  const [statsCollapsed, setStatsCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
   // États pour les formulaires
   const [newRoom, setNewRoom] = useState({
@@ -489,117 +493,176 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
 
       {viewMode === 'grid' ? (
         <>
-          {/* Statistiques */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Statistiques de maintenance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {/* Chambres critiques */}
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <AlertCircle className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-red-600">
-                    {getStatistics().criticalRooms}
-                  </div>
-                  <div className="text-sm text-red-700 font-medium">Critiques</div>
-                </div>
-
-                {/* Chambres urgentes */}
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <AlertTriangle className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-orange-600">
-                    {getStatistics().urgentRooms}
-                  </div>
-                  <div className="text-sm text-orange-700 font-medium">Urgentes</div>
-                </div>
-
-                {/* Chambres haute priorité */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <TrendingUp className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {getStatistics().highPriorityRooms}
-                  </div>
-                  <div className="text-sm text-yellow-700 font-medium">Haute priorité</div>
-                </div>
-
-                {/* Chambres en maintenance */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <Wrench className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {getStatistics().maintenanceRooms}
-                  </div>
-                  <div className="text-sm text-blue-700 font-medium">En maintenance</div>
-                </div>
-
-                {/* Chambres en réparation */}
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <Settings className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {getStatistics().repairRooms}
-                  </div>
-                  <div className="text-sm text-purple-700 font-medium">En réparation</div>
-                </div>
-
-                {/* Tâches en cours */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <Activity className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {getStatistics().inProgressTodos}
-                  </div>
-                  <div className="text-sm text-green-700 font-medium">Tâches en cours</div>
-                </div>
+          {/* Statistiques - Version optimisée */}
+          <Card className="transition-all duration-300">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center text-base">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Statistiques de maintenance
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStatsCollapsed(!statsCollapsed)}
+                  className="h-7 w-7 p-0"
+                >
+                  {statsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </Button>
               </div>
+            </CardHeader>
+            {!statsCollapsed && (
+              <CardContent className="pt-0 pb-4 px-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {/* Carte Critiques - Design amélioré */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <AlertCircle className="h-5 w-5 text-white opacity-90" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().criticalRooms}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Critiques</p>
+                      {getStatistics().criticalRooms > 0 && (
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      )}
+                    </div>
+                  </div>
 
-              
-            </CardContent>
+                  {/* Carte Urgentes */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <AlertTriangle className="h-5 w-5 text-white opacity-90" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().urgentRooms}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Urgentes</p>
+                      {getStatistics().urgentRooms > 2 && (
+                        <div className="absolute -top-1 -right-1">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Carte Haute priorité */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <TrendingUp className="h-5 w-5 text-white opacity-90" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().highPriorityRooms}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Haute priorité</p>
+                    </div>
+                  </div>
+
+                  {/* Carte En maintenance */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <Wrench className="h-5 w-5 text-white opacity-90" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().maintenanceRooms}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Maintenance</p>
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white opacity-20">
+                        <div className="h-full bg-white opacity-60 animate-pulse" style={{width: `${(getStatistics().maintenanceRooms / (getStatistics().totalRooms || 1)) * 100}%`}}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Carte En réparation */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <Settings className="h-5 w-5 text-white opacity-90 group-hover:animate-spin" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().repairRooms}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Réparation</p>
+                    </div>
+                  </div>
+
+                  {/* Carte Tâches en cours */}
+                  <div className="relative group overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer">
+                    <div className="absolute inset-0 bg-white opacity-10"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <Activity className="h-5 w-5 text-white opacity-90" />
+                        <span className="text-2xl font-bold text-white">{getStatistics().inProgressTodos}</span>
+                      </div>
+                      <p className="text-xs text-white opacity-90 font-medium">Tâches actives</p>
+                      {getStatistics().inProgressTodos > 0 && (
+                        <div className="absolute top-1 right-1">
+                          <div className="h-1.5 w-1.5 bg-white rounded-full animate-pulse"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barre de progression globale */}
+                <div className="mt-4 bg-gray-100 rounded-lg p-2">
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <span>Progression globale</span>
+                    <span className="font-medium">{Math.round((getStatistics().completedRooms / (getStatistics().totalRooms || 1)) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
+                      style={{width: `${(getStatistics().completedRooms / (getStatistics().totalRooms || 1)) * 100}%`}}
+                    ></div>
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
 
-          {/* Filtres */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Filter className="h-5 w-5 mr-2" />
-                Filtres
-              </CardTitle>
+          {/* Filtres - Version optimisée */}
+          <Card className="transition-all duration-300">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center text-base">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtres
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+                  className="h-7 w-7 p-0"
+                >
+                  {filtersCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher une chambre..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+            {!filtersCollapsed && (
+              <CardContent className="pt-0 pb-3 px-4">
+                <div className="flex flex-wrap gap-3 items-end">
+                  {/* Recherche */}
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                  
+                  {/* Statut */}
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="all">Tous les statuts</option>
                     <option value="maintenance">En maintenance</option>
@@ -607,14 +670,12 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                     <option value="commande">Commande en cours</option>
                     <option value="termine">Terminé</option>
                   </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Priorité</label>
+                  
+                  {/* Priorité */}
                   <select
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="all">Toutes les priorités</option>
                     <option value="critique">Critique</option>
@@ -622,22 +683,23 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                     <option value="moyenne">Moyenne</option>
                     <option value="basse">Basse</option>
                   </select>
-                </div>
-                
-                <div className="flex items-end">
+                  
+                  {/* Réinitialiser */}
                   <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={() => {
                       setStatusFilter('all');
                       setPriorityFilter('all');
                       setSearchTerm('');
                     }}
+                    className="px-3 py-1.5 h-auto text-sm"
                   >
                     Réinitialiser
                   </Button>
                 </div>
-              </div>
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
 
           {/* Grille des chambres */}
