@@ -428,17 +428,98 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     }
   };
 
+  // Validation des transitions de statut
+  const getValidTransitions = (currentStatus: string): ('disponible' | 'occupee' | 'maintenance')[] => {
+    switch (currentStatus) {
+      case 'disponible':
+        return ['occupee', 'maintenance'];
+      case 'occupee':
+        return ['disponible', 'maintenance'];
+      case 'maintenance':
+        return ['disponible'];
+      default:
+        return ['disponible', 'occupee', 'maintenance'];
+    }
+  };
+
+  const requiresConfirmation = (currentStatus: string, newStatus: string): boolean => {
+    // Confirmation pour les changements sensibles
+    if (currentStatus === 'occupee' && (newStatus === 'maintenance' || newStatus === 'disponible')) {
+      return true;
+    }
+    if (currentStatus === 'maintenance' && newStatus === 'occupee') {
+      return true;
+    }
+    return false;
+  };
+
+  // Gestionnaire de changement de statut
+  const handleStatusChange = async (roomId: number, newStatus: 'disponible' | 'occupee' | 'maintenance') => {
+    const room = filteredRooms.find(r => r.id === roomId);
+    if (!room) return;
+
+    // Vérifier si la transition est valide
+    const validTransitions = getValidTransitions(room.status);
+    if (!validTransitions.includes(newStatus)) {
+      addNotification('error', `Transition de ${room.status} vers ${newStatus} non autorisée`);
+      return;
+    }
+
+    try {
+      setRoomUpdating(prev => ({ ...prev, [roomId]: true }));
+      
+      const result = await updateRoomStatus(roomId, newStatus);
+      
+      if (result.success) {
+        const statusText = {
+          'disponible': 'disponible',
+          'occupee': 'occupée',
+          'maintenance': 'en maintenance'
+        }[newStatus];
+        
+        addNotification('success', `Chambre ${room.numero} marquée comme ${statusText}`);
+      } else {
+        addNotification('error', result.error || 'Erreur lors de la mise à jour du statut');
+      }
+    } catch (error) {
+      console.error('Error updating room status:', error);
+      addNotification('error', 'Erreur lors de la mise à jour du statut');
+    } finally {
+      setRoomUpdating(prev => ({ ...prev, [roomId]: false }));
+    }
+  };
+
+  const handleStatusChangeWithConfirmation = (roomId: number, newStatus: 'disponible' | 'occupee' | 'maintenance') => {
+    const room = filteredRooms.find(r => r.id === roomId);
+    if (!room) return;
+
+    if (requiresConfirmation(room.status, newStatus)) {
+      setConfirmModal({
+        isOpen: true,
+        roomId,
+        currentStatus: room.status,
+        newStatus
+      });
+    } else {
+      handleStatusChange(roomId, newStatus);
+    }
+  };
+
+  const confirmStatusChange = () => {
+    if (confirmModal.roomId && confirmModal.newStatus) {
+      handleStatusChange(confirmModal.roomId, confirmModal.newStatus as 'disponible' | 'occupee' | 'maintenance');
+    }
+    setConfirmModal({ isOpen: false });
+  };
+
   // Fonctions pour la navigation
   const handleRoomClick = (room: MaintenanceRoom) => {
     // Seules les chambres en maintenance peuvent accéder à la vue détaillée avec tâches
     if (room.isMaintenanceRoom) {
       setSelectedRoomForDetail(room);
       setViewMode('detail');
-    } else {
-      // Pour les chambres disponibles/occupées, affichage d'informations basiques
-      console.log(`Chambre ${room.numero} - Statut: ${room.status}`);
-      // Ici on pourrait ouvrir un modal avec les informations de base
     }
+    // Pour les autres chambres, on ne fait rien (le dropdown sera utilisé pour changer le statut)
   };
 
   const handleBackToGrid = () => {
@@ -806,13 +887,13 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   {filteredRooms.map((room) => (
                     <div 
                       key={room.id} 
-                      className={`border rounded-lg p-4 transition-all duration-200 ${
+                      className={`border rounded-lg p-4 transition-all duration-200 group relative ${
                         room.isMaintenanceRoom 
                           ? 'border-orange-200 bg-orange-50 hover:bg-orange-100 cursor-pointer hover:shadow-md' 
                           : room.status === 'disponible'
                           ? 'border-green-200 bg-green-50 hover:bg-green-100 cursor-pointer hover:shadow-sm'
                           : 'border-blue-200 bg-blue-50 hover:bg-blue-100 cursor-default'
-                      }`}
+                      } ${roomUpdating[room.id] ? 'opacity-50 pointer-events-none' : ''}`}
                       onClick={() => handleRoomClick(room)}
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -837,6 +918,47 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                               {room.priorite}
                             </Badge>
                           )}
+                          
+                          {/* Dropdown pour changer le statut */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={roomUpdating[room.id]}
+                              >
+                                {roomUpdating[room.id] ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <MoreHorizontal className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {getValidTransitions(room.status).map((status) => {
+                                const statusInfo = {
+                                  'disponible': { label: 'Disponible', icon: CheckCircle, color: 'text-green-600' },
+                                  'occupee': { label: 'Occupée', icon: Bed, color: 'text-blue-600' },
+                                  'maintenance': { label: 'Maintenance', icon: Wrench, color: 'text-orange-600' }
+                                }[status];
+                                
+                                const Icon = statusInfo.icon;
+                                
+                                return (
+                                  <DropdownMenuItem
+                                    key={status}
+                                    onClick={() => handleStatusChangeWithConfirmation(room.id, status)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Icon className={`h-4 w-4 ${statusInfo.color}`} />
+                                    {statusInfo.label}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                       
@@ -1098,6 +1220,68 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
             </Card>
           </div>
         )
+      )}
+
+      {/* Modal de confirmation de changement de statut */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Confirmer le changement de statut</h3>
+            
+            <div className="mb-6">
+              <p className="text-gray-600">
+                Voulez-vous vraiment changer le statut de la chambre de
+                <span className="font-medium mx-1">
+                  {confirmModal.currentStatus === 'maintenance' ? 'maintenance' :
+                   confirmModal.currentStatus === 'disponible' ? 'disponible' :
+                   confirmModal.currentStatus === 'occupee' ? 'occupée' : confirmModal.currentStatus}
+                </span>
+                vers
+                <span className="font-medium mx-1">
+                  {confirmModal.newStatus === 'maintenance' ? 'maintenance' :
+                   confirmModal.newStatus === 'disponible' ? 'disponible' :
+                   confirmModal.newStatus === 'occupee' ? 'occupée' : confirmModal.newStatus}
+                </span>?
+              </p>
+              
+              {confirmModal.currentStatus === 'occupee' && confirmModal.newStatus === 'maintenance' && (
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-sm text-orange-700">
+                    ⚠️ Cette chambre est actuellement occupée. Assurez-vous que le client a été relocalisé.
+                  </p>
+                </div>
+              )}
+              
+              {confirmModal.currentStatus === 'occupee' && confirmModal.newStatus === 'disponible' && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    ℹ️ Assurez-vous que le client a bien quitté la chambre et que le nettoyage est terminé.
+                  </p>
+                </div>
+              )}
+              
+              {confirmModal.currentStatus === 'maintenance' && confirmModal.newStatus === 'occupee' && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    ℹ️ Assurez-vous que la maintenance est terminée avant de marquer cette chambre comme occupée.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setConfirmModal({ isOpen: false })}
+              >
+                Annuler
+              </Button>
+              <Button onClick={confirmStatusChange}>
+                Confirmer
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Ajouter une chambre */}
