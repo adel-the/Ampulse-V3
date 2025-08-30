@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useRooms } from '@/hooks/useSupabase';
+import { useNotifications } from '@/hooks/useNotifications';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '../ui/dropdown-menu';
 import { 
   Wrench, 
   Plus, 
@@ -28,7 +35,9 @@ import {
   TrendingUp,
   BarChart3,
   Activity,
-  Building
+  Building,
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react';
 
 interface MaintenanceRoom {
@@ -80,7 +89,8 @@ interface MaintenanceManagementProps {
 
 export default function MaintenanceManagement({ selectedHotel }: MaintenanceManagementProps) {
   // Récupérer les vraies chambres de l'établissement sélectionné
-  const { rooms: realRooms, loading: roomsLoading, error: roomsError } = useRooms(selectedHotel?.id);
+  const { rooms: realRooms, loading: roomsLoading, error: roomsError, updateRoomStatus } = useRooms(selectedHotel?.id);
+  const { addNotification } = useNotifications();
   
   const [maintenanceRooms, setMaintenanceRooms] = useState<MaintenanceRoom[]>([]);
   const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([]);
@@ -105,6 +115,15 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   // États pour les sections collapsibles
   const [statsCollapsed, setStatsCollapsed] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  
+  // États pour les changements de statut
+  const [roomUpdating, setRoomUpdating] = useState<Record<number, boolean>>({});
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    roomId?: number;
+    currentStatus?: string;
+    newStatus?: string;
+  }>({ isOpen: false });
 
   // États pour les formulaires
   const [newRoom, setNewRoom] = useState({
