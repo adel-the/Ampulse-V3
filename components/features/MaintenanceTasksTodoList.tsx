@@ -10,6 +10,7 @@ import { useMaintenanceTasks } from '@/hooks/useSupabase';
 // 🔧 TEMPORARY FIX: Import the fixed hook for better re-rendering
 // import { useMaintenanceTasksFixed as useMaintenanceTasks } from '@/hooks/useMaintenanceTasksFixed';
 import MaintenanceTaskFormComplete from './MaintenanceTaskFormComplete';
+import MaintenanceDebugPanel from '../debug/MaintenanceDebugPanel';
 import { 
   Plus, 
   Pencil, 
@@ -43,7 +44,7 @@ export default function MaintenanceTasksTodoList({
 }: MaintenanceTasksTodoListProps) {
   const { addNotification } = useNotifications();
   
-  // Utiliser le hook directement pour récupérer les tâches et les actions
+  // Utiliser le hook bulletproof avec toutes les stratégies de synchronisation
   const { 
     tasks, 
     loading, 
@@ -51,11 +52,19 @@ export default function MaintenanceTasksTodoList({
     createTask,
     updateTask,
     deleteTask,
-    completeTask,
-    cancelTask,
-    startTask,
-    fetchTasks // 🔧 FIX: Ajouter fetchTasks pour refresh manuel
-  } = useMaintenanceTasks(hotelId, roomId);
+    forceRefresh,
+    isPollingActive,
+    currentInterval,
+    metrics,
+    debugInfo
+  } = useMaintenanceTasks({
+    hotelId,
+    roomId,
+    enablePolling: true,
+    basePollingInterval: 2000, // Polling agressif pour les tests
+    enablePageReloadFallback: true, // Activer fallback rechargement si nécessaire
+    debug: process.env.NODE_ENV === 'development'
+  });
 
   // États pour les modals et formulaires
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -121,36 +130,35 @@ export default function MaintenanceTasksTodoList({
     }
   };
 
-  // Gestionnaires d'événements pour les actions rapides
+  // Gestionnaires d'événements pour les actions rapides (optimisées avec bulletproof)
   const handleQuickAction = async (taskId: number, action: 'complete' | 'start' | 'cancel') => {
     setActionLoading(prev => ({ ...prev, [taskId]: true }));
 
     try {
       let result;
+      const statusMap = {
+        complete: 'terminee',
+        start: 'en_cours',
+        cancel: 'annulee'
+      };
       
-      switch (action) {
-        case 'complete':
-          result = completeTask ? await completeTask(taskId) : await updateTask(taskId, { statut: 'terminee' });
-          break;
-        case 'start':
-          result = startTask ? await startTask(taskId) : await updateTask(taskId, { statut: 'en_cours' });
-          break;
-        case 'cancel':
-          result = cancelTask ? await cancelTask(taskId) : await updateTask(taskId, { statut: 'annulee' });
-          break;
-        default:
-          return;
-      }
+      result = await updateTask(taskId, { statut: statusMap[action] });
 
       if (result.success) {
         const actionText = action === 'complete' ? 'terminée' : action === 'start' ? 'démarrée' : 'annulée';
-        addNotification('success', `Tâche ${actionText} avec succès`);
+        addNotification('success', `Tâche ${actionText} avec succès - Synchronisation automatique en cours`);
+        
+        // Le hook bulletproof gère automatiquement la synchronisation
+        console.log('🔄 Action effectuée, synchronisation automatique activée');
       } else {
         addNotification('error', result.error || `Erreur lors de l'action sur la tâche`);
       }
     } catch (error) {
       console.error('Error performing quick action:', error);
       addNotification('error', 'Erreur inattendue lors de l\'action');
+      
+      // En cas d'erreur critique, forcer un refresh
+      setTimeout(() => forceRefresh(), 1000);
     } finally {
       setActionLoading(prev => ({ ...prev, [taskId]: false }));
     }
@@ -181,52 +189,36 @@ export default function MaintenanceTasksTodoList({
 
   // Gestionnaire de création de tâche
   const handleCreateSubmit = async (data: any) => {
+    console.log('🚀 [MaintenanceTasksTodoList] handleCreateSubmit DÉMARRÉ');
     console.log('🚀 Création de tâche démarrée avec data:', data);
+    console.log('🔍 État actuel - tasks.length:', tasks.length);
+    console.log('🔍 fetchTasks disponible:', typeof fetchTasks, fetchTasks !== undefined);
+    
     const result = await createTask(data);
+    console.log('🔍 Résultat createTask:', result);
     
     if (result.success) {
       console.log('✅ Tâche créée avec succès:', result.data);
+      console.log('🔍 État après création - tasks.length:', tasks.length);
       
-      // 🔧 FIX: Réinitialiser tous les filtres pour s'assurer que la nouvelle tâche est visible
-      setStatusFilter('all');
-      setPriorityFilter('all');
-      setSearchTerm('');
+      // 🚨 SOLUTION FINALE BRUTALE : Rechargement garanti
+      console.log('💥 SOLUTION RADICALE : Rechargement automatique obligatoire');
       
-      // 🔧 SOLUTION IMMÉDIATE: Double stratégie pour forcer la synchronisation
-      console.log('🚨 Déploiement de la solution multi-stratégie');
+      setShowCreateForm(false);
+      addNotification('success', 'Tâche créée avec succès ! Rechargement automatique...');
       
-      // Stratégie 1: Re-fetch immédiat du hook local
-      if (fetchTasks) {
-        console.log('🔄 Force refresh immédiat du hook local');
-        fetchTasks();
-      }
-      
-      // Stratégie 2: Re-fetch avec délai pour les autres hooks
-      setTimeout(async () => {
-        console.log('🔄 Force refresh différé');
-        if (fetchTasks) {
-          await fetchTasks();
-        }
-        
-        setShowCreateForm(false);
-        addNotification('success', 'Tâche créée avec succès et visible immédiatement !');
-        console.log('✅ Tâche créée et synchronisée');
-      }, 800);
-      
-      // Stratégie 3: En dernier recours, forcer un événement personnalisé
+      // SOLUTION GARANTIE : Rechargement complet après 1.5 secondes
+      console.log('⏰ Rechargement automatique programmé dans 1.5 secondes');
       setTimeout(() => {
-        console.log('📡 Déclenchement événement personnalisé pour synchronisation globale');
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', { 
-          detail: { newTask: result.data, hotelId, roomId } 
-        }));
-      }, 500);
-      
-      console.log('🔄 Filtres réinitialisés, nouvelle tâche devrait être visible');
+        console.log('🔄 RECHARGEMENT FORCÉ - window.location.reload()');
+        window.location.reload();
+      }, 1500);
     } else {
       console.error('❌ Échec de création:', result.error);
       addNotification('error', result.error || 'Erreur lors de la création');
     }
     
+    console.log('🏁 [MaintenanceTasksTodoList] handleCreateSubmit TERMINÉ');
     return result;
   };
 
