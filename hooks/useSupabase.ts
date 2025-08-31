@@ -2685,6 +2685,8 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
 
 // Hook for maintenance tasks (complete CRUD with multi-tenancy)
 export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?: HookOptions) => {
+  console.log('🔧 useMaintenanceTasks hook called with:', { hotelId, roomId, options })
+  
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -2693,17 +2695,24 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
   const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
 
   const fetchTasks = async () => {
+    console.log('🔧 fetchTasks called for maintenance tasks')
     try {
       setLoading(true)
       setError(null)
 
-      if (!user) {
+      // In development mode, we allow fetching tasks without authentication
+      const isDevelopment = process.env.NODE_ENV === 'development'
+      console.log('🔧 isDevelopment:', isDevelopment)
+      
+      if (!user && !isDevelopment) {
+        console.log('🔧 No user authenticated and not in development, setting empty tasks array')
         setTasks([])
         return
       }
 
       // TEMP: Using admin client for development to bypass RLS issues
-      const client = process.env.NODE_ENV === 'development' ? supabaseAdmin : supabase
+      const client = isDevelopment ? supabaseAdmin : supabase
+      console.log('🔧 Using client:', isDevelopment ? 'supabaseAdmin' : 'supabase')
       
       let query = client
         .from('maintenance_tasks')
@@ -2712,8 +2721,13 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
           room:rooms(numero, bed_type),
           hotel:hotels(nom)
         `)
-        .eq('user_owner_id', user.id)
         .order('created_at', { ascending: false })
+      
+      // In production, filter by user_owner_id
+      // In development, show all tasks or filter by hotel_id only
+      if (!isDevelopment && user) {
+        query = query.eq('user_owner_id', user.id)
+      }
 
       // Filter by hotel if provided
       if (hotelId) {
@@ -2725,16 +2739,21 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
         query = query.eq('room_id', roomId)
       }
 
+      console.log('🔧 Executing maintenance tasks query:', query)
       const { data, error } = await query
+      console.log('🔧 Query result - data count:', data?.length || 0, 'error:', error)
 
       if (error) throw error
       setTasks(data || [])
+      console.log('🔧 Tasks loaded successfully, count:', data?.length || 0)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des tâches de maintenance'
+      console.error('🔧 Error in fetchTasks:', err)
       setError(errorMessage)
       console.error('Error fetching maintenance tasks:', err)
     } finally {
       setLoading(false)
+      console.log('🔧 fetchTasks completed, loading set to false')
     }
   }
 

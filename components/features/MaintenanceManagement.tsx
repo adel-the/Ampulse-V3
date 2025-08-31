@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useRooms, useMaintenanceTasks } from '@/hooks/useSupabase';
 import MaintenanceTaskForm from './MaintenanceTaskForm';
-import MaintenanceTasksList from './MaintenanceTasksList';
+import MaintenanceTasksTodoList from './MaintenanceTasksTodoList';
 import { useNotifications } from '@/hooks/useNotifications';
 import { 
   DropdownMenu, 
@@ -1192,7 +1192,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
             )}
 
             {/* Liste des tâches */}
-            <MaintenanceTasksList
+            <MaintenanceTasksTodoList
               roomId={selectedRoomForDetail.id}
               hotelId={selectedHotel?.id}
               showAddButton={!showTaskForm}
