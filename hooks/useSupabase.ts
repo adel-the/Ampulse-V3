@@ -2695,7 +2695,10 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
   const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
 
   const fetchTasks = async () => {
-    console.log('🔧 fetchTasks called for maintenance tasks')
+    console.log('🔧 [useMaintenanceTasks] fetchTasks called for maintenance tasks')
+    console.log('🔍 [useMaintenanceTasks] État actuel - tasks.length avant fetch:', tasks.length)
+    console.log('🔍 [useMaintenanceTasks] Paramètres - hotelId:', hotelId, 'roomId:', roomId)
+    
     try {
       setLoading(true)
       setError(null)
@@ -2741,11 +2744,14 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
 
       console.log('🔧 Executing maintenance tasks query:', query)
       const { data, error } = await query
-      console.log('🔧 Query result - data count:', data?.length || 0, 'error:', error)
+      console.log('🔧 [useMaintenanceTasks] Query result - data count:', data?.length || 0, 'error:', error)
 
       if (error) throw error
+      
+      console.log('🔍 [useMaintenanceTasks] Avant setTasks - ancien tasks.length:', tasks.length)
       setTasks(data || [])
-      console.log('🔧 Tasks loaded successfully, count:', data?.length || 0)
+      console.log('🔧 [useMaintenanceTasks] Tasks loaded successfully, count:', data?.length || 0)
+      console.log('🔍 [useMaintenanceTasks] setTasks appelé avec:', data?.length || 0, 'éléments')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des tâches de maintenance'
       console.error('🔧 Error in fetchTasks:', err)
@@ -2753,15 +2759,19 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       console.error('Error fetching maintenance tasks:', err)
     } finally {
       setLoading(false)
-      console.log('🔧 fetchTasks completed, loading set to false')
+      console.log('🔧 [useMaintenanceTasks] fetchTasks completed, loading set to false')
+      console.log('🔍 [useMaintenanceTasks] État final - tasks.length:', tasks.length)
     }
   }
 
   const createTask = async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
+    console.log('🔧 [useMaintenanceTasks] createTask DÉMARRÉ')
+    console.log('🔍 [useMaintenanceTasks] État avant création - tasks.length:', tasks.length)
+    
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
-      const fallbackUserId = '46e58630-4ae0-4682-aa24-a4be2fb6e866' // Existing test user ID
+      const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b' // Working test user ID
       
       if (!user && !isDevelopment) {
         return { data: null, error: 'Utilisateur non authentifié', success: false }
@@ -2804,8 +2814,14 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       if (error) throw error
       
       // Update local state optimistically
-      setTasks(prev => [data, ...prev])
+      console.log('🔍 [useMaintenanceTasks] createTask - Avant ajout optimiste, tasks.length:', tasks.length)
+      setTasks(prev => {
+        const newTasks = [data, ...prev]
+        console.log('🔍 [useMaintenanceTasks] createTask - Après ajout optimiste, nouveau length:', newTasks.length)
+        return newTasks
+      })
       
+      console.log('🔧 [useMaintenanceTasks] createTask TERMINÉ avec succès')
       return { data, error: null, success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche'
@@ -2819,7 +2835,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
-      const fallbackUserId = '46e58630-4ae0-4682-aa24-a4be2fb6e866'
+      const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b'
       
       if (!user && !isDevelopment) {
         return { data: null, error: 'Utilisateur non authentifié', success: false }
@@ -2870,7 +2886,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
-      const fallbackUserId = '46e58630-4ae0-4682-aa24-a4be2fb6e866'
+      const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b'
       
       if (!user && !isDevelopment) {
         return { data: false, error: 'Utilisateur non authentifié', success: false }
@@ -3035,6 +3051,17 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       window.removeEventListener('forceTaskRefresh', handleForceTaskRefresh as EventListener);
     };
   }, [hotelId, roomId, fetchTasks]);
+
+  // Exposer fetchTasks globalement pour les solutions de dernier recours
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__maintenanceTasksFetch = fetchTasks;
+      
+      return () => {
+        delete (window as any).__maintenanceTasksFetch;
+      };
+    }
+  }, [fetchTasks]);
 
   return { 
     tasks, 
