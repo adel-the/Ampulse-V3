@@ -178,11 +178,25 @@ export default function MaintenanceTasksTodoList({
 
   // Gestionnaire de création de tâche
   const handleCreateSubmit = async (data: any) => {
+    console.log('🚀 Création de tâche démarrée avec data:', data);
     const result = await createTask(data);
     
     if (result.success) {
+      console.log('✅ Tâche créée avec succès:', result.data);
+      
+      // Réinitialiser tous les filtres pour s'assurer que la nouvelle tâche est visible
+      setStatusFilter('all');
+      setPriorityFilter('all');
+      setSearchTerm('');
+      
+      // Fermer le formulaire et notifier
       setShowCreateForm(false);
-      addNotification('success', 'Tâche créée avec succès');
+      addNotification('success', 'Tâche créée avec succès et ajoutée à la liste');
+      
+      console.log('🔄 Filtres réinitialisés, nouvelle tâche devrait être visible');
+    } else {
+      console.error('❌ Échec de création:', result.error);
+      addNotification('error', result.error || 'Erreur lors de la création');
     }
     
     return result;
@@ -192,11 +206,32 @@ export default function MaintenanceTasksTodoList({
   const handleEditSubmit = async (data: any) => {
     if (!editingTask) return { success: false, error: 'Aucune tâche à modifier' };
 
+    console.log('📝 Modification de tâche démarrée pour ID:', editingTask.id);
     const result = await updateTask(editingTask.id, data);
     
     if (result.success) {
+      console.log('✅ Tâche modifiée avec succès:', result.data);
+      
+      // S'assurer que la tâche modifiée reste visible si les filtres ont changé
+      const updatedTask = result.data;
+      if (updatedTask) {
+        // Si la tâche modifiée ne correspond plus aux filtres actuels, les réinitialiser
+        const matchesStatus = statusFilter === 'all' || updatedTask.statut === statusFilter;
+        const matchesPriority = priorityFilter === 'all' || updatedTask.priorite === priorityFilter;
+        
+        if (!matchesStatus || !matchesPriority) {
+          setStatusFilter('all');
+          setPriorityFilter('all');
+          setSearchTerm('');
+          console.log('🔄 Filtres réinitialisés pour afficher la tâche modifiée');
+        }
+      }
+      
       setEditingTask(null);
       addNotification('success', 'Tâche modifiée avec succès');
+    } else {
+      console.error('❌ Échec de modification:', result.error);
+      addNotification('error', result.error || 'Erreur lors de la modification');
     }
     
     return result;
