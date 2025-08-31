@@ -235,7 +235,24 @@ export default function AvailabilityResults({
     });
   }, [clients, prescripteurInputValue]);
 
-  // Filter usagers based on selected prescripteur and search
+  // Filter usagers based on prescripteur only (for validation)
+  const getUsagersForPrescripteur = useCallback(() => {
+    return usagers.filter(usager => {
+      // Filter by selected specific prescripteur (Step 2)
+      if (selectedPrescripteur && usager.prescripteur?.id !== selectedPrescripteur.id) {
+        return false;
+      }
+      
+      // If no specific prescripteur selected, filter by prescripteur type (legacy)
+      if (!selectedPrescripteur && selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [usagers, selectedPrescripteur, selectedPrescripteurType]);
+
+  // Filter usagers based on selected prescripteur and search (for autocomplete)
   const getFilteredUsagers = useCallback(() => {
     return usagers.filter(usager => {
       // Filter by selected specific prescripteur (Step 2)
@@ -775,7 +792,7 @@ export default function AvailabilityResults({
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
                 <p className="text-sm text-gray-600">Chargement des usagers...</p>
               </div>
-            ) : getFilteredUsagers().length === 0 ? (
+            ) : getUsagersForPrescripteur().length === 0 ? (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -795,7 +812,11 @@ export default function AvailabilityResults({
                   <div className="flex justify-between items-center mb-1">
                     <Label htmlFor="usager-input">Usager (bénéficiaire) *</Label>
                     <span className="text-xs text-gray-500">
-                      {getFilteredUsagers().length} usager{getFilteredUsagers().length > 1 ? 's' : ''} trouvé{getFilteredUsagers().length > 1 ? 's' : ''}
+                      {usagerInputValue ? (
+                        `${getFilteredUsagers().length}/${getUsagersForPrescripteur().length} usager${getFilteredUsagers().length > 1 ? 's' : ''} trouvé${getFilteredUsagers().length > 1 ? 's' : ''}`
+                      ) : (
+                        `${getUsagersForPrescripteur().length} usager${getUsagersForPrescripteur().length > 1 ? 's' : ''} disponible${getUsagersForPrescripteur().length > 1 ? 's' : ''}`
+                      )}
                     </span>
                   </div>
                   
