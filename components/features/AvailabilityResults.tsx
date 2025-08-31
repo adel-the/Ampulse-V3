@@ -38,6 +38,7 @@ import { clientsApi } from '@/lib/api/clients';
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
 import { reservationsApi, type SimpleReservationInsert } from '@/lib/api/reservations';
 import UsagerEditModal from '../modals/UsagerEditModal';
+import QuickUsagerCreateModal from '../modals/QuickUsagerCreateModal';
 
 export interface AvailableRoom extends Room {
   category?: RoomCategory;
@@ -143,6 +144,7 @@ export default function AvailabilityResults({
   const [specialRequests, setSpecialRequests] = useState('');
   const [reservationLoading, setReservationLoading] = useState(false);
   const [showEditUsagerModal, setShowEditUsagerModal] = useState(false);
+  const [showCreateUsagerModal, setShowCreateUsagerModal] = useState(false);
   
   // New state for prescripteur selection
   const [selectedPrescripteur, setSelectedPrescripteur] = useState<Client | null>(null);
@@ -457,6 +459,24 @@ export default function AvailabilityResults({
     
     setShowEditUsagerModal(false);
     addNotification('success', 'Usager mis à jour avec succès');
+  };
+
+  // Handle new usager creation from quick modal
+  const handleUsagerCreated = async (usagerId: number) => {
+    setShowCreateUsagerModal(false);
+    
+    // Reload usagers list
+    await loadUsagers();
+    
+    // Find and select the newly created usager
+    const response = await usagersApi.getUsagerWithPrescripteur(usagerId);
+    if (response.success && response.data) {
+      const newUsager = response.data;
+      handleUsagerSelect(newUsager);
+      
+      // Show success notification
+      addNotification('success', `Usager ${newUsager.nom} ${newUsager.prenom} créé avec succès`);
+    }
   };
 
   if (isLoading) {
@@ -793,17 +813,31 @@ export default function AvailabilityResults({
                 <p className="text-sm text-gray-600">Chargement des usagers...</p>
               </div>
             ) : getUsagersForPrescripteur().length === 0 ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {selectedPrescripteur 
-                    ? 'Aucun usager actif trouvé pour ce prescripteur. Veuillez d\'abord créer un usager.'
-                    : selectedPrescripteurType
-                    ? `Aucun usager trouvé pour les prescripteurs de type ${selectedPrescripteurType}.`
-                    : 'Aucun usager actif trouvé. Veuillez d\'abord créer un usager.'
-                  }
-                </AlertDescription>
-              </Alert>
+              <div className="space-y-3">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {selectedPrescripteur 
+                      ? 'Aucun usager actif trouvé pour ce prescripteur.'
+                      : selectedPrescripteurType
+                      ? `Aucun usager trouvé pour les prescripteurs de type ${selectedPrescripteurType}.`
+                      : 'Aucun usager actif trouvé.'
+                    }
+                  </AlertDescription>
+                </Alert>
+                {selectedPrescripteur && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateUsagerModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Users className="h-4 w-4" />
+                      Créer un nouvel usager
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="space-y-3">
 
@@ -811,13 +845,25 @@ export default function AvailabilityResults({
                 <div className="relative">
                   <div className="flex justify-between items-center mb-1">
                     <Label htmlFor="usager-input">Usager (bénéficiaire) *</Label>
-                    <span className="text-xs text-gray-500">
-                      {usagerInputValue ? (
-                        `${getFilteredUsagers().length}/${getUsagersForPrescripteur().length} usager${getFilteredUsagers().length > 1 ? 's' : ''} trouvé${getFilteredUsagers().length > 1 ? 's' : ''}`
-                      ) : (
-                        `${getUsagersForPrescripteur().length} usager${getUsagersForPrescripteur().length > 1 ? 's' : ''} disponible${getUsagersForPrescripteur().length > 1 ? 's' : ''}`
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500">
+                        {usagerInputValue ? (
+                          `${getFilteredUsagers().length}/${getUsagersForPrescripteur().length} usager${getFilteredUsagers().length > 1 ? 's' : ''} trouvé${getFilteredUsagers().length > 1 ? 's' : ''}`
+                        ) : (
+                          `${getUsagersForPrescripteur().length} usager${getUsagersForPrescripteur().length > 1 ? 's' : ''} disponible${getUsagersForPrescripteur().length > 1 ? 's' : ''}`
+                        )}
+                      </span>
+                      {selectedPrescripteur && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateUsagerModal(true)}
+                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+                        >
+                          <Users className="h-3 w-3" />
+                          Créer un nouvel usager
+                        </button>
                       )}
-                    </span>
+                    </div>
                   </div>
                   
                   {/* Autocomplete Input */}
@@ -1007,6 +1053,16 @@ export default function AvailabilityResults({
           onClose={() => setShowEditUsagerModal(false)}
           usager={selectedUsager}
           onSuccess={handleUsagerUpdateSuccess}
+        />
+      )}
+      
+      {/* Quick Usager Create Modal */}
+      {selectedPrescripteur && (
+        <QuickUsagerCreateModal
+          isOpen={showCreateUsagerModal}
+          onClose={() => setShowCreateUsagerModal(false)}
+          prescripteur={selectedPrescripteur}
+          onUsagerCreated={handleUsagerCreated}
         />
       )}
       </>
