@@ -51,7 +51,7 @@ const getCriticalRooms = (): CriticalRoom[] => {
       date_debut: '2024-01-15',
       date_fin_estimee: '2024-01-20',
       description: 'Problème de chauffage - Réparation en cours',
-      responsable: 'Jean Dupont',
+      responsable: 'Équipe maintenance',
       telephone: '01 23 45 67 89'
     },
     {
@@ -67,7 +67,7 @@ const getCriticalRooms = (): CriticalRoom[] => {
       date_debut: '2024-01-16',
       date_fin_estimee: '2024-01-18',
       description: 'Fuite d\'eau dans la salle de bain',
-      responsable: 'Marie Martin',
+      responsable: 'Service technique',
       telephone: '01 98 76 54 32'
     },
     {

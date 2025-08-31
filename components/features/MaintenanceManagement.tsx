@@ -166,30 +166,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     notes: ''
   });
 
-  // Fonctions utilitaires pour générer les données de maintenance
-  const generateMaintenanceDescription = (roomNumber: string): string => {
-    const descriptions = [
-      'Problème de climatisation',
-      'Réparation robinetterie',
-      'Attente pièces détachées',
-      'Maintenance électrique',
-      'Rénovation salle de bain',
-      'Changement revêtement sol',
-      'Réparation fenêtre',
-      'Maintenance chauffage'
-    ];
-    return descriptions[parseInt(roomNumber) % descriptions.length] || 'Maintenance générale';
-  };
-
-  const generatePriority = (index: number): 'basse' | 'moyenne' | 'haute' | 'critique' => {
-    const priorities: ('basse' | 'moyenne' | 'haute' | 'critique')[] = ['haute', 'moyenne', 'basse', 'critique'];
-    return priorities[index % priorities.length] || 'moyenne';
-  };
-
-  const generateResponsable = (index: number): string => {
-    const responsables = ['Jean Dupont', 'Marie Martin', 'Pierre Bernard', 'Sophie Dubois', 'Luc Moreau'];
-    return responsables[index % responsables.length] || 'Non assigné';
-  };
 
   // Traiter les vraies données de chambres - TOUTES les chambres
   useEffect(() => {
@@ -218,10 +194,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
           if (isMaintenanceRoom) {
             return {
               ...baseRoom,
-              description: room.description || generateMaintenanceDescription(room.numero),
-              priorite: generatePriority(index),
-              responsable: generateResponsable(index),
-              coutEstime: Math.floor(Math.random() * 500) + 100
+              description: room.description || 'Maintenance requise',
+              priorite: 'moyenne' as const,
+              responsable: undefined,
+              coutEstime: 0
             };
           }
 
@@ -235,72 +211,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
 
       setMaintenanceRooms(allRoomsData);
 
-      const demoItems: MaintenanceItem[] = [
-        {
-          id: 1,
-          nom: 'Réparation climatisation',
-          description: 'Maintenance et réparation des systèmes de climatisation',
-          categorie: 'climatisation',
-          coutMoyen: 300,
-          dureeMoyenne: 4
-        },
-        {
-          id: 2,
-          nom: 'Réparation plomberie',
-          description: 'Réparation des fuites et remplacement de robinetterie',
-          categorie: 'plomberie',
-          coutMoyen: 150,
-          dureeMoyenne: 2
-        },
-        {
-          id: 3,
-          nom: 'Réparation électrique',
-          description: 'Maintenance des installations électriques',
-          categorie: 'electricite',
-          coutMoyen: 200,
-          dureeMoyenne: 3
-        },
-        {
-          id: 4,
-          nom: 'Réparation mobilier',
-          description: 'Réparation et remplacement de mobilier',
-          categorie: 'mobilier',
-          coutMoyen: 100,
-          dureeMoyenne: 1
-        }
-      ];
-
-      const demoTodos: MaintenanceTodo[] = [
-        {
-          id: 1,
-          roomId: 1,
-          itemId: 1,
-          titre: 'Diagnostic climatisation',
-          description: 'Vérifier le système de climatisation de la chambre 101',
-          status: 'en_cours',
-          priorite: 'haute',
-          dateCreation: '2024-01-15',
-          dateEcheance: '2024-01-18',
-          responsable: 'Jean Dupont',
-          notes: 'Système en panne, température non régulée'
-        },
-        {
-          id: 2,
-          roomId: 2,
-          itemId: 2,
-          titre: 'Remplacement robinet',
-          description: 'Remplacer le robinet de la salle de bain',
-          status: 'termine',
-          priorite: 'moyenne',
-          dateCreation: '2024-01-10',
-          dateEcheance: '2024-01-15',
-          responsable: 'Marie Martin',
-          notes: 'Robinet remplacé avec succès'
-        }
-      ];
-
-      setMaintenanceItems(demoItems);
-      setTodos(demoTodos);
+      setMaintenanceItems([]);
+      setTodos([]);
       setLoading(false);
     };
 
