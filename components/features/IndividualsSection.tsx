@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -89,13 +89,31 @@ export default function IndividualsSection({
   // Déterminr si on affiche le loader
   const isLoading = usagerId ? individusBDD.loading && !migrationCompleted : false;
 
+  // Créer un Individual virtuel pour l'usager principal (chef de famille)
+  const mainUsagerAsChef: Individual | null = useMemo(() => {
+    if (!mainUsagerData?.nom || !mainUsagerData?.prenom) return null;
+    
+    return {
+      id: 'main-usager',
+      nom: mainUsagerData.nom,
+      prenom: mainUsagerData.prenom,
+      date_naissance: mainUsagerData.date_naissance,
+      lieu_naissance: mainUsagerData.lieu_naissance,
+      telephone: mainUsagerData.telephone,
+      email: mainUsagerData.email,
+      isChefFamille: true,
+      relation: undefined // Le chef de famille n'a pas de relation car c'est lui la référence
+    };
+  }, [mainUsagerData]);
+
   // Mettre à jour l'expansion quand les données changent
   useEffect(() => {
-    setIsExpanded(individuals.length > 0);
-  }, [individuals.length]);
+    setIsExpanded(individuals.length > 0 || mainUsagerAsChef !== null);
+  }, [individuals.length, mainUsagerAsChef]);
 
   // Séparer le responsable des autres individus
-  const responsible = individuals.find(ind => ind.isChefFamille);
+  // Si pas de chef dans les individus, utiliser l'usager principal
+  const responsible = individuals.find(ind => ind.isChefFamille) || mainUsagerAsChef;
   const otherIndividuals = individuals.filter(ind => !ind.isChefFamille);
 
   const handleAddIndividual = useCallback(async (newIndividualData: Omit<Individual, 'id'>) => {
@@ -308,7 +326,7 @@ export default function IndividualsSection({
     }
   }, [showTestDataOptions]);
 
-  const totalCount = individuals.length;
+  const totalCount = individuals.length + (mainUsagerAsChef && !individuals.find(ind => ind.isChefFamille) ? 1 : 0);
   const otherCount = otherIndividuals.length;
 
   return (
@@ -320,7 +338,7 @@ export default function IndividualsSection({
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
-            <span>Personnes liées à l'usager</span>
+            <span>Chef de famille et membres de la famille</span>
             {isLoading ? (
               <Badge variant="secondary" className="ml-2">
                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -350,7 +368,7 @@ export default function IndividualsSection({
         {!isExpanded && totalCount > 0 && (
           <div className="text-sm text-gray-600 mt-1">
             {responsible && (
-              <span>Responsable: {responsible.prenom} {responsible.nom}</span>
+              <span>Chef de famille: {responsible.prenom} {responsible.nom}</span>
             )}
             {otherCount > 0 && (
               <span className="ml-2">
@@ -369,18 +387,19 @@ export default function IndividualsSection({
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="h-4 w-4 text-yellow-600" />
                 <span className="text-sm font-semibold text-gray-700">
-                  Responsable principal
+                  Chef de famille
                 </span>
               </div>
               <IndividualCard
                 individual={responsible}
-                isEditing={editingId === responsible.id}
-                onEdit={() => handleStartEdit(responsible.id)}
-                onUpdate={(updates) => handleUpdateIndividual(responsible.id, updates)}
-                onRemove={() => handleRemoveIndividual(responsible.id)}
+                isEditing={editingId === responsible.id && responsible.id !== 'main-usager'}
+                onEdit={responsible.id !== 'main-usager' ? () => handleStartEdit(responsible.id) : undefined}
+                onUpdate={responsible.id !== 'main-usager' ? (updates) => handleUpdateIndividual(responsible.id, updates) : undefined}
+                onRemove={responsible.id !== 'main-usager' ? () => handleRemoveIndividual(responsible.id) : undefined}
                 onCancelEdit={handleCancelEdit}
                 canBeResponsible={false} // Ne peut pas changer de responsable depuis lui-même
                 autoFillFromMain={mainUsagerData}
+                isMainUsager={responsible.id === 'main-usager'}
               />
             </div>
           )}
@@ -391,7 +410,7 @@ export default function IndividualsSection({
               <div className="flex items-center gap-2 mb-2">
                 <User className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-semibold text-gray-700">
-                  Autres personnes ({otherCount})
+                  Membres de la famille ({otherCount})
                 </span>
               </div>
               <div className="space-y-3">
@@ -418,7 +437,7 @@ export default function IndividualsSection({
             <Card className="border-dashed border-2 border-blue-300 bg-blue-50">
               <CardContent className="pt-4">
                 <div className="mb-3">
-                  <h4 className="font-medium text-blue-900">Ajouter une nouvelle personne</h4>
+                  <h4 className="font-medium text-blue-900">Ajouter un membre de famille</h4>
                   <p className="text-sm text-blue-700">
                     Les informations communes seront pré-remplies automatiquement
                   </p>
@@ -442,7 +461,7 @@ export default function IndividualsSection({
                 className="w-full border-dashed border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-colors py-3"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Ajouter une personne
+                Ajouter un membre de famille
               </Button>
               
               {enableTestData && (
@@ -543,11 +562,11 @@ export default function IndividualsSection({
           {totalCount === 0 && !showAddForm && !showTestDataOptions && (
             <div className="text-center py-6 text-gray-500">
               <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">Aucune personne ajoutée</p>
+              <p className="text-sm">Aucun membre de famille ajouté</p>
               <p className="text-xs text-gray-400 mt-1">
                 {enableTestData 
                   ? 'Ajoutez manuellement ou générez des données de test pour commencer'
-                  : 'Cliquez sur "Ajouter une personne" pour commencer'
+                  : 'Cliquez sur "Ajouter un membre de famille" pour commencer'
                 }
               </p>
             </div>

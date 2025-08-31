@@ -26,6 +26,7 @@ interface IndividualCardProps {
     telephone?: string;
     email?: string;
   };
+  isMainUsager?: boolean;
 }
 
 export default function IndividualCard({
@@ -37,7 +38,8 @@ export default function IndividualCard({
   onSetAsResponsible,
   onCancelEdit,
   canBeResponsible = false,
-  autoFillFromMain
+  autoFillFromMain,
+  isMainUsager = false
 }: IndividualCardProps) {
   
   // Mode édition - affichage du formulaire
@@ -81,7 +83,7 @@ export default function IndividualCard({
               <div className="flex gap-1">
                 {individual.isChefFamille && (
                   <Badge className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5">
-                    Responsable
+                    Chef de famille {isMainUsager && '(Usager principal)'}
                   </Badge>
                 )}
                 {individual.relation && !individual.isChefFamille && (
@@ -137,29 +139,31 @@ export default function IndividualCard({
 
           {/* Actions */}
           <div className="flex items-center gap-1 ml-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEdit}
-              className="h-8 w-8 p-0 hover:bg-blue-100"
-              title="Modifier"
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
+            {!isMainUsager && onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+                className="h-8 w-8 p-0 hover:bg-blue-100"
+                title="Modifier"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+            )}
             
-            {!individual.isChefFamille && canBeResponsible && onSetAsResponsible && (
+            {!individual.isChefFamille && canBeResponsible && onSetAsResponsible && !isMainUsager && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onSetAsResponsible}
                 className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100"
-                title="Définir comme responsable"
+                title="Définir comme chef de famille"
               >
                 <Crown className="h-3 w-3" />
               </Button>
             )}
             
-            {!individual.isChefFamille && (
+            {!individual.isChefFamille && !isMainUsager && onRemove && (
               <Button
                 variant="ghost"
                 size="sm"

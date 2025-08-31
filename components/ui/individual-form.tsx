@@ -179,7 +179,7 @@ export default function IndividualForm({
       {/* Row 4: Relation (seulement si pas chef de famille) */}
       {!isMainContact && (
         <div>
-          <Label htmlFor="relation">Lien avec le responsable</Label>
+          <Label htmlFor="relation">Lien avec le chef de famille</Label>
           <select
             id="relation"
             value={formData.relation || ''}

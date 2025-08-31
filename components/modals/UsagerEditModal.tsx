@@ -439,6 +439,8 @@ export default function UsagerEditModal({
             usagerId={usager?.id} // Utiliser l'ID de l'usager pour la gestion BDD
             mainUsagerData={{
               nom: formData.nom,
+              prenom: formData.prenom,
+              date_naissance: formData.date_naissance,
               lieu_naissance: formData.lieu_naissance,
               telephone: formData.telephone,
               email: formData.email
