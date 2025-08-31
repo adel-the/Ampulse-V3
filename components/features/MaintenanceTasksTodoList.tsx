@@ -7,6 +7,8 @@ import { Badge } from '../ui/badge';
 import { MaintenanceTask } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMaintenanceTasks } from '@/hooks/useSupabase';
+// 🔧 TEMPORARY FIX: Import the fixed hook for better re-rendering
+// import { useMaintenanceTasksFixed as useMaintenanceTasks } from '@/hooks/useMaintenanceTasksFixed';
 import MaintenanceTaskFormComplete from './MaintenanceTaskFormComplete';
 import { 
   Plus, 
@@ -51,7 +53,8 @@ export default function MaintenanceTasksTodoList({
     deleteTask,
     completeTask,
     cancelTask,
-    startTask 
+    startTask,
+    fetchTasks // 🔧 FIX: Ajouter fetchTasks pour refresh manuel
   } = useMaintenanceTasks(hotelId, roomId);
 
   // États pour les modals et formulaires
@@ -184,14 +187,39 @@ export default function MaintenanceTasksTodoList({
     if (result.success) {
       console.log('✅ Tâche créée avec succès:', result.data);
       
-      // Réinitialiser tous les filtres pour s'assurer que la nouvelle tâche est visible
+      // 🔧 FIX: Réinitialiser tous les filtres pour s'assurer que la nouvelle tâche est visible
       setStatusFilter('all');
       setPriorityFilter('all');
       setSearchTerm('');
       
-      // Fermer le formulaire et notifier
-      setShowCreateForm(false);
-      addNotification('success', 'Tâche créée avec succès et ajoutée à la liste');
+      // 🔧 SOLUTION IMMÉDIATE: Double stratégie pour forcer la synchronisation
+      console.log('🚨 Déploiement de la solution multi-stratégie');
+      
+      // Stratégie 1: Re-fetch immédiat du hook local
+      if (fetchTasks) {
+        console.log('🔄 Force refresh immédiat du hook local');
+        fetchTasks();
+      }
+      
+      // Stratégie 2: Re-fetch avec délai pour les autres hooks
+      setTimeout(async () => {
+        console.log('🔄 Force refresh différé');
+        if (fetchTasks) {
+          await fetchTasks();
+        }
+        
+        setShowCreateForm(false);
+        addNotification('success', 'Tâche créée avec succès et visible immédiatement !');
+        console.log('✅ Tâche créée et synchronisée');
+      }, 800);
+      
+      // Stratégie 3: En dernier recours, forcer un événement personnalisé
+      setTimeout(() => {
+        console.log('📡 Déclenchement événement personnalisé pour synchronisation globale');
+        window.dispatchEvent(new CustomEvent('forceTaskRefresh', { 
+          detail: { newTask: result.data, hotelId, roomId } 
+        }));
+      }, 500);
       
       console.log('🔄 Filtres réinitialisés, nouvelle tâche devrait être visible');
     } else {

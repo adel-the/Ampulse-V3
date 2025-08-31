@@ -3012,6 +3012,30 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     fetchTasks()
   }, [user, hotelId, roomId])
 
+  // Listener pour la synchronisation globale via événement personnalisé
+  useEffect(() => {
+    const handleForceTaskRefresh = (event: CustomEvent) => {
+      console.log('📡 [useMaintenanceTasks] Événement de force refresh reçu:', event.detail);
+      
+      // Vérifier si ce hook doit réagir à l'événement
+      const { hotelId: eventHotelId, roomId: eventRoomId } = event.detail;
+      const shouldRefresh = !hotelId || !eventHotelId || hotelId === eventHotelId;
+      
+      if (shouldRefresh) {
+        console.log('🔄 [useMaintenanceTasks] Déclenchement du refresh suite à l\'événement');
+        setTimeout(fetchTasks, 200); // Petit délai pour éviter les conflicts
+      } else {
+        console.log('⏭️ [useMaintenanceTasks] Événement ignoré (hotelId différent)');
+      }
+    };
+
+    window.addEventListener('forceTaskRefresh', handleForceTaskRefresh as EventListener);
+    
+    return () => {
+      window.removeEventListener('forceTaskRefresh', handleForceTaskRefresh as EventListener);
+    };
+  }, [hotelId, roomId, fetchTasks]);
+
   return { 
     tasks, 
     loading, 
