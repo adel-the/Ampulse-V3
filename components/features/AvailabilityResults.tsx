@@ -31,7 +31,7 @@ import {
   X,
   Edit
 } from 'lucide-react';
-import { Room, RoomCategory, Hotel as HotelType, HotelEquipment, Client, CLIENT_TYPES, ClientCategory } from '@/lib/supabase';
+import { Room, RoomCategory, Hotel as HotelType, HotelEquipment, Client } from '@/lib/supabase';
 import { AvailabilitySearchCriteria } from './AvailabilitySearchForm';
 import { useNotifications } from '@/hooks/useNotifications';
 import { clientsApi } from '@/lib/api/clients';
@@ -137,7 +137,6 @@ export default function AvailabilityResults({
   const [usagers, setUsagers] = useState<UsagerWithPrescripteur[]>([]);
   const [usagersLoading, setUsagersLoading] = useState(false);
   const [selectedUsagerId, setSelectedUsagerId] = useState<number | null>(null);
-  const [selectedPrescripteurType, setSelectedPrescripteurType] = useState<ClientCategory | ''>('');
   const [usagerInputValue, setUsagerInputValue] = useState('');
   const [showUsagerSuggestions, setShowUsagerSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -245,25 +244,15 @@ export default function AvailabilityResults({
         return false;
       }
       
-      // If no specific prescripteur selected, filter by prescripteur type (legacy)
-      if (!selectedPrescripteur && selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
-        return false;
-      }
-      
       return true;
     });
-  }, [usagers, selectedPrescripteur, selectedPrescripteurType]);
+  }, [usagers, selectedPrescripteur]);
 
   // Filter usagers based on selected prescripteur and search (for autocomplete)
   const getFilteredUsagers = useCallback(() => {
     return usagers.filter(usager => {
       // Filter by selected specific prescripteur (Step 2)
       if (selectedPrescripteur && usager.prescripteur?.id !== selectedPrescripteur.id) {
-        return false;
-      }
-      
-      // If no specific prescripteur selected, filter by prescripteur type (legacy)
-      if (!selectedPrescripteur && selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
         return false;
       }
       
@@ -282,7 +271,7 @@ export default function AvailabilityResults({
       }
       return true;
     });
-  }, [usagers, selectedPrescripteur, selectedPrescripteurType, usagerInputValue]);
+  }, [usagers, selectedPrescripteur, usagerInputValue]);
 
   // Handle prescripteur selection from suggestions
   const handlePrescripteurSelect = (prescripteur: Client) => {
@@ -392,7 +381,6 @@ export default function AvailabilityResults({
     setShowRoomDetails(false);
     setSelectedRoom(null);
     setSelectedUsagerId(null);
-    setSelectedPrescripteurType('');
     setUsagerInputValue('');
     setShowUsagerSuggestions(false);
     setHighlightedIndex(-1);
@@ -732,57 +720,14 @@ export default function AvailabilityResults({
                   </div>
                 )}
                 
-                {/* Legacy Type filter for backward compatibility when no specific prescripteur selected */}
-                {!selectedPrescripteur && (
-                  <div>
-                    <Label htmlFor="prescripteur-type-filter">Ou filtrer par type de prescripteur (ancien mode)</Label>
-                    <select
-                      id="prescripteur-type-filter"
-                      value={selectedPrescripteurType}
-                      onChange={(e) => {
-                        setSelectedPrescripteurType(e.target.value as ClientCategory | '');
-                        setSelectedUsagerId(null); // Reset selected usager when type changes
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Tous les prescripteurs</option>
-                      {CLIENT_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 
-                {/* Active filter display for prescripteur type only */}
-                {!selectedPrescripteur && selectedPrescripteurType && (
-                  <div className="flex justify-between items-center p-2 bg-blue-50 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">Filtre actif:</span>
-                      <Badge variant="secondary" className="text-xs">
-                        Prescripteur: {selectedPrescripteurType}
-                      </Badge>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedPrescripteurType('');
-                        setSelectedUsagerId(null);
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    >
-                      <X className="h-3 w-3" />
-                      Effacer
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Step 2: Usager Selection */}
-        <Card className={!selectedPrescripteur && !selectedPrescripteurType ? 'opacity-50' : ''}>
+        <Card className={!selectedPrescripteur ? 'opacity-50' : ''}>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="h-5 w-5 text-purple-600" />
@@ -793,14 +738,12 @@ export default function AvailabilityResults({
                 ? `Sélectionnez un usager lié à ${selectedPrescripteur.client_type === 'Particulier' 
                     ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
                     : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}`
-                : selectedPrescripteurType
-                ? `Usagers des prescripteurs de type ${selectedPrescripteurType}`
                 : 'Veuillez d\'abord sélectionner un prescripteur'
               }
             </p>
           </CardHeader>
           <CardContent>
-            {!selectedPrescripteur && !selectedPrescripteurType ? (
+            {!selectedPrescripteur ? (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -819,8 +762,6 @@ export default function AvailabilityResults({
                   <AlertDescription>
                     {selectedPrescripteur 
                       ? 'Aucun usager actif trouvé pour ce prescripteur.'
-                      : selectedPrescripteurType
-                      ? `Aucun usager trouvé pour les prescripteurs de type ${selectedPrescripteurType}.`
                       : 'Aucun usager actif trouvé.'
                     }
                   </AlertDescription>
@@ -884,7 +825,7 @@ export default function AvailabilityResults({
                       onKeyDown={handleUsagerKeyDown}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required={!selectedUsagerId}
-                      disabled={!selectedPrescripteur && !selectedPrescripteurType}
+                      disabled={!selectedPrescripteur}
                     />
                     
                     {/* Clear button */}
