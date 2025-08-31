@@ -569,15 +569,17 @@ export default function AvailabilityResults({
           )}
         </Card>
 
-        {/* Step 1: Prescripteur Selection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              Étape 1: Sélection du prescripteur
+        {/* Steps 1 & 2: Prescripteur and Usager Selection */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Step 1: Prescripteur Selection */}
+          <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              Étape 1: Prescripteur
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
-              Sélectionnez d'abord l'association ou entreprise qui prescrit l'hébergement
+            <p className="text-xs text-gray-600">
+              Association ou entreprise qui prescrit
             </p>
           </CardHeader>
           <CardContent>
@@ -593,9 +595,9 @@ export default function AvailabilityResults({
                 {/* Prescripteur autocomplete */}
                 <div className="relative">
                   <div className="flex justify-between items-center mb-1">
-                    <Label htmlFor="prescripteur-input">Prescripteur (Association/Entreprise) *</Label>
+                    <Label htmlFor="prescripteur-input" className="text-sm font-medium">Prescripteur *</Label>
                     <span className="text-xs text-gray-500">
-                      {getFilteredPrescripteurs().length} prescripteur{getFilteredPrescripteurs().length > 1 ? 's' : ''} trouvé{getFilteredPrescripteurs().length > 1 ? 's' : ''}
+                      {getFilteredPrescripteurs().length} trouvé{getFilteredPrescripteurs().length > 1 ? 's' : ''}
                     </span>
                   </div>
                   
@@ -684,36 +686,40 @@ export default function AvailabilityResults({
 
                 {/* Selected Prescripteur Info */}
                 {selectedPrescripteur && (
-                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-green-900 flex items-center gap-2">
-                        <Check className="h-4 w-4" />
-                        Prescripteur sélectionné
-                      </h4>
+                  <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Check className="h-3 w-3 text-green-600" />
+                      <h4 className="text-sm font-medium text-green-900">Prescripteur sélectionné</h4>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-green-700">Nom:</span>
-                        <span className="ml-2 text-green-900">
-                          {selectedPrescripteur.client_type === 'Particulier'
-                            ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
-                            : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-green-700">Type:</span>
-                        <span className="ml-2 text-green-900">{selectedPrescripteur.client_type}</span>
-                      </div>
-                      {selectedPrescripteur.email && (
+                    <div className="space-y-1 text-xs">
+                      <div className="flex gap-4">
                         <div>
-                          <span className="text-green-700">Email:</span>
-                          <span className="ml-2 text-green-900">{selectedPrescripteur.email}</span>
+                          <span className="text-green-700">Nom:</span>
+                          <span className="ml-1 text-green-900 font-medium">
+                            {selectedPrescripteur.client_type === 'Particulier'
+                              ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
+                              : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}
+                          </span>
                         </div>
-                      )}
-                      {selectedPrescripteur.telephone && (
                         <div>
-                          <span className="text-green-700">Téléphone:</span>
-                          <span className="ml-2 text-green-900">{selectedPrescripteur.telephone}</span>
+                          <span className="text-green-700">Type:</span>
+                          <span className="ml-1 text-green-900">{selectedPrescripteur.client_type}</span>
+                        </div>
+                      </div>
+                      {(selectedPrescripteur.email || selectedPrescripteur.telephone) && (
+                        <div className="flex gap-4">
+                          {selectedPrescripteur.email && (
+                            <div>
+                              <span className="text-green-700">Email:</span>
+                              <span className="ml-1 text-green-900">{selectedPrescripteur.email}</span>
+                            </div>
+                          )}
+                          {selectedPrescripteur.telephone && (
+                            <div>
+                              <span className="text-green-700">Tél:</span>
+                              <span className="ml-1 text-green-900">{selectedPrescripteur.telephone}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -724,21 +730,21 @@ export default function AvailabilityResults({
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Step 2: Usager Selection */}
-        <Card className={!selectedPrescripteur ? 'opacity-50' : ''}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-600" />
-              Étape 2: Sélection de l'usager (bénéficiaire)
+          {/* Step 2: Usager Selection */}
+          <Card className={!selectedPrescripteur ? 'opacity-50' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-purple-600" />
+              Étape 2: Usager (bénéficiaire)
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs text-gray-600">
               {selectedPrescripteur 
-                ? `Sélectionnez un usager lié à ${selectedPrescripteur.client_type === 'Particulier' 
+                ? `Lié à ${selectedPrescripteur.client_type === 'Particulier' 
                     ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
                     : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}`
-                : 'Veuillez d\'abord sélectionner un prescripteur'
+                : 'Sélectionnez d\'abord un prescripteur'
               }
             </p>
           </CardHeader>
@@ -785,23 +791,23 @@ export default function AvailabilityResults({
                 {/* Usager selection with autocomplete */}
                 <div className="relative">
                   <div className="flex justify-between items-center mb-1">
-                    <Label htmlFor="usager-input">Usager (bénéficiaire) *</Label>
-                    <div className="flex items-center gap-3">
+                    <Label htmlFor="usager-input" className="text-sm font-medium">Usager *</Label>
+                    <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">
                         {usagerInputValue ? (
-                          `${getFilteredUsagers().length}/${getUsagersForPrescripteur().length} usager${getFilteredUsagers().length > 1 ? 's' : ''} trouvé${getFilteredUsagers().length > 1 ? 's' : ''}`
+                          `${getFilteredUsagers().length}/${getUsagersForPrescripteur().length} trouvé${getFilteredUsagers().length > 1 ? 's' : ''}`
                         ) : (
-                          `${getUsagersForPrescripteur().length} usager${getUsagersForPrescripteur().length > 1 ? 's' : ''} disponible${getUsagersForPrescripteur().length > 1 ? 's' : ''}`
+                          `${getUsagersForPrescripteur().length} disponible${getUsagersForPrescripteur().length > 1 ? 's' : ''}`
                         )}
                       </span>
                       {selectedPrescripteur && (
                         <button
                           type="button"
                           onClick={() => setShowCreateUsagerModal(true)}
-                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
+                          className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                         >
                           <Users className="h-3 w-3" />
-                          Créer un nouvel usager
+                          Créer
                         </button>
                       )}
                     </div>
@@ -888,51 +894,60 @@ export default function AvailabilityResults({
 
                 {/* Selected Usager Info */}
                 {selectedUsager && (
-                  <div className="bg-gray-50 rounded-lg p-3 border">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-gray-900">Informations usager</h4>
+                  <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="flex items-center gap-1">
+                        <Check className="h-3 w-3 text-blue-600" />
+                        <h4 className="text-sm font-medium text-blue-900">Usager sélectionné</h4>
+                      </div>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => setShowEditUsagerModal(true)}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 text-xs h-6 px-2"
                       >
                         <Edit className="h-3 w-3" />
                         Modifier
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Nom:</span>
-                        <span className="ml-2 text-gray-900">{selectedUsager.nom} {selectedUsager.prenom}</span>
-                      </div>
-                      {selectedUsager.email && (
+                    <div className="space-y-1 text-xs">
+                      <div className="flex gap-4">
                         <div>
-                          <span className="text-gray-600">Email:</span>
-                          <span className="ml-2 text-gray-900">{selectedUsager.email}</span>
+                          <span className="text-blue-700">Nom:</span>
+                          <span className="ml-1 text-blue-900 font-medium">{selectedUsager.nom} {selectedUsager.prenom}</span>
                         </div>
-                      )}
-                      {selectedUsager.telephone && (
-                        <div>
-                          <span className="text-gray-600">Téléphone:</span>
-                          <span className="ml-2 text-gray-900">{selectedUsager.telephone}</span>
+                        {selectedUsager.autonomie_level && (
+                          <div>
+                            <span className="text-blue-700">Autonomie:</span>
+                            <span className="ml-1 text-blue-900">{selectedUsager.autonomie_level}</span>
+                          </div>
+                        )}
+                      </div>
+                      {(selectedUsager.email || selectedUsager.telephone) && (
+                        <div className="flex gap-4">
+                          {selectedUsager.email && (
+                            <div className="text-ellipsis overflow-hidden whitespace-nowrap">
+                              <span className="text-blue-700">Email:</span>
+                              <span className="ml-1 text-blue-900">{selectedUsager.email}</span>
+                            </div>
+                          )}
+                          {selectedUsager.telephone && (
+                            <div>
+                              <span className="text-blue-700">Tél:</span>
+                              <span className="ml-1 text-blue-900">{selectedUsager.telephone}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                       {selectedUsager.prescripteur && (
-                        <div className="col-span-2">
-                          <span className="text-gray-600">Prescripteur:</span>
-                          <span className="ml-2 text-gray-900">
-                            [{selectedUsager.prescripteur?.client_type?.substring(0, 3).toUpperCase() || 'N/A'}] 
-                            {selectedUsager.prescripteur?.client_type === 'Particulier' 
-                              ? `${selectedUsager.prescripteur?.nom || ''} ${selectedUsager.prescripteur?.prenom || ''}`.trim()
-                              : selectedUsager.prescripteur?.raison_sociale || selectedUsager.prescripteur?.nom || 'Sans prescripteur'}
-                          </span>
-                        </div>
-                      )}
-                      {selectedUsager.autonomie_level && (
                         <div>
-                          <span className="text-gray-600">Autonomie:</span>
-                          <span className="ml-2 text-gray-900">{selectedUsager.autonomie_level}</span>
+                          <span className="text-blue-700">Prescripteur:</span>
+                          <span className="ml-1 text-blue-900">
+                            [{selectedUsager.prescripteur?.client_type?.substring(0, 3).toUpperCase() || 'N/A'}]
+                            {selectedUsager.prescripteur?.client_type === 'Particulier' 
+                              ? ` ${selectedUsager.prescripteur?.nom || ''} ${selectedUsager.prescripteur?.prenom || ''}`.trim()
+                              : ` ${selectedUsager.prescripteur?.raison_sociale || selectedUsager.prescripteur?.nom || 'Sans prescripteur'}`}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -941,7 +956,8 @@ export default function AvailabilityResults({
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
 
         {/* Special Requests */}
         <Card>
