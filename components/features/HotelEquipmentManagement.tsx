@@ -31,7 +31,7 @@ const EQUIPMENT_CATEGORIES = [
 export default function HotelEquipmentManagement({ hotelId, hotelName }: HotelEquipmentManagementProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<HotelEquipment | null>(null);
-  const [formData, setFormData] = useState<Partial<HotelEquipmentInsert>>({
+  const [formData, setFormData] = useState<any>({
     nom: '',
     description: '',
     categorie: 'general',
@@ -54,8 +54,8 @@ export default function HotelEquipmentManagement({ hotelId, hotelName }: HotelEq
 
   // Get equipment icon
   const getEquipmentIcon = (equipment: HotelEquipment) => {
-    const iconName = equipment.icone?.toLowerCase();
-    const categoryName = equipment.categorie?.toLowerCase();
+    const iconName = (equipment as any).icone?.toLowerCase();
+    const categoryName = (equipment as any).categorie?.toLowerCase();
     
     const iconMap: Record<string, any> = {
       wifi: Wifi,

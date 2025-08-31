@@ -66,11 +66,14 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
       
       await fetchIndividus();
       return { success: true };
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating individu:', err);
+      const errorMessage = err?.message || 'Erreur lors de la création';
+      const errorDetails = err?.details || '';
+      const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
       return { 
         success: false, 
-        error: err instanceof Error ? err.message : 'Erreur lors de la création' 
+        error: fullError
       };
     }
   };
@@ -86,11 +89,14 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
       
       await fetchIndividus();
       return { success: true };
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating individus batch:', err);
+      const errorMessage = err?.message || 'Erreur lors de la création en batch';
+      const errorDetails = err?.details || '';
+      const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
       return { 
         success: false, 
-        error: err instanceof Error ? err.message : 'Erreur lors de la création en batch' 
+        error: fullError
       };
     }
   };

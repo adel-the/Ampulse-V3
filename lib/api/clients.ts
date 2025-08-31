@@ -17,14 +17,20 @@ export interface ClientFormData {
   // Contact
   email?: string;
   telephone?: string;
+  fax?: string;
+  site_web?: string;
   
   // Adresse
   adresse?: string;
+  complement_adresse?: string;
   ville?: string;
   code_postal?: string;
+  pays?: string;
   
   // Commercial/Legal
   siret?: string;
+  siren?: string;
+  tva_intracommunautaire?: string;
   
   // Statut
   statut?: 'actif' | 'inactif' | 'prospect' | 'archive';
@@ -32,9 +38,19 @@ export interface ClientFormData {
   // ===== UI-ONLY FIELDS (not sent to database) =====
   // These fields are used for form display but filtered out before API calls
   secteur_activite?: string;
+  taille_entreprise?: string;
+  chiffre_affaires?: number;
   nombre_employes?: number;
   numero_agrement?: string;
+  date_agrement?: string;
+  domaine_action?: string;
   nombre_adherents?: number;
+  lieu_naissance?: string;
+  nationalite?: string;
+  profession?: string;
+  employeur?: string;
+  source_acquisition?: string;
+  tags?: string[];
   nombre_enfants?: number;
   mode_paiement?: string;
   delai_paiement?: number;

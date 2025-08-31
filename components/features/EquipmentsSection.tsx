@@ -38,7 +38,7 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
   // Modal and form state
   const [showModal, setShowModal] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<HotelEquipment | null>(null);
-  const [formData, setFormData] = useState<Partial<HotelEquipmentInsert>>({
+  const [formData, setFormData] = useState<any>({
     nom: '',
     description: '',
     categorie: 'general',
@@ -88,23 +88,23 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
 
   // Get equipment icon
   const getEquipmentIcon = (equipment: HotelEquipment) => {
-    const category = EQUIPMENT_CATEGORIES.find(c => c.value === equipment.categorie);
+    const category = EQUIPMENT_CATEGORIES.find(c => c.value === (equipment as any).categorie);
     return category ? category.icon : Settings;
   };
 
   // Filter equipments
   const filteredEquipments = equipments.filter(equipment => {
     // Search filter
-    if (searchTerm && !equipment.nom.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (!equipment.description || !equipment.description.toLowerCase().includes(searchTerm.toLowerCase()))) {
+    if (searchTerm && !(equipment as any).nom.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        (!(equipment as any).description || !(equipment as any).description.toLowerCase().includes(searchTerm.toLowerCase()))) {
       return false;
     }
 
     // Active filter
-    if (filterActive === 'active' && !equipment.est_actif) {
+    if (filterActive === 'active' && !(equipment as any).est_actif) {
       return false;
     }
-    if (filterActive === 'inactive' && equipment.est_actif) {
+    if (filterActive === 'inactive' && (equipment as any).est_actif) {
       return false;
     }
 
@@ -131,7 +131,7 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
         response = await updateEquipment(editingEquipment.id, formData);
       } else {
         // Create new equipment
-        response = await createEquipment(formData as Omit<HotelEquipmentInsert, 'hotel_id'>);
+        response = await createEquipment(formData as any);
       }
 
       if (response.success) {
@@ -150,21 +150,21 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
   const handleEdit = (equipment: HotelEquipment) => {
     setEditingEquipment(equipment);
     setFormData({
-      nom: equipment.nom,
-      description: equipment.description,
-      categorie: equipment.categorie,
-      icone: equipment.icone,
-      couleur: equipment.couleur,
-      est_premium: equipment.est_premium,
-      est_actif: equipment.est_actif,
-      ordre_affichage: equipment.ordre_affichage
+      nom: (equipment as any).nom,
+      description: (equipment as any).description,
+      categorie: (equipment as any).categorie,
+      icone: (equipment as any).icone,
+      couleur: (equipment as any).couleur,
+      est_premium: (equipment as any).est_premium,
+      est_actif: (equipment as any).est_actif,
+      ordre_affichage: (equipment as any).ordre_affichage
     });
     setShowModal(true);
   };
 
   // Handle delete
   const handleDelete = async (equipment: HotelEquipment) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer "${equipment.nom}" ?`)) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer "${(equipment as any).nom}" ?`)) {
       try {
         const response = await deleteEquipment(equipment.id);
         if (response.success) {
@@ -183,10 +183,10 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
   const handleToggleActive = async (equipment: HotelEquipment) => {
     try {
       const response = await updateEquipment(equipment.id, {
-        est_actif: !equipment.est_actif
-      });
+        est_actif: !(equipment as any).est_actif
+      } as any);
       if (response.success) {
-        addNotification('success', equipment.est_actif ? 'Équipement désactivé' : 'Équipement activé');
+        addNotification('success', (equipment as any).est_actif ? 'Équipement désactivé' : 'Équipement activé');
       } else {
         addNotification('error', response.error || 'Erreur lors du changement de statut');
       }
@@ -364,7 +364,7 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
                       <tr 
                         key={equipment.id} 
                         className={`hover:bg-gray-50 ${
-                          equipment.est_actif ? '' : 'bg-gray-50 opacity-60'
+                          (equipment as any).est_actif ? '' : 'bg-gray-50 opacity-60'
                         }`}
                       >
                         <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
@@ -376,21 +376,21 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
                         <td className="px-3 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className={`text-sm font-medium ${
-                              equipment.est_actif ? 'text-gray-900' : 'text-gray-500'
+                              (equipment as any).est_actif ? 'text-gray-900' : 'text-gray-500'
                             }`}>
-                              {equipment.nom}
+                              {(equipment as any).nom}
                             </span>
                           </div>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {equipment.est_actif ? (
+                          {(equipment as any).est_actif ? (
                             <Badge className="bg-green-100 text-green-800 text-xs">Actif</Badge>
                           ) : (
                             <Badge variant="secondary" className="text-xs">Inactif</Badge>
                           )}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {equipment.est_premium ? (
+                          {(equipment as any).est_premium ? (
                             <Badge className="bg-yellow-100 text-yellow-800 text-xs">Oui</Badge>
                           ) : (
                             <span className="text-xs text-gray-500">-</span>
@@ -403,10 +403,10 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
                               size="sm"
                               variant="ghost"
                               className="h-7 w-7 p-0"
-                              title={equipment.est_actif ? 'Désactiver' : 'Activer'}
+                              title={(equipment as any).est_actif ? 'Désactiver' : 'Activer'}
                             >
                               <Check className={`h-3.5 w-3.5 ${
-                                equipment.est_actif ? 'text-green-600' : 'text-gray-400'
+                                (equipment as any).est_actif ? 'text-green-600' : 'text-gray-400'
                               }`} />
                             </Button>
                             <Button
@@ -448,21 +448,21 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
                   <div
                     key={equipment.id}
                     className={`flex items-center justify-between py-1.5 px-2 rounded ${
-                      equipment.est_actif ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-60'
+                      (equipment as any).est_actif ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-60'
                     } transition-colors`}
                   >
                     <div className="flex items-center gap-2 flex-1">
                       <span className="text-xs text-gray-400 w-6">{index + 1}</span>
                       <EquipIcon className="h-3.5 w-3.5 text-gray-500" />
-                      <span className={`text-sm ${equipment.est_actif ? 'text-gray-900' : 'text-gray-500'}`}>
-                        {equipment.nom}
+                      <span className={`text-sm ${(equipment as any).est_actif ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {(equipment as any).nom}
                       </span>
-                      {equipment.est_premium && (
+                      {(equipment as any).est_premium && (
                         <Badge className="bg-yellow-100 text-yellow-800 text-xs py-0 px-1" variant="secondary">
                           Premium
                         </Badge>
                       )}
-                      {!equipment.est_actif && (
+                      {!(equipment as any).est_actif && (
                         <Badge variant="secondary" className="text-xs py-0 px-1">Inactif</Badge>
                       )}
                     </div>
@@ -472,9 +472,9 @@ export default function EquipmentsSection({ selectedHotelId }: EquipmentsSection
                         size="sm"
                         variant="ghost"
                         className="h-6 w-6 p-0"
-                        title={equipment.est_actif ? 'Désactiver' : 'Activer'}
+                        title={(equipment as any).est_actif ? 'Désactiver' : 'Activer'}
                       >
-                        <Check className={`h-3 w-3 ${equipment.est_actif ? 'text-green-600' : 'text-gray-400'}`} />
+                        <Check className={`h-3 w-3 ${(equipment as any).est_actif ? 'text-green-600' : 'text-gray-400'}`} />
                       </Button>
                       <Button
                         onClick={() => handleEdit(equipment)}

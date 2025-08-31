@@ -6,6 +6,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AlertCircle } from 'lucide-react';
 import { 
   X, User, Search, Building, Users, Save
 } from 'lucide-react';
@@ -52,6 +54,12 @@ export default function UsagerEditModal({
   
   // State for individuals management
   const [individuals, setIndividuals] = useState<Individual[]>([]);
+  
+  // Error state management
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [individualErrors, setIndividualErrors] = useState<Record<string, Record<string, string>>>({});
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form data with test values for new usager
   const getInitialFormData = () => {
@@ -125,23 +133,122 @@ export default function UsagerEditModal({
     }
   };
 
+  // Parse backend errors to extract field-specific errors
+  const parseBackendError = (error: string): void => {
+    // Clear previous errors
+    setFieldErrors({});
+    setIndividualErrors({});
+    setGlobalError(null);
+    
+    // Parse common database errors
+    if (error.includes('duplicate key') || error.includes('unique constraint')) {
+      const match = error.match(/Key \((.*?)\)=/);
+      if (match) {
+        const field = match[1];
+        setFieldErrors(prev => ({
+          ...prev,
+          [field]: 'Cette valeur existe déjà dans la base de données'
+        }));
+      } else {
+        setGlobalError('Une contrainte d\'unicité a été violée. Vérifiez les doublons.');
+      }
+    } else if (error.includes('violates not-null constraint')) {
+      const match = error.match(/column "(.*?)"/);
+      if (match) {
+        const field = match[1];
+        setFieldErrors(prev => ({
+          ...prev,
+          [field]: 'Ce champ est obligatoire'
+        }));
+      }
+    } else if (error.includes('violates foreign key constraint')) {
+      setGlobalError('Référence invalide. Vérifiez les données liées.');
+    } else if (error.includes('violates check constraint')) {
+      const match = error.match(/constraint "(.*?)"/);
+      if (match) {
+        setGlobalError(`Contrainte de validation échouée: ${match[1]}`);
+      }
+    } else if (error.includes('invalid input syntax')) {
+      const match = error.match(/for type (\w+): "(.*)"/);
+      if (match) {
+        setGlobalError(`Format invalide: attendu ${match[1]}, reçu "${match[2]}"`);
+      }
+    } else {
+      // Default error message
+      setGlobalError(error);
+    }
+  };
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Clear field error when user starts typing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+    
+    // Clear global error when user makes changes
+    if (globalError) {
+      setGlobalError(null);
+    }
   };
 
   const handleSubmit = async () => {
     const isCreating = !usager?.id;
     
+    // Clear all errors before submission
+    setFieldErrors({});
+    setIndividualErrors({});
+    setGlobalError(null);
+    
     // ========== VALIDATION ==========
     const validationResult = validateUsagerIndividualsData(formData as UsagerFormData, individuals);
     if (!validationResult.isValid) {
-      validationResult.errors.forEach(error => addNotification('error', error));
+      // Parse validation errors and set field-specific errors
+      const errors: Record<string, string> = {};
+      validationResult.errors.forEach(error => {
+        // Try to extract field name from error message
+        if (error.includes('nom')) {
+          errors.nom = error;
+        } else if (error.includes('prénom')) {
+          errors.prenom = error;
+        } else if (error.includes('email')) {
+          errors.email = error;
+        } else if (error.includes('téléphone')) {
+          errors.telephone = error;
+        } else if (error.includes('date de naissance')) {
+          errors.date_naissance = error;
+        } else {
+          // If can't match to a field, show as global error
+          setGlobalError(error);
+        }
+      });
+      
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        
+        // Focus on first error field
+        setTimeout(() => {
+          const firstErrorField = Object.keys(errors)[0];
+          const element = document.getElementById(firstErrorField);
+          if (element) {
+            element.focus();
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+      
       return;
     }
 
+    setIsSubmitting(true);
     setLoading(true);
 
     try {
@@ -170,14 +277,35 @@ export default function UsagerEditModal({
         handleClose();
       } else {
         // ========== ÉCHEC ==========
-        addNotification('error', result.error || 'Une erreur est survenue');
+        // Parse and display backend error
+        parseBackendError(result.error || 'Une erreur est survenue');
+        
+        // Set global error if no specific field errors were found
+        if (Object.keys(fieldErrors).length === 0 && !globalError) {
+          setGlobalError('Échec de l\'enregistrement. Corrigez les champs marqués ci-dessous.');
+        }
+        
+        // Focus on first error field if any
+        setTimeout(() => {
+          const errorFields = Object.keys(fieldErrors);
+          if (errorFields.length > 0) {
+            const firstErrorField = errorFields[0];
+            const element = document.getElementById(firstErrorField);
+            if (element) {
+              element.focus();
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }, 100);
       }
       
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      addNotification('error', 'Une erreur inattendue est survenue');
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue est survenue';
+      parseBackendError(errorMessage);
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -241,6 +369,15 @@ export default function UsagerEditModal({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Global Error Banner */}
+        {globalError && (
+          <Alert variant="destructive" className="mx-6 mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Échec de l'enregistrement</AlertTitle>
+            <AlertDescription>{globalError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -340,7 +477,11 @@ export default function UsagerEditModal({
                   value={formData.nom}
                   onChange={(e) => handleInputChange('nom', e.target.value.toUpperCase())}
                   required
+                  className={fieldErrors.nom ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                {fieldErrors.nom && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.nom}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="prenom">Prénom *</Label>
@@ -349,7 +490,11 @@ export default function UsagerEditModal({
                   value={formData.prenom}
                   onChange={(e) => handleInputChange('prenom', e.target.value)}
                   required
+                  className={fieldErrors.prenom ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                {fieldErrors.prenom && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.prenom}</p>
+                )}
               </div>
             </div>
 
@@ -361,7 +506,11 @@ export default function UsagerEditModal({
                   type="date"
                   value={formData.date_naissance}
                   onChange={(e) => handleInputChange('date_naissance', e.target.value)}
+                  className={fieldErrors.date_naissance ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                {fieldErrors.date_naissance && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.date_naissance}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="lieu_naissance">Lieu de naissance</Label>
@@ -389,7 +538,11 @@ export default function UsagerEditModal({
                   type="tel"
                   value={formData.telephone}
                   onChange={(e) => handleInputChange('telephone', e.target.value)}
+                  className={fieldErrors.telephone ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                {fieldErrors.telephone && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.telephone}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -398,7 +551,11 @@ export default function UsagerEditModal({
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
+                  className={fieldErrors.email ? 'border-red-500 focus:ring-red-500' : ''}
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.email}</p>
+                )}
               </div>
             </div>
 

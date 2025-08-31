@@ -262,36 +262,36 @@ export default function ClientsSection() {
         raison_sociale: client.raison_sociale || '',
         email: client.email || '',
         telephone: client.telephone || '',
-        fax: client.fax || '',
-        site_web: client.site_web || '',
+        fax: (client as any).fax || '',
+        site_web: (client as any).site_web || '',
         adresse: client.adresse || '',
-        complement_adresse: client.complement_adresse || '',
+        complement_adresse: (client as any).complement_adresse || '',
         ville: client.ville || '',
         code_postal: client.code_postal || '',
-        pays: client.pays || 'France',
+        pays: (client as any).pays || 'France',
         // Entreprise fields
         siret: client.siret || '',
-        siren: client.siren || '',
-        tva_intracommunautaire: client.tva_intracommunautaire || '',
-        secteur_activite: client.secteur_activite || '',
-        taille_entreprise: client.taille_entreprise || '',
-        chiffre_affaires: client.chiffre_affaires || undefined,
-        nombre_employes: client.nombre_employes || undefined,
+        siren: (client as any).siren || '',
+        tva_intracommunautaire: (client as any).tva_intracommunautaire || '',
+        secteur_activite: (client as any).secteur_activite || '',
+        taille_entreprise: (client as any).taille_entreprise || '',
+        chiffre_affaires: (client as any).chiffre_affaires || undefined,
+        nombre_employes: (client as any).nombre_employes || undefined,
         // Association fields
-        numero_agrement: client.numero_agrement || '',
-        date_agrement: client.date_agrement || '',
-        domaine_action: client.domaine_action || '',
-        nombre_adherents: client.nombre_adherents || undefined,
+        numero_agrement: (client as any).numero_agrement || '',
+        date_agrement: (client as any).date_agrement || '',
+        domaine_action: (client as any).domaine_action || '',
+        nombre_adherents: (client as any).nombre_adherents || undefined,
         // Particulier fields
-        lieu_naissance: client.lieu_naissance || '',
-        nationalite: client.nationalite || 'Française',
-        profession: client.profession || '',
-        employeur: client.employeur || '',
+        lieu_naissance: (client as any).lieu_naissance || '',
+        nationalite: (client as any).nationalite || 'Française',
+        profession: (client as any).profession || '',
+        employeur: (client as any).employeur || '',
         // Other
         statut: client.statut || 'actif',
-        source_acquisition: client.source_acquisition || '',
-        tags: client.tags || [],
-        notes: client.notes || ''
+        source_acquisition: (client as any).source_acquisition || '',
+        tags: (client as any).tags || [],
+        notes: (client as any).notes || ''
       });
     } else {
       setFormData({
@@ -1216,7 +1216,7 @@ export default function ClientsSection() {
                     id="statut"
                     value={formData.statut}
                     onChange={(e) => {
-                      setFormData(prev => ({ ...prev, statut: e.target.value }));
+                      setFormData(prev => ({ ...prev, statut: e.target.value as 'actif' | 'inactif' | 'prospect' | 'archive' }));
                       setFormDirty(true);
                     }}
                     disabled={isReadOnly}
@@ -2047,22 +2047,22 @@ export default function ClientsSection() {
                                     <span className="text-gray-600">{usager.telephone}</span>
                                   </div>
                                 )}
-                                {usager.ville && (
+                                {(usager as any).ville && (
                                   <div className="flex items-center gap-1">
                                     <MapPin className="h-3 w-3 text-gray-400" />
-                                    <span className="text-gray-600">{usager.ville}</span>
+                                    <span className="text-gray-600">{(usager as any).ville}</span>
                                   </div>
                                 )}
                               </div>
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-sm">
-                                {usager.situation_familiale && (
-                                  <p className="text-gray-600">{usager.situation_familiale}</p>
+                                {(usager as any).situation_familiale && (
+                                  <p className="text-gray-600">{(usager as any).situation_familiale}</p>
                                 )}
-                                {usager.nombre_enfants > 0 && (
+                                {(usager as any).nombre_enfants > 0 && (
                                   <p className="text-xs text-gray-500">
-                                    {usager.nombre_enfants} enfant{usager.nombre_enfants > 1 ? 's' : ''}
+                                    {(usager as any).nombre_enfants} enfant{(usager as any).nombre_enfants > 1 ? 's' : ''}
                                   </p>
                                 )}
                               </div>
@@ -2142,8 +2142,8 @@ export default function ClientsSection() {
             : deletingItem?.item ? `${deletingItem.item.prenom} ${deletingItem.item.nom}` : ''
         } ? Cette action est irréversible.`}
         confirmText="Supprimer"
-        confirmVariant="destructive"
-        isLoading={deleteLoading}
+        variant="danger"
+        loading={deleteLoading}
       />
 
       {/* Unsaved Changes Dialog */}

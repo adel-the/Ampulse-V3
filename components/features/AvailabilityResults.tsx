@@ -143,8 +143,17 @@ export default function AvailabilityResults({
   const [specialRequests, setSpecialRequests] = useState('');
   const [reservationLoading, setReservationLoading] = useState(false);
   const [showEditUsagerModal, setShowEditUsagerModal] = useState(false);
+  
+  // New state for prescripteur selection
+  const [selectedPrescripteur, setSelectedPrescripteur] = useState<Client | null>(null);
+  const [prescripteurInputValue, setPrescripteurInputValue] = useState('');
+  const [showPrescripteurSuggestions, setShowPrescripteurSuggestions] = useState(false);
+  const [prescripteurHighlightedIndex, setPrescripteurHighlightedIndex] = useState(-1);
+  
   const usagerInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const prescripteurInputRef = useRef<HTMLInputElement>(null);
+  const prescripteurSuggestionsRef = useRef<HTMLDivElement>(null);
 
   // Calculate number of nights
   const nights = criteria.checkInDate && criteria.checkOutDate
@@ -169,6 +178,13 @@ export default function AvailabilityResults({
       loadUsagers();
     }
   }, [showRoomDetails, selectedRoom]);
+
+  // Reload usagers when prescripteur is selected
+  useEffect(() => {
+    if (selectedPrescripteur) {
+      loadUsagers();
+    }
+  }, [selectedPrescripteur]);
 
   const loadClients = async () => {
     try {
@@ -200,13 +216,38 @@ export default function AvailabilityResults({
     }
   };
 
-  // Filter usagers based on search and prescripteur type
+  // Filter prescripteurs based on search
+  const getFilteredPrescripteurs = useCallback(() => {
+    return clients.filter(client => {
+      if (prescripteurInputValue) {
+        const searchLower = prescripteurInputValue.toLowerCase();
+        const nom = (client.nom || '').toLowerCase();
+        const prenom = (client.prenom || '').toLowerCase();
+        const raisonSociale = (client.raison_sociale || '').toLowerCase();
+        const email = (client.email || '').toLowerCase();
+        
+        return nom.includes(searchLower) ||
+               prenom.includes(searchLower) ||
+               raisonSociale.includes(searchLower) ||
+               email.includes(searchLower);
+      }
+      return true;
+    });
+  }, [clients, prescripteurInputValue]);
+
+  // Filter usagers based on selected prescripteur and search
   const getFilteredUsagers = useCallback(() => {
     return usagers.filter(usager => {
-      // Filter by prescripteur type
-      if (selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
+      // Filter by selected specific prescripteur (Step 2)
+      if (selectedPrescripteur && usager.prescripteur?.id !== selectedPrescripteur.id) {
         return false;
       }
+      
+      // If no specific prescripteur selected, filter by prescripteur type (legacy)
+      if (!selectedPrescripteur && selectedPrescripteurType && usager.prescripteur?.client_type !== selectedPrescripteurType) {
+        return false;
+      }
+      
       // Filter by search term (from input)
       if (usagerInputValue) {
         const searchLower = usagerInputValue.toLowerCase();
@@ -222,7 +263,24 @@ export default function AvailabilityResults({
       }
       return true;
     });
-  }, [usagers, selectedPrescripteurType, usagerInputValue]);
+  }, [usagers, selectedPrescripteur, selectedPrescripteurType, usagerInputValue]);
+
+  // Handle prescripteur selection from suggestions
+  const handlePrescripteurSelect = (prescripteur: Client) => {
+    setSelectedPrescripteur(prescripteur);
+    const displayName = prescripteur.client_type === 'Particulier'
+      ? `${prescripteur.nom} ${prescripteur.prenom || ''}`.trim()
+      : prescripteur.raison_sociale || prescripteur.nom || 'Sans nom';
+    setPrescripteurInputValue(displayName);
+    setShowPrescripteurSuggestions(false);
+    setPrescripteurHighlightedIndex(-1);
+    
+    // Reset usager selection when prescripteur changes
+    setSelectedUsagerId(null);
+    setUsagerInputValue('');
+    setShowUsagerSuggestions(false);
+    setHighlightedIndex(-1);
+  };
 
   // Handle usager selection from suggestions
   const handleUsagerSelect = (usager: UsagerWithPrescripteur) => {
@@ -235,8 +293,32 @@ export default function AvailabilityResults({
     setHighlightedIndex(-1);
   };
 
-  // Handle keyboard navigation
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  // Handle keyboard navigation for prescripteur
+  const handlePrescripteurKeyDown = (e: React.KeyboardEvent) => {
+    const filteredPrescripteurs = getFilteredPrescripteurs();
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPrescripteurHighlightedIndex(prev => 
+        prev < filteredPrescripteurs.length - 1 ? prev + 1 : prev
+      );
+      setShowPrescripteurSuggestions(true);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPrescripteurHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (prescripteurHighlightedIndex >= 0 && prescripteurHighlightedIndex < filteredPrescripteurs.length) {
+        handlePrescripteurSelect(filteredPrescripteurs[prescripteurHighlightedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setShowPrescripteurSuggestions(false);
+      setPrescripteurHighlightedIndex(-1);
+    }
+  };
+
+  // Handle keyboard navigation for usager
+  const handleUsagerKeyDown = (e: React.KeyboardEvent) => {
     const filteredUsagers = getFilteredUsagers();
     
     if (e.key === 'ArrowDown') {
@@ -262,6 +344,13 @@ export default function AvailabilityResults({
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close prescripteur suggestions
+      if (prescripteurSuggestionsRef.current && !prescripteurSuggestionsRef.current.contains(event.target as Node) &&
+          prescripteurInputRef.current && !prescripteurInputRef.current.contains(event.target as Node)) {
+        setShowPrescripteurSuggestions(false);
+      }
+      
+      // Close usager suggestions
       if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
           usagerInputRef.current && !usagerInputRef.current.contains(event.target as Node)) {
         setShowUsagerSuggestions(false);
@@ -288,6 +377,13 @@ export default function AvailabilityResults({
     setUsagerInputValue('');
     setShowUsagerSuggestions(false);
     setHighlightedIndex(-1);
+    
+    // Reset prescripteur selection state
+    setSelectedPrescripteur(null);
+    setPrescripteurInputValue('');
+    setShowPrescripteurSuggestions(false);
+    setPrescripteurHighlightedIndex(-1);
+    
     setSpecialRequests('');
   };
 
@@ -448,52 +544,182 @@ export default function AvailabilityResults({
           )}
         </Card>
 
-        {/* Usager Selection */}
+        {/* Step 1: Prescripteur Selection */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-600" />
-              Sélection de l'usager (bénéficiaire)
+              <Users className="h-5 w-5 text-blue-600" />
+              Étape 1: Sélection du prescripteur
             </CardTitle>
+            <p className="text-sm text-gray-600 mt-1">
+              Sélectionnez d'abord l'association ou entreprise qui prescrit l'hébergement
+            </p>
           </CardHeader>
           <CardContent>
-            {usagersLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Chargement des usagers...</p>
-              </div>
-            ) : usagers.length === 0 ? (
+            {clients.length === 0 ? (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Aucun usager actif trouvé. Veuillez d'abord créer un usager.
+                  Aucun prescripteur trouvé. Veuillez d'abord créer un client prescripteur.
                 </AlertDescription>
               </Alert>
             ) : (
               <div className="space-y-3">
-                {/* Type de prescripteur filter */}
-                <div>
-                  <Label htmlFor="prescripteur-type-filter">Filtrer par type de prescripteur</Label>
-                  <select
-                    id="prescripteur-type-filter"
-                    value={selectedPrescripteurType}
-                    onChange={(e) => {
-                      setSelectedPrescripteurType(e.target.value as ClientCategory | '');
-                      setSelectedUsagerId(null); // Reset selected usager when type changes
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Tous les prescripteurs</option>
-                    {CLIENT_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
+                {/* Prescripteur autocomplete */}
+                <div className="relative">
+                  <div className="flex justify-between items-center mb-1">
+                    <Label htmlFor="prescripteur-input">Prescripteur (Association/Entreprise) *</Label>
+                    <span className="text-xs text-gray-500">
+                      {getFilteredPrescripteurs().length} prescripteur{getFilteredPrescripteurs().length > 1 ? 's' : ''} trouvé{getFilteredPrescripteurs().length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+                  {/* Prescripteur Input */}
+                  <div className="relative">
+                    <input
+                      ref={prescripteurInputRef}
+                      id="prescripteur-input"
+                      type="text"
+                      placeholder="Tapez pour rechercher un prescripteur..."
+                      value={prescripteurInputValue}
+                      onChange={(e) => {
+                        setPrescripteurInputValue(e.target.value);
+                        setSelectedPrescripteur(null);
+                        setShowPrescripteurSuggestions(true);
+                        setPrescripteurHighlightedIndex(-1);
+                      }}
+                      onFocus={() => setShowPrescripteurSuggestions(true)}
+                      onKeyDown={handlePrescripteurKeyDown}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required={!selectedPrescripteur}
+                    />
+                    
+                    {/* Clear button */}
+                    {prescripteurInputValue && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrescripteurInputValue('');
+                          setSelectedPrescripteur(null);
+                          setShowPrescripteurSuggestions(false);
+                          prescripteurInputRef.current?.focus();
+                          
+                          // Reset usager selection
+                          setSelectedUsagerId(null);
+                          setUsagerInputValue('');
+                          setShowUsagerSuggestions(false);
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Prescripteur Dropdown Suggestions */}
+                  {showPrescripteurSuggestions && getFilteredPrescripteurs().length > 0 && (
+                    <div
+                      ref={prescripteurSuggestionsRef}
+                      className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg"
+                    >
+                      {getFilteredPrescripteurs().map((prescripteur, index) => {
+                        const displayName = prescripteur.client_type === 'Particulier'
+                          ? `${prescripteur.nom} ${prescripteur.prenom || ''}`.trim()
+                          : prescripteur.raison_sociale || prescripteur.nom || 'Sans nom';
+                        
+                        return (
+                          <div
+                            key={prescripteur.id}
+                            onClick={() => handlePrescripteurSelect(prescripteur)}
+                            onMouseEnter={() => setPrescripteurHighlightedIndex(index)}
+                            className={`px-3 py-2 cursor-pointer ${
+                              index === prescripteurHighlightedIndex ? 'bg-blue-100' : 'hover:bg-gray-100'
+                            } ${selectedPrescripteur?.id === prescripteur.id ? 'bg-blue-50' : ''}`}
+                          >
+                            <div className="font-medium">
+                              {displayName}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              [{prescripteur.client_type}]
+                              {prescripteur.email && ` • ${prescripteur.email}`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* No prescripteur results message */}
+                  {showPrescripteurSuggestions && prescripteurInputValue && getFilteredPrescripteurs().length === 0 && (
+                    <div className="absolute z-10 w-full mt-1 p-3 bg-white border border-gray-300 rounded-md shadow-lg">
+                      <p className="text-sm text-gray-500">Aucun prescripteur trouvé</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Selected Prescripteur Info */}
+                {selectedPrescripteur && (
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-green-900 flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        Prescripteur sélectionné
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-green-700">Nom:</span>
+                        <span className="ml-2 text-green-900">
+                          {selectedPrescripteur.client_type === 'Particulier'
+                            ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
+                            : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-green-700">Type:</span>
+                        <span className="ml-2 text-green-900">{selectedPrescripteur.client_type}</span>
+                      </div>
+                      {selectedPrescripteur.email && (
+                        <div>
+                          <span className="text-green-700">Email:</span>
+                          <span className="ml-2 text-green-900">{selectedPrescripteur.email}</span>
+                        </div>
+                      )}
+                      {selectedPrescripteur.telephone && (
+                        <div>
+                          <span className="text-green-700">Téléphone:</span>
+                          <span className="ml-2 text-green-900">{selectedPrescripteur.telephone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Legacy Type filter for backward compatibility when no specific prescripteur selected */}
+                {!selectedPrescripteur && (
+                  <div>
+                    <Label htmlFor="prescripteur-type-filter">Ou filtrer par type de prescripteur (ancien mode)</Label>
+                    <select
+                      id="prescripteur-type-filter"
+                      value={selectedPrescripteurType}
+                      onChange={(e) => {
+                        setSelectedPrescripteurType(e.target.value as ClientCategory | '');
+                        setSelectedUsagerId(null); // Reset selected usager when type changes
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Tous les prescripteurs</option>
+                      {CLIENT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 
                 {/* Active filter display for prescripteur type only */}
-                {selectedPrescripteurType && (
+                {!selectedPrescripteur && selectedPrescripteurType && (
                   <div className="flex justify-between items-center p-2 bg-blue-50 rounded-md">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-600">Filtre actif:</span>
@@ -513,6 +739,56 @@ export default function AvailabilityResults({
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Step 2: Usager Selection */}
+        <Card className={!selectedPrescripteur && !selectedPrescripteurType ? 'opacity-50' : ''}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5 text-purple-600" />
+              Étape 2: Sélection de l'usager (bénéficiaire)
+            </CardTitle>
+            <p className="text-sm text-gray-600 mt-1">
+              {selectedPrescripteur 
+                ? `Sélectionnez un usager lié à ${selectedPrescripteur.client_type === 'Particulier' 
+                    ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
+                    : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom}`
+                : selectedPrescripteurType
+                ? `Usagers des prescripteurs de type ${selectedPrescripteurType}`
+                : 'Veuillez d\'abord sélectionner un prescripteur'
+              }
+            </p>
+          </CardHeader>
+          <CardContent>
+            {!selectedPrescripteur && !selectedPrescripteurType ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Veuillez d'abord sélectionner un prescripteur à l'étape 1.
+                </AlertDescription>
+              </Alert>
+            ) : usagersLoading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600">Chargement des usagers...</p>
+              </div>
+            ) : getFilteredUsagers().length === 0 ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {selectedPrescripteur 
+                    ? 'Aucun usager actif trouvé pour ce prescripteur. Veuillez d\'abord créer un usager.'
+                    : selectedPrescripteurType
+                    ? `Aucun usager trouvé pour les prescripteurs de type ${selectedPrescripteurType}.`
+                    : 'Aucun usager actif trouvé. Veuillez d\'abord créer un usager.'
+                  }
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-3">
 
                 {/* Usager selection with autocomplete */}
                 <div className="relative">
@@ -538,9 +814,10 @@ export default function AvailabilityResults({
                         setHighlightedIndex(-1);
                       }}
                       onFocus={() => setShowUsagerSuggestions(true)}
-                      onKeyDown={handleKeyDown}
+                      onKeyDown={handleUsagerKeyDown}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required={!selectedUsagerId}
+                      disabled={!selectedPrescripteur && !selectedPrescripteurType}
                     />
                     
                     {/* Clear button */}

@@ -162,7 +162,7 @@ export default function EstablishmentsSection({ onEstablishmentSelect, currentSe
         };
         
         console.log('Création établissement avec les données:', createData);
-        response = await establishmentsApi.createEstablishment(createData);
+        response = await establishmentsApi.createEstablishment(createData as any);
       }
 
       if (response.success) {

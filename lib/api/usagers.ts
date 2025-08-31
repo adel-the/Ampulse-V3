@@ -198,7 +198,11 @@ class UsagersAPI {
 
       if (error) {
         console.error('Error creating usager:', error);
-        return { success: false, error: error.message };
+        // Provide more detailed error information
+        const errorMessage = error.message || 'Erreur lors de la création de l\'usager';
+        const errorDetails = error.details || '';
+        const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+        return { success: false, error: fullError };
       }
 
       return { success: true, data };
@@ -225,7 +229,11 @@ class UsagersAPI {
 
       if (error) {
         console.error('Error updating usager:', error);
-        return { success: false, error: error.message };
+        // Provide more detailed error information
+        const errorMessage = error.message || 'Erreur lors de la mise à jour de l\'usager';
+        const errorDetails = error.details || '';
+        const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+        return { success: false, error: fullError };
       }
 
       return { success: true, data };
