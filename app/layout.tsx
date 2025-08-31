@@ -28,7 +28,7 @@ const robotoMono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SoliReserve Enhanced - Gestion Hôtelière Moderne',
+  title: 'M',
   description: 'Application moderne de gestion d\'hébergements sociaux avec interface intuitive et fonctionnalités avancées',
   keywords: 'gestion hôtelière, réservations, hébergement social, SoliReserve',
   authors: [{ name: 'SoliReserve Team' }],
@@ -45,10 +45,15 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
   return (
     <html lang="fr" className={`${inter.variable} ${poppins.variable} ${robotoMono.variable}`}>
       <body className={`${inter.className} antialiased`}>
         {children}
+        {isDevelopment && (
+          <script src="/worktree-indicator.js" defer></script>
+        )}
       </body>
     </html>
   )

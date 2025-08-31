@@ -6,11 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SoliReserve Enhanced - Hotel management system for social housing establishments built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
 
+## Port Configuration Rules
+
+**IMPORTANT:** When launching development servers:
+- **Worktree F**: Use ports 3020 to 3025
+- **Worktree I**: Use ports 3001 to 3005
+- **Worktree M**: Use ports 3010 to 3015
+
+## Worktree Usage Rules
+
+**CRITICAL:** 
+- **NEVER change worktree without explicit authorization**
+- **All commits must be made ONLY in the currently selected worktree**
+- **Strictly forbidden to switch to master branch or any other worktree without prior request and validation**
+
 ## Essential Commands
 
 ```bash
 # Development
-npm run dev          # Start development server (localhost:3000)
+npm run dev          # Start development server (use ports 3010-3015)
 npm run build        # Production build
 npm run lint         # ESLint checks
 npm start            # Production server
@@ -104,6 +118,8 @@ Room management tests in `tests/` directory:
 5. **Follow existing patterns** - check similar components first
 6. **Handle loading states** with consistent UX patterns
 7. **Use toast notifications** via `useNotifications` hook
+8. **NEVER delete the Supabase database** - No destructive operations on the database
+9. **Always trigger a bell sound when a task is completed** - Use echo -e "\a" or printf "\a" to signal task completion
 
 ## Common Workflows
 

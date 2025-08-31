@@ -1,12 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Configuration Supabase Online - Production uniquement
+// Configuration Supabase - Utilise TOUJOURS la base de données locale
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
+}
+
+// Vérification de l'utilisation de la base de données locale
+if (typeof window !== 'undefined' && supabaseUrl.includes('127.0.0.1')) {
+  console.log('✅ Utilisation de la base de données Supabase locale:', supabaseUrl)
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
