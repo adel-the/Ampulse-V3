@@ -51,6 +51,22 @@ export const reservationsApi = {
    */
   async createReservation(data: SimpleReservationInsert): Promise<ApiResponse<SimpleReservation>> {
     try {
+      // First, get the usager to retrieve their prescripteur_id
+      const { data: usager, error: usagerError } = await supabaseAdmin
+        .from('usagers')
+        .select('id, prescripteur_id, nom, prenom')
+        .eq('id', data.usager_id)
+        .single()
+
+      if (usagerError || !usager) {
+        console.error('Error fetching usager:', usagerError)
+        return {
+          data: null,
+          error: 'Usager not found',
+          success: false
+        }
+      }
+
       // Calculate duration in nights
       const checkInDate = new Date(data.date_arrivee)
       const checkOutDate = new Date(data.date_depart)
@@ -69,11 +85,11 @@ export const reservationsApi = {
         total_amount: data.total_amount,
         special_requests: data.special_requests || null,
         statut: data.statut || 'pending',
-        prescripteur: 'System', // Default prescripteur for simplified system
+        prescripteur: `${usager.nom} ${usager.prenom}`, // Use actual usager name
+        prescripteur_id: usager.prescripteur_id, // Add prescripteur_id from usager
         prix: data.room_rate, // Keep compatibility with existing field
-        duree: duration, // Duration in days calculated from dates
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        duree: duration // Duration in days calculated from dates
+        // Note: created_at and updated_at are auto-managed by database triggers
       }
 
       const { data: reservation, error } = await supabaseAdmin
@@ -81,7 +97,8 @@ export const reservationsApi = {
         .insert(reservationData)
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
+          prescripteurs:prescripteur_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)

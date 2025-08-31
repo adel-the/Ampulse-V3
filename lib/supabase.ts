@@ -489,6 +489,7 @@ export interface Database {
           date_depart: string
           statut: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur: string
+          prescripteur_id: number | null
           prix: number
           duree: number
           operateur_id: number | null
@@ -511,8 +512,9 @@ export interface Database {
           date_depart: string
           statut?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur: string
+          prescripteur_id?: number | null
           prix: number
-          duree: number
+          duree?: number
           operateur_id?: number | null
           notes?: string | null
           reservation_number?: string | null
@@ -521,8 +523,6 @@ export interface Database {
           room_rate?: number | null
           total_amount?: number | null
           special_requests?: string | null
-          created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: number
@@ -533,6 +533,7 @@ export interface Database {
           date_depart?: string
           statut?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'CONFIRMEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
           prescripteur?: string
+          prescripteur_id?: number | null
           prix?: number
           duree?: number
           operateur_id?: number | null
@@ -543,8 +544,6 @@ export interface Database {
           room_rate?: number | null
           total_amount?: number | null
           special_requests?: string | null
-          created_at?: string
-          updated_at?: string
         }
       }
       conventions_prix: {
