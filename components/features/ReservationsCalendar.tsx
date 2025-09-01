@@ -575,119 +575,158 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
             {/* Navigation du calendrier par chambre */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
                   <div className="flex items-center space-x-4">
                     <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
                       <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Précédent</span>
                     </Button>
-                    <h2 className="text-xl font-semibold capitalize">{monthName}</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold capitalize">{monthName}</h2>
                     <Button variant="outline" size="sm" onClick={goToNextMonth}>
+                      <span className="hidden sm:inline mr-1">Suivant</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                      <span>Libre</span>
+                      <span className="hidden sm:inline">Libre</span>
+                      <span className="sm:hidden">L</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span>Ménage</span>
+                      <span className="hidden sm:inline">Ménage</span>
+                      <span className="sm:hidden">M</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                      <span>Maintenance</span>
+                      <span className="hidden sm:inline">Maintenance</span>
+                      <span className="sm:hidden">Ma</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-green-600 rounded-full"></div>
-                      <span>Check-in</span>
+                      <span className="hidden sm:inline">Check-in</span>
+                      <span className="sm:hidden">In</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                      <span>Check-out</span>
+                      <span className="hidden sm:inline">Check-out</span>
+                      <span className="sm:hidden">Out</span>
                     </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {/* En-têtes des jours du mois */}
-                <div className={`grid gap-1 mb-2`} style={{gridTemplateColumns: `200px repeat(${dayHeaders.length}, 1fr)`}}>
-                  <div className="text-sm font-medium text-gray-500 py-2">Chambre</div>
-                  {dayHeaders.map(({ dayNum, dayName }, index) => (
-                    <div key={index} className="text-center text-sm font-medium text-gray-500 py-2">
-                      <div className="font-semibold">{dayNum}</div>
-                      <div className="text-xs">{dayName}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Grille du calendrier par chambre */}
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {getFilteredRooms(selectedHotel, selectedRoomType).map((room) => (
-                    <div key={room.id} className={`grid gap-1 border-b border-gray-200 pb-2`} style={{gridTemplateColumns: `200px repeat(${dayHeaders.length}, 1fr)`}}>
-                      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <Bed className="h-4 w-4 text-gray-600" />
-                        <div>
-                          <div className="font-medium text-sm">{room.numero}</div>
-                          <div className="text-xs text-gray-500">{room.category_name} - Étage {room.etage}</div>
+                {/* Conteneur responsive avec scroll horizontal */}
+                <div className="w-full">
+                  {/* Wrapper avec overflow horizontal */}
+                  <div className="overflow-x-auto overflow-y-visible">
+                    {/* Conteneur avec largeur minimale pour forcer le scroll */}
+                    <div className="min-w-fit" style={{ minWidth: `${200 + (dayHeaders.length * 60)}px` }}>
+                      
+                      {/* En-têtes des jours du mois */}
+                      <div className="flex border-b border-gray-300 mb-2">
+                        {/* Colonne des chambres - sticky */}
+                        <div className="sticky left-0 z-10 bg-white border-r border-gray-300 w-48 sm:w-56 lg:w-64 flex-shrink-0">
+                          <div className="text-sm font-medium text-gray-500 py-2 px-3 bg-gray-50">Chambre</div>
+                        </div>
+                        
+                        {/* Colonnes des jours */}
+                        <div className="flex">
+                          {dayHeaders.map(({ dayNum, dayName }, index) => (
+                            <div 
+                              key={index} 
+                              className="text-center text-sm font-medium text-gray-500 py-2 px-2 border-r border-gray-200 last:border-r-0 w-16 sm:w-20 lg:w-24 flex-shrink-0"
+                            >
+                              <div className="font-semibold">{dayNum}</div>
+                              <div className="text-xs">{dayName}</div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      
-                      {days.map((day, dayIndex) => {
-                        const roomStatus = getRoomStatusForDate(room.id, day.date);
-                        const isEditable = true; // Permettre l'édition de toutes les chambres
-                        const hasCustomState = roomStates.some(state => 
-                          state.roomId === room.id && state.date === day.date.toISOString().split('T')[0]
-                        );
-                          
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`min-h-[60px] p-1 border border-gray-200 rounded ${
-                              getRoomStatusColor(roomStatus.status)
-                            } text-white text-xs flex flex-col items-center justify-center relative cursor-pointer hover:opacity-80`}
-                            title={`${room.numero} - ${getRoomStatusText(roomStatus.status)}`}
-                            onClick={() => openEditModal(room.id, day.date)}
-                          >
-                            {/* Indicateur d'édition pour toutes les chambres */}
-                            <div className="absolute top-1 right-1">
-                              <Edit className="h-2 w-2 opacity-60" />
-                            </div>
-                            
-                            {/* Indicateur d'état personnalisé */}
-                            {hasCustomState && (
-                              <div className="absolute top-1 left-1">
-                                <div className="w-2 h-2 bg-yellow-300 rounded-full"></div>
-                              </div>
-                            )}
 
-                            <div className="flex items-center space-x-1">
-                              {getRoomStatusIcon(roomStatus.status)}
-                              <span className="font-medium">{getRoomStatusText(roomStatus.status)}</span>
+                      {/* Grille du calendrier par chambre avec scroll vertical */}
+                      <div className="max-h-[600px] overflow-y-auto">
+                        {getFilteredRooms(selectedHotel, selectedRoomType).map((room) => (
+                          <div key={room.id} className="flex border-b border-gray-200 hover:bg-gray-50">
+                            {/* Colonne des chambres - sticky */}
+                            <div className="sticky left-0 z-10 bg-white border-r border-gray-300 w-48 sm:w-56 lg:w-64 flex-shrink-0">
+                              <div className="flex items-center space-x-2 p-3 bg-gray-50 h-full min-h-[64px]">
+                                <Bed className="h-4 w-4 text-gray-600" />
+                                <div>
+                                  <div className="font-medium text-sm">{room.numero}</div>
+                                  <div className="text-xs text-gray-500">{room.category_name} - Étage {room.etage}</div>
+                                </div>
+                              </div>
                             </div>
                             
-                            {roomStatus.reservations.length > 0 && (
-                              <div className="text-center mt-1">
-                                <div className="font-bold">{roomStatus.reservations.length}</div>
-                                <div>réserv.</div>
-                              </div>
-                            )}
-                            
-                            {(roomStatus.checkInCount > 0 || roomStatus.checkOutCount > 0) && (
-                              <div className="text-center mt-1 text-xs">
-                                {roomStatus.checkInCount > 0 && (
-                                  <div className="bg-green-700 px-1 rounded">+{roomStatus.checkInCount}</div>
-                                )}
-                                {roomStatus.checkOutCount > 0 && (
-                                  <div className="bg-purple-700 px-1 rounded mt-1">-{roomStatus.checkOutCount}</div>
-                                )}
-                              </div>
-                            )}
+                            {/* Colonnes des jours */}
+                            <div className="flex">
+                              {days.map((day, dayIndex) => {
+                                const roomStatus = getRoomStatusForDate(room.id, day.date);
+                                const isEditable = true;
+                                const hasCustomState = roomStates.some(state => 
+                                  state.roomId === room.id && state.date === day.date.toISOString().split('T')[0]
+                                );
+                                  
+                                return (
+                                  <div
+                                    key={dayIndex}
+                                    className={`min-h-[64px] p-1 border-r border-gray-200 last:border-r-0 ${
+                                      getRoomStatusColor(roomStatus.status)
+                                    } text-white text-xs flex flex-col items-center justify-center relative cursor-pointer hover:opacity-80 w-16 sm:w-20 lg:w-24 flex-shrink-0`}
+                                    title={`${room.numero} - ${getRoomStatusText(roomStatus.status)}`}
+                                    onClick={() => openEditModal(room.id, day.date)}
+                                  >
+                                    {/* Indicateur d'édition pour toutes les chambres */}
+                                    <div className="absolute top-1 right-1">
+                                      <Edit className="h-2 w-2 opacity-60" />
+                                    </div>
+                                    
+                                    {/* Indicateur d'état personnalisé */}
+                                    {hasCustomState && (
+                                      <div className="absolute top-1 left-1">
+                                        <div className="w-2 h-2 bg-yellow-300 rounded-full"></div>
+                                      </div>
+                                    )}
+
+                                    <div className="flex flex-col items-center space-y-1">
+                                      {getRoomStatusIcon(roomStatus.status)}
+                                      <span className="font-medium text-center leading-tight">{getRoomStatusText(roomStatus.status)}</span>
+                                    </div>
+                                    
+                                    {roomStatus.reservations.length > 0 && (
+                                      <div className="text-center mt-1">
+                                        <div className="font-bold text-xs">{roomStatus.reservations.length}</div>
+                                        <div className="text-xs">réserv.</div>
+                                      </div>
+                                    )}
+                                    
+                                    {(roomStatus.checkInCount > 0 || roomStatus.checkOutCount > 0) && (
+                                      <div className="text-center mt-1 text-xs">
+                                        {roomStatus.checkInCount > 0 && (
+                                          <div className="bg-green-700 px-1 rounded text-xs">+{roomStatus.checkInCount}</div>
+                                        )}
+                                        {roomStatus.checkOutCount > 0 && (
+                                          <div className="bg-purple-700 px-1 rounded mt-1 text-xs">-{roomStatus.checkOutCount}</div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
+                      
                     </div>
-                  ))}
+                  </div>
+                  
+                  {/* Instructions de navigation sur mobile */}
+                  <div className="mt-2 text-xs text-gray-500 text-center sm:hidden">
+                    Glissez horizontalement pour voir tous les jours
+                  </div>
                 </div>
               </CardContent>
             </Card>
