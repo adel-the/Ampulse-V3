@@ -9,9 +9,8 @@ SoliReserve Enhanced - Hotel management system for social housing establishments
 ## Port Configuration Rules
 
 **IMPORTANT:** When launching development servers:
-- **Worktree F**: Use ports 3020 to 3025
-- **Worktree I**: Use ports 3001 to 3005
-- **Worktree M**: Use ports 3010 to 3015
+- **Worktree Master**: Use ports 3000 to 3005. If these ports are occupied, stop them and restart.
+- **Worktree ToDo**: Use ports 3010 to 3015. If these ports are not occupied, close them and reopen.
 
 ## Worktree Usage Rules
 

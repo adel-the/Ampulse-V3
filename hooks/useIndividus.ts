@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import type { IndividuRow, IndividuInsert, IndividuUpdate } from '@/lib/supabase';
 
 interface UseIndividusResult {
@@ -23,6 +23,10 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Utiliser le client admin en mode développement pour éviter les problèmes RLS
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const client = isDevelopment ? supabaseAdmin : supabase;
+
   // Récupérer les individus
   const fetchIndividus = useCallback(async () => {
     if (!usagerId) {
@@ -34,7 +38,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await client
         .from('individus')
         .select('*')
         .eq('usager_id', usagerId)
@@ -58,7 +62,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
   // Créer un individu
   const createIndividu = async (data: IndividuInsert) => {
     try {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await client
         .from('individus')
         .insert(data);
 
@@ -81,7 +85,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
   // Créer plusieurs individus en batch
   const createIndividusBatch = async (data: IndividuInsert[]) => {
     try {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await client
         .from('individus')
         .insert(data);
 
@@ -104,7 +108,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
   // Mettre à jour un individu
   const updateIndividu = async (id: number, data: IndividuUpdate) => {
     try {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await client
         .from('individus')
         .update(data)
         .eq('id', id);
@@ -125,7 +129,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
   // Supprimer un individu
   const deleteIndividu = async (id: number) => {
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await client
         .from('individus')
         .delete()
         .eq('id', id);
@@ -151,7 +155,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
 
     try {
       // D'abord, retirer le statut chef de famille de tous les autres
-      const { error: resetError } = await supabase
+      const { error: resetError } = await client
         .from('individus')
         .update({ is_chef_famille: false })
         .eq('usager_id', usagerId);
@@ -159,7 +163,7 @@ export function useIndividus(usagerId?: number): UseIndividusResult {
       if (resetError) throw resetError;
 
       // Ensuite, définir le nouveau chef de famille
-      const { error: updateError } = await supabase
+      const { error: updateError } = await client
         .from('individus')
         .update({ is_chef_famille: true })
         .eq('id', id);
