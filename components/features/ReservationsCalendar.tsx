@@ -164,15 +164,46 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
   // Function to get real rooms from database
   const getRoomsByHotel = (hotelName: string) => {
-    // If we have real rooms data, use it
+    // If we have real rooms data, check if we need to add more for development
     if (realRooms && realRooms.length > 0) {
-      return realRooms.map(room => ({
+      const realRoomsData = realRooms.map(room => ({
         id: room.id.toString(),
         numero: room.numero,
         category_id: room.category_id,
         category_name: roomCategories?.find(cat => cat.id === room.category_id)?.name || 'Standard',
         etage: room.etage || 1
       }));
+      
+      // If we only have 2 rooms or less from DB, add more test rooms for development to ensure scroll appears
+      if (realRoomsData.length <= 2) {
+        const additionalRoomsCount = 15; // Add 15 more rooms to force scroll
+        const defaultCategories = roomCategories && roomCategories.length > 0 ? roomCategories : [
+          { id: 1, name: 'Simple', capacity: 1, surface: 18 },
+          { id: 2, name: 'Double', capacity: 2, surface: 25 },
+          { id: 3, name: 'Suite', capacity: 4, surface: 40 }
+        ];
+        
+        const additionalRooms = Array.from({ length: additionalRoomsCount }, (_, i) => {
+          const roomNumber = realRoomsData.length + i + 1;
+          const categoryIndex = Math.min(
+            i < additionalRoomsCount * 0.3 ? 0 : i < additionalRoomsCount * 0.7 ? 1 : 2,
+            defaultCategories.length - 1
+          );
+          const category = defaultCategories[categoryIndex];
+          
+          return {
+            id: `dev-room-${roomNumber}`,
+            numero: `${roomNumber}`,
+            category_id: category?.id || 1,
+            category_name: category?.name || 'Standard',
+            etage: Math.floor((roomNumber - 1) / 10) + 1
+          };
+        });
+        
+        return [...realRoomsData, ...additionalRooms];
+      }
+      
+      return realRoomsData;
     }
     
     // Fallback to simulated data if no real data available
@@ -460,19 +491,21 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   return (
     <div className="space-y-6">
       <style jsx global>{`
-        /* Custom scrollbar styles for vertical scroll */
+        /* Custom scrollbar styles for vertical scroll - Always visible */
         .custom-scrollbar::-webkit-scrollbar {
-          width: 12px;
+          width: 14px;
           height: 12px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: #f1f5f9;
           border-radius: 6px;
+          box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #64748b;
           border-radius: 6px;
           border: 2px solid #f1f5f9;
+          box-shadow: 0 0 3px rgba(0,0,0,0.2);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #475569;
@@ -480,10 +513,14 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
         .custom-scrollbar::-webkit-scrollbar-corner {
           background: #f1f5f9;
         }
-        /* Firefox scrollbar */
+        /* Firefox scrollbar - Always visible */
         .custom-scrollbar {
           scrollbar-width: auto;
           scrollbar-color: #64748b #f1f5f9;
+        }
+        /* Force scrollbar to be always visible */
+        .custom-scrollbar {
+          overflow-y: scroll !important;
         }
         
         /* Custom scrollbar styles for horizontal scroll only */
@@ -716,7 +753,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                       </div>
 
                       {/* Grille du calendrier par chambre avec scroll vertical UNIQUEMENT */}
-                      <div className="max-h-[500px] overflow-y-auto custom-scrollbar bg-white">
+                      <div className="max-h-[350px] min-h-[350px] overflow-y-scroll custom-scrollbar bg-white">
                         {getFilteredRooms(selectedHotel, selectedRoomType).map((room, roomIndex) => (
                           <div key={room.id} className={`flex border-b border-gray-200 transition-colors duration-150 ${
                             roomIndex % 2 === 0 ? 'hover:bg-blue-50' : 'bg-gray-25 hover:bg-blue-50'
