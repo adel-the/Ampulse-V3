@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useEstablishment, useEstablishmentListener } from '../../contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -80,16 +81,11 @@ interface MaintenanceTodo {
 }
 
 interface MaintenanceManagementProps {
-  selectedHotel?: {
-    id: number;
-    nom: string;
-    chambresTotal: number;
-    chambresOccupees: number;
-    tauxOccupation: number;
-  } | null;
+  // Removed selectedHotel prop - now using context
 }
 
-export default function MaintenanceManagement({ selectedHotel }: MaintenanceManagementProps) {
+export default function MaintenanceManagement(props: MaintenanceManagementProps) {
+  const { selectedHotel, selectedHotelId } = useEstablishment();
   // Récupérer les vraies chambres de l'établissement sélectionné
   const { rooms: realRooms, loading: roomsLoading, error: roomsError, updateRoomStatus } = useRooms(selectedHotel?.id);
   const { addNotification } = useNotifications();
@@ -111,7 +107,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   const [loading, setLoading] = useState(true);
   
   // États pour les modales et formulaires
-  const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showAddTodoModal, setShowAddTodoModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<MaintenanceRoom | null>(null);
@@ -140,14 +135,20 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     newStatus?: string;
   }>({ isOpen: false });
 
-  // États pour les formulaires
-  const [newRoom, setNewRoom] = useState({
-    numero: '',
-    description: '',
-    priorite: 'moyenne' as const,
-    responsable: '',
-    coutEstime: 0
-  });
+  // Handle establishment changes with real-time synchronization
+  const handleEstablishmentChange = useCallback((hotel: any) => {
+    if (hotel) {
+      addNotification('info', `Maintenance switched to ${hotel.nom}`);
+      // Clear current maintenance data and reload
+      setMaintenanceRooms([]);
+      setLoading(true);
+      // The useRooms and useMaintenanceTasks hooks will automatically refetch with the new hotel ID
+    }
+  }, [addNotification]);
+
+  // Listen for establishment changes
+  useEstablishmentListener(handleEstablishmentChange);
+
 
   const [newItem, setNewItem] = useState({
     nom: '',
@@ -245,31 +246,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     return item ? item.nom : 'Élément inconnu';
   };
 
-  // Gestionnaires d'événements
-  const handleAddRoom = () => {
-    if (newRoom.numero.trim()) {
-      const room: MaintenanceRoom = {
-        id: Date.now(),
-        numero: newRoom.numero,
-        hotel: selectedHotel?.nom || 'Établissement',
-        status: 'maintenance',
-        dateDebut: new Date().toISOString().split('T')[0],
-        description: newRoom.description,
-        priorite: newRoom.priorite,
-        responsable: newRoom.responsable,
-        coutEstime: newRoom.coutEstime
-      };
-      setMaintenanceRooms([...maintenanceRooms, room]);
-      setNewRoom({
-        numero: '',
-        description: '',
-        priorite: 'moyenne',
-        responsable: '',
-        coutEstime: 0
-      });
-      setShowAddRoomModal(false);
-    }
-  };
 
   const handleAddItem = () => {
     if (newItem.nom.trim()) {
@@ -646,10 +622,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
               <ArrowLeft className="h-3 w-3" />
             </Button>
           )}
-          <Button onClick={() => setShowAddRoomModal(true)} size="sm" className="px-3 py-1.5 text-xs">
-            <Plus className="h-3 w-3 mr-1" />
-            Ajouter
-          </Button>
           <Button variant="outline" onClick={() => setShowAddItemModal(true)} size="sm" className="px-3 py-1.5 text-xs">
             <Settings className="h-3 w-3" />
           </Button>
@@ -1190,83 +1162,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
         </div>
       )}
 
-      {/* Modal Ajouter une chambre */}
-      {showAddRoomModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Ajouter une chambre en maintenance</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Numéro de chambre *</label>
-                <input
-                  type="text"
-                  value={newRoom.numero}
-                  onChange={(e) => setNewRoom(prev => ({ ...prev, numero: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 101"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={newRoom.description}
-                  onChange={(e) => setNewRoom(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Description du problème..."
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-                <select
-                  value={newRoom.priorite}
-                  onChange={(e) => setNewRoom(prev => ({ ...prev, priorite: e.target.value as any }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="basse">Basse</option>
-                  <option value="moyenne">Moyenne</option>
-                  <option value="haute">Haute</option>
-                  <option value="critique">Critique</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
-                <input
-                  type="text"
-                  value={newRoom.responsable}
-                  onChange={(e) => setNewRoom(prev => ({ ...prev, responsable: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nom du responsable"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Coût estimé (€)</label>
-                <input
-                  type="number"
-                  value={newRoom.coutEstime}
-                  onChange={(e) => setNewRoom(prev => ({ ...prev, coutEstime: Number(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <Button variant="outline" onClick={() => setShowAddRoomModal(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleAddRoom} disabled={!newRoom.numero.trim()}>
-                Ajouter
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal Ajouter un élément de maintenance */}
       {showAddItemModal && (

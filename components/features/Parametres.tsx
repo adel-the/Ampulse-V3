@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useEstablishment } from '../../contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -25,31 +26,25 @@ import ModificationHistory from './ModificationHistory';
 interface ParametresProps {
   features: {
     operateursSociaux: boolean;
-  
     statistiques: boolean;
     notifications: boolean;
   };
-  selectedHotel?: number | null;
-  hotels?: Array<{ id: number; nom: string }>;
   reservations?: Array<{ id: number; numero: string; usager: string; hotel: string }>;
   agents?: Array<{ id: number; nom: string; prenom: string; role: string }>;
   onFeatureToggle: (feature: string, enabled: boolean) => void;
-  onHotelSelect: (hotelId: number | null) => void;
   onSaveSettings: () => void;
   onResetSettings: () => void;
 }
 
 export default function Parametres({ 
   features, 
-  selectedHotel,
-  hotels = [],
   reservations = [],
   agents = [],
   onFeatureToggle, 
-  onHotelSelect,
   onSaveSettings, 
   onResetSettings 
 }: ParametresProps) {
+  const { selectedHotelId, selectedHotel, availableHotels, setSelectedHotelId } = useEstablishment();
   const [hasChanges, setHasChanges] = useState(false);
 
   const handleToggle = (feature: string, enabled: boolean) => {
@@ -190,27 +185,44 @@ export default function Parametres({
               Sélectionnez l'établissement sur lequel vous souhaitez travailler.
             </p>
             <div className="space-y-3">
-              {hotels.map((hotel) => (
-                <div key={hotel.id} className="flex items-center space-x-3">
-                  <input
-                    type="radio"
-                    id={`hotel-${hotel.id}`}
-                    name="hotel-selection"
-                    checked={selectedHotel === hotel.id}
-                    onChange={() => onHotelSelect(hotel.id)}
-                    className="h-4 w-4 text-blue-600"
-                  />
-                  <label htmlFor={`hotel-${hotel.id}`} className="text-sm font-medium text-gray-900">
-                    {hotel.nom}
-                  </label>
-                </div>
-              ))}
+              {availableHotels.map((hotel) => {
+                const isSelected = selectedHotelId === hotel.id;
+                return (
+                  <div 
+                    key={hotel.id} 
+                    className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                      isSelected 
+                        ? 'border-blue-500 bg-blue-50 shadow-md' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setSelectedHotelId(hotel.id)}
+                  >
+                    <input
+                      type="radio"
+                      id={`hotel-${hotel.id}`}
+                      name="hotel-selection"
+                      checked={isSelected}
+                      onChange={() => setSelectedHotelId(hotel.id)}
+                      className="h-4 w-4 text-blue-600"
+                    />
+                    <label htmlFor={`hotel-${hotel.id}`} className="text-sm font-medium text-gray-900 cursor-pointer flex-1">
+                      {hotel.nom}
+                    </label>
+                    {isSelected && (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-blue-600 font-medium">Sélectionné</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           {selectedHotel && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Établissement sélectionné :</strong> {hotels.find(h => h.id === selectedHotel)?.nom}
+                <strong>Établissement sélectionné :</strong> {selectedHotel.nom}
               </p>
             </div>
           )}

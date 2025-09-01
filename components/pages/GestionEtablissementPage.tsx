@@ -12,45 +12,44 @@ import EstablishmentsSection from '../features/EstablishmentsSection';
 import RoomsSection from '../features/RoomsSection';
 import EquipmentsSection from '../features/EquipmentsSection';
 import RoomCategoriesSection from '../features/RoomCategoriesSection';
-import { establishmentsApi } from '../../lib/api/establishments';
-import { useNotifications } from '../../hooks/useNotifications';
+import { useEstablishment } from '../../contexts/EstablishmentContext';
 import type { Establishment } from '../../lib/api/establishments';
 
 export default function GestionEtablissementPage() {
   const [activeTab, setActiveTab] = useState('etablissement');
   
-  // Global hotel selector state for Rooms and Equipments sections
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
-  const [loadingEstablishments, setLoadingEstablishments] = useState(true);
-  const { addNotification } = useNotifications();
+  // Use global establishment context instead of local state
+  const { selectedHotel, selectedHotelId, setSelectedHotelId, availableHotels, setAvailableHotels } = useEstablishment();
 
-  // Load establishments for global hotel selector
-  useEffect(() => {
-    loadEstablishments();
-  }, []);
-
-  const loadEstablishments = async () => {
-    try {
-      setLoadingEstablishments(true);
-      const response = await establishmentsApi.getEstablishments();
-      if (response.success && response.data) {
-        setEstablishments(response.data);
-        // Auto-select first hotel if available
-        if (response.data.length > 0 && !selectedEstablishment) {
-          setSelectedEstablishment(response.data[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des établissements:', error);
-      addNotification('error', 'Erreur lors du chargement des établissements');
-    } finally {
-      setLoadingEstablishments(false);
-    }
-  };
+  console.log('🏨 GestionEtablissementPage: selectedHotelId =', selectedHotelId, 'selectedHotel =', selectedHotel?.nom);
 
   const handleEstablishmentSelect = (establishment: Establishment) => {
-    setSelectedEstablishment(establishment);
+    console.log('🏨 GestionEtablissementPage: Selecting establishment:', establishment.nom, 'ID:', establishment.id);
+    // Convert Establishment to Hotel format and update global context
+    const hotelData = {
+      id: establishment.id,
+      nom: establishment.nom,
+      adresse: establishment.adresse,
+      ville: establishment.ville,
+      codePostal: establishment.code_postal,
+      telephone: establishment.telephone || '',
+      email: establishment.email || '',
+      gestionnaire: establishment.gestionnaire || 'Non spécifié',
+      statut: establishment.statut || 'ACTIF',
+      chambresTotal: establishment.chambres_total || 0,
+      chambresOccupees: establishment.chambres_occupees || 0,
+      tauxOccupation: establishment.taux_occupation || 0
+    };
+    
+    // Update available hotels if this hotel is not already in the list
+    const existingHotel = availableHotels.find(h => h.id === establishment.id);
+    if (!existingHotel) {
+      console.log('🔄 Adding hotel to availableHotels:', hotelData.nom);
+      setAvailableHotels([...availableHotels, hotelData]);
+    }
+    
+    // Set as selected hotel in global context
+    setSelectedHotelId(establishment.id);
   };
 
   const topBarItems = [
@@ -81,20 +80,19 @@ export default function GestionEtablissementPage() {
       case 'etablissement':
         return (
           <EstablishmentsSection 
-            onEstablishmentUpdate={loadEstablishments}
             onEstablishmentSelect={handleEstablishmentSelect}
-            currentSelectedId={selectedEstablishment?.id}
+            currentSelectedId={selectedHotelId}
           />
         );
       
       case 'categories':
-        return <RoomCategoriesSection selectedHotelId={selectedEstablishment?.id || null} />;
+        return <RoomCategoriesSection selectedHotelId={selectedHotelId} />;
       
       case 'chambres':
-        return <RoomsSection selectedHotelId={selectedEstablishment?.id || null} />;
+        return <RoomsSection selectedHotelId={selectedHotelId} />;
       
       case 'equipements':
-        return <EquipmentsSection selectedHotelId={selectedEstablishment?.id || null} />;
+        return <EquipmentsSection selectedHotelId={selectedHotelId} />;
       
       default:
         return <div>Page non trouvée</div>;

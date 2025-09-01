@@ -28,7 +28,10 @@ import {
   BookOpen,
   ClipboardList
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useEstablishment } from '../../contexts/EstablishmentContext';
+import { establishmentsApi } from '../../lib/api/establishments';
+import type { Establishment } from '../../lib/api/establishments';
 
 interface SidebarProps {
   activeTab: string;
@@ -38,20 +41,73 @@ interface SidebarProps {
     statistiques: boolean;
     notifications: boolean;
   };
-  selectedHotel?: { 
-    id: number; 
-    nom: string;
-    adresse?: string;
-    ville?: string;
-    codePostal?: string;
-    statut?: string;
-    gestionnaire?: string;
-  } | null;
 }
 
-export default function Sidebar({ activeTab, onTabChange, features, selectedHotel }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, features }: SidebarProps) {
   const [expandedComptabilite, setExpandedComptabilite] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showEstablishmentSelector, setShowEstablishmentSelector] = useState(false);
+  const [availableEstablishments, setAvailableEstablishments] = useState<Establishment[]>([]);
+  
+  // Use the establishment context
+  const { selectedHotel, selectedHotelId, setSelectedHotelId, setAvailableHotels } = useEstablishment();
+
+  // Load establishments for the selector
+  useEffect(() => {
+    const loadEstablishments = async () => {
+      try {
+        const response = await establishmentsApi.getEstablishments();
+        if (response.success && response.data) {
+          setAvailableEstablishments(response.data);
+        }
+      } catch (error) {
+        console.error('Error loading establishments for sidebar:', error);
+      }
+    };
+    
+    loadEstablishments();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showEstablishmentSelector) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.establishment-selector')) {
+          setShowEstablishmentSelector(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEstablishmentSelector]);
+
+  const handleEstablishmentSelect = (establishment: Establishment) => {
+    console.log('🏨 Sidebar: Selecting establishment:', establishment.nom, 'ID:', establishment.id);
+    
+    // Convert Establishment to Hotel format and update global context
+    const hotelData = {
+      id: establishment.id,
+      nom: establishment.nom,
+      adresse: establishment.adresse,
+      ville: establishment.ville,
+      codePostal: establishment.code_postal,
+      telephone: establishment.telephone || '',
+      email: establishment.email || '',
+      gestionnaire: establishment.gestionnaire || 'Non spécifié',
+      statut: establishment.statut || 'ACTIF',
+      chambresTotal: establishment.chambres_total || 0,
+      chambresOccupees: establishment.chambres_occupees || 0,
+      tauxOccupation: establishment.taux_occupation || 0
+    };
+    
+    // Set as selected hotel in global context
+    setSelectedHotelId(establishment.id);
+    setShowEstablishmentSelector(false);
+  };
 
   // Protection contre les erreurs de rendu - utilisation de valeurs par défaut
   if (!features) {
@@ -237,13 +293,57 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
       }`}>
         {isExpanded ? (
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-gray-900 truncate">
-                {selectedHotel ? selectedHotel.nom : 'SoliReserve'}
-              </h1>
-              <p className="text-xs text-gray-600 truncate">
-                {selectedHotel ? (selectedHotel.ville || selectedHotel.adresse || 'Gestion hôtelière sociale') : 'Sélectionnez un établissement'}
-              </p>
+            <div className="flex-1 relative establishment-selector">
+              <div 
+                onClick={() => setShowEstablishmentSelector(!showEstablishmentSelector)}
+                className="cursor-pointer p-2 -m-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                <h1 className="text-lg font-bold text-gray-900 truncate">
+                  {selectedHotel ? selectedHotel.nom : 'SoliReserve'}
+                </h1>
+                <p className="text-xs text-gray-600 truncate flex items-center">
+                  {selectedHotel ? (selectedHotel.ville || selectedHotel.adresse || 'Gestion hôtelière sociale') : 'Cliquez pour sélectionner un établissement'}
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </p>
+              </div>
+
+              {/* Establishment Selector Dropdown */}
+              {showEstablishmentSelector && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="text-xs font-medium text-gray-700 mb-2 px-2 py-1">
+                      Sélectionner un établissement
+                    </div>
+                    {availableEstablishments.length === 0 ? (
+                      <div className="text-xs text-gray-500 px-2 py-2">
+                        Aucun établissement disponible
+                      </div>
+                    ) : (
+                      availableEstablishments.map((establishment) => (
+                        <div
+                          key={establishment.id}
+                          onClick={() => handleEstablishmentSelect(establishment)}
+                          className={`flex items-center px-2 py-2 text-sm rounded cursor-pointer transition-colors ${
+                            selectedHotelId === establishment.id
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium truncate">{establishment.nom}</div>
+                            <div className="text-xs text-gray-500 truncate">
+                              {establishment.ville} • {establishment.chambres_total} chambres
+                            </div>
+                          </div>
+                          {selectedHotelId === establishment.id && (
+                            <div className="w-3 h-3 bg-blue-600 rounded-full ml-2" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <Button
               variant="ghost"

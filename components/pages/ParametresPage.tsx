@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useEstablishment } from '../../contexts/EstablishmentContext';
 import TopBar from '../layout/TopBar';
 import { 
   Settings, 
@@ -19,19 +20,17 @@ import ModificationHistory from '../features/ModificationHistory';
 interface ParametresPageProps {
   features: {
     operateursSociaux: boolean;
-  
     statistiques: boolean;
     notifications: boolean;
   };
-  selectedHotel?: number | null;
-  hotels?: Array<{ id: number; nom: string }>;
+  // selectedHotel and hotels props removed - now using EstablishmentContext
   users?: User[];
   templates?: DocumentTemplate[];
   operateurs?: any[];
   reservations?: Array<{ id: number; numero: string; usager: string; hotel: string }>;
   agents?: Array<{ id: number; nom: string; prenom: string; role: string }>;
   onFeatureToggle: (feature: string, enabled: boolean) => void;
-  onHotelSelect: (hotelId: number | null) => void;
+  // onHotelSelect prop removed - now handled in EstablishmentContext
   onHotelCreate?: (hotel: Omit<Hotel, 'id'>) => void;
   onSaveSettings: () => void;
   onResetSettings: () => void;
@@ -48,15 +47,12 @@ interface ParametresPageProps {
 
 export default function ParametresPage({
   features,
-  selectedHotel,
-  hotels,
   users,
   templates,
   operateurs,
   reservations = [],
   agents = [],
   onFeatureToggle,
-  onHotelSelect,
   onHotelCreate,
   onSaveSettings,
   onResetSettings,
@@ -70,6 +66,7 @@ export default function ParametresPage({
   onTemplateDuplicate,
   onOperateurSelect
 }: ParametresPageProps) {
+  const { availableHotels, setAvailableHotels } = useEstablishment();
   const [activeTab, setActiveTab] = useState('general');
   const [showAddHotelForm, setShowAddHotelForm] = useState(false);
   const [newHotel, setNewHotel] = useState({
@@ -106,14 +103,23 @@ export default function ParametresPage({
 
   const handleAddHotel = () => {
     if (newHotel.nom.trim() && onHotelCreate) {
-      onHotelCreate({
+      const hotel = {
         ...newHotel,
         gestionnaire: '',
         statut: 'actif',
         chambresTotal: 0,
         chambresOccupees: 0,
         tauxOccupation: 0
-      });
+      };
+      onHotelCreate(hotel);
+      
+      // Also update the establishment context with the new hotel
+      const newHotelWithId = { 
+        ...hotel, 
+        id: Math.max(...availableHotels.map(h => h.id), 0) + 1 
+      };
+      setAvailableHotels([...availableHotels, newHotelWithId]);
+      
       setNewHotel({
         nom: '',
         adresse: '',

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
+import { EstablishmentProvider, useEstablishment } from '../contexts/EstablishmentContext';
 
 import ReservationsPage from '../components/pages/ReservationsPage';
 import AvailabilitySearchPage from '../components/pages/AvailabilitySearchPage';
@@ -36,10 +37,11 @@ import { Hotel, Reservation, OperateurSocial, ConventionPrix, ProcessusReservati
 import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../lib/supabase';
 
-export default function Home() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState('reservations');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { selectedHotelId, selectedHotel, setSelectedHotelId, setAvailableHotels } = useEstablishment();
   
   // Données
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -51,18 +53,13 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
-  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
 
   // État pour les fonctionnalités activées/désactivées
   const [features, setFeatures] = useState({
     operateursSociaux: true,
-
     statistiques: true,
     notifications: true
   });
-
-  // État pour l'établissement sélectionné
-  const [selectedHotel, setSelectedHotel] = useState<number | null>(null);
 
   // Hooks
   const { notifications, addNotification, removeNotification } = useNotifications();
@@ -175,13 +172,15 @@ export default function Home() {
           // Fallback to generated data if Supabase query fails
           const fallbackHotels = generateHotels();
           setHotels(fallbackHotels);
+          setAvailableHotels(fallbackHotels);
           transformedHotels = fallbackHotels;
           
-          // Sélectionner automatiquement le premier établissement par défaut
-          if (fallbackHotels.length > 0 && !selectedHotel) {
+          // Auto-selection will be handled by EstablishmentProvider - DON'T INTERFERE!
+          console.log('🏨 APP PAGE: Fallback hotels loaded, selectedHotelId:', selectedHotelId, 'Hotels count:', fallbackHotels.length);
+          if (fallbackHotels.length > 0 && !selectedHotelId) {
             const firstHotel = fallbackHotels[0];
-            setSelectedHotel(firstHotel.id);
-            addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
+            console.log('🏨 APP PAGE: Would show notification for fallback hotel:', firstHotel.nom, '(but selectedHotelId might be restored from localStorage later)');
+            // addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
           }
         } else {
           // Transformer les données Supabase pour correspondre au format attendu
@@ -201,12 +200,14 @@ export default function Home() {
           })) || [];
 
           setHotels(transformedHotels);
+          setAvailableHotels(transformedHotels);
           
-          // Sélectionner automatiquement le premier établissement par défaut
-          if (transformedHotels.length > 0 && !selectedHotel) {
+          // Auto-selection will be handled by EstablishmentProvider - DON'T INTERFERE!
+          console.log('🏨 APP PAGE: Supabase hotels loaded, selectedHotelId:', selectedHotelId, 'Hotels count:', transformedHotels.length);
+          if (transformedHotels.length > 0 && !selectedHotelId) {
             const firstHotel = transformedHotels[0];
-            setSelectedHotel(firstHotel.id);
-            addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
+            console.log('🏨 APP PAGE: Would show notification for supabase hotel:', firstHotel.nom, '(but selectedHotelId might be restored from localStorage later)');
+            // addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
           }
         }
 
@@ -275,28 +276,28 @@ export default function Home() {
   }, []);
 
   // Filtrer les données selon l'établissement sélectionné
-  const filteredHotels = selectedHotel ? hotels.filter(h => h.id === selectedHotel) : hotels;
-  const filteredReservations = selectedHotel ? reservations.filter(r => {
-    const hotel = hotels.find(h => h.id === selectedHotel);
+  const filteredHotels = selectedHotelId ? hotels.filter(h => h.id === selectedHotelId) : hotels;
+  const filteredReservations = selectedHotelId ? reservations.filter(r => {
+    const hotel = hotels.find(h => h.id === selectedHotelId);
     return hotel && r.hotel === hotel.nom;
   }) : reservations;
   
   // Filtrer les opérateurs selon l'établissement sélectionné (via les conventions)
-  const filteredOperateurs = selectedHotel ? operateurs.filter(operateur => {
+  const filteredOperateurs = selectedHotelId ? operateurs.filter(operateur => {
     // Vérifier si l'opérateur a des conventions avec l'établissement sélectionné
     const hasConventionWithHotel = conventions.some(convention => 
-      convention.operateurId === operateur.id && convention.hotelId === selectedHotel
+      convention.operateurId === operateur.id && convention.hotelId === selectedHotelId
     );
     return hasConventionWithHotel;
   }) : operateurs;
   
   // Filtrer les conventions selon l'établissement sélectionné
-  const filteredConventions = selectedHotel ? conventions.filter(convention => 
-    convention.hotelId === selectedHotel
+  const filteredConventions = selectedHotelId ? conventions.filter(convention => 
+    convention.hotelId === selectedHotelId
   ) : conventions;
   
   // Filtrer les conversations selon l'établissement sélectionné (via les opérateurs)
-  const filteredConversations = selectedHotel ? conversations.filter(conversation => {
+  const filteredConversations = selectedHotelId ? conversations.filter(conversation => {
     const operateur = filteredOperateurs.find(op => op.id === conversation.operateurId);
     return operateur !== undefined;
   }) : conversations;
@@ -348,7 +349,7 @@ export default function Home() {
       case 'availability-search':
         return (
           <AvailabilitySearchPage
-            selectedHotelId={selectedHotel}
+            selectedHotelId={selectedHotelId}
             onRoomSelect={(room, criteria) => {
               addNotification('info', `Chambre ${room.numero} sélectionnée pour réservation`);
               // TODO: Implement reservation creation from selected room
@@ -364,7 +365,7 @@ export default function Home() {
             hotels={filteredHotels}
             operateurs={operateurs}
             templates={templates}
-            selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel)?.nom : undefined}
+            selectedHotel={selectedHotelId ? hotels.find(h => h.id === selectedHotelId)?.nom : undefined}
             onReservationSelect={handleReservationSelect}
             activeSubTab={activeTab}
           />
@@ -372,7 +373,7 @@ export default function Home() {
       case 'chambres':
         return (
           <ChambresPage 
-            selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null} 
+            selectedHotel={selectedHotel} 
             onActionClick={(action) => {
               // Room action triggered
               addNotification('info', `Action chambre: ${action}`);
@@ -380,9 +381,7 @@ export default function Home() {
           />
         );
       case 'gestion':
-        return <GestionPage selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null} />;
-
-
+        return <GestionPage selectedHotel={selectedHotel} />;
 
       case 'operateurs':
         if (!features.operateursSociaux) {
@@ -404,13 +403,11 @@ export default function Home() {
         return <GestionEtablissementPage />;
 
       case 'analyses-donnees':
-        return <ReportsPage hotels={hotels} selectedHotelId={selectedHotel} />;
+        return <ReportsPage hotels={hotels} selectedHotelId={selectedHotelId} />;
 
       case 'maintenance':
         return (
-          <MaintenanceManagement 
-            selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null}
-          />
+          <MaintenanceManagement />
         );
 
       case 'comptabilite':
@@ -423,7 +420,7 @@ export default function Home() {
         return (
           <ComptabilitePage 
             hotels={hotels} 
-            selectedHotelId={selectedHotel || undefined}
+            selectedHotelId={selectedHotelId || undefined}
             activeSubTab={activeTab}
           />
         );
@@ -440,8 +437,6 @@ export default function Home() {
           <div className="space-y-6">
             <ParametresPage
               features={features}
-              selectedHotel={selectedHotel}
-              hotels={hotels}
               users={users}
               templates={templates}
               operateurs={filteredOperateurs}
@@ -458,10 +453,10 @@ export default function Home() {
                 role: user.role || 'utilisateur'
               }))}
               onFeatureToggle={handleFeatureToggle}
-              onHotelSelect={(hotelId) => setSelectedHotel(hotelId)}
               onHotelCreate={(hotel) => {
                 const newHotel = { ...hotel, id: Math.max(...hotels.map(h => h.id), 0) + 1 };
                 setHotels(prev => [...prev, newHotel]);
+                setAvailableHotels([...hotels, newHotel]);
                 addNotification('success', 'Établissement créé avec succès');
               }}
               onSaveSettings={handleSaveSettings}
@@ -496,7 +491,6 @@ export default function Home() {
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
           features={features}
-          selectedHotel={selectedHotel ? hotels.find(h => h.id === selectedHotel) || null : null}
         />
         <main className="flex-1 p-6">
           {renderMainContent()}
@@ -504,4 +498,12 @@ export default function Home() {
       </div>
     </div>
   );
-} 
+}
+
+export default function Home() {
+  return (
+    <EstablishmentProvider>
+      <AppContent />
+    </EstablishmentProvider>
+  );
+}
