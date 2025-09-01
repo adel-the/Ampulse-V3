@@ -7,6 +7,7 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
   Bed, 
   Users, 
@@ -38,6 +39,7 @@ import { clientsApi } from '@/lib/api/clients';
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
 import { reservationsApi, type SimpleReservationInsert } from '@/lib/api/reservations';
 import UsagerEditModal from '../modals/UsagerEditModal';
+import { CLIENT_TYPES, type ClientCategory } from '@/types';
 
 export interface AvailableRoom extends Room {
   category?: RoomCategory;
@@ -149,6 +151,7 @@ export default function AvailabilityResults({
   const [prescripteurInputValue, setPrescripteurInputValue] = useState('');
   const [showPrescripteurSuggestions, setShowPrescripteurSuggestions] = useState(false);
   const [prescripteurHighlightedIndex, setPrescripteurHighlightedIndex] = useState(-1);
+  const [prescripteurTypeFilter, setPrescripteurTypeFilter] = useState<ClientCategory>('Association');
   
   const usagerInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
@@ -216,9 +219,15 @@ export default function AvailabilityResults({
     }
   };
 
-  // Filter prescripteurs based on search
+  // Filter prescripteurs based on search and type
   const getFilteredPrescripteurs = useCallback(() => {
     return clients.filter(client => {
+      // First filter by type
+      if (client.client_type !== prescripteurTypeFilter) {
+        return false;
+      }
+      
+      // Then filter by search term if present
       if (prescripteurInputValue) {
         const searchLower = prescripteurInputValue.toLowerCase();
         const nom = (client.nom || '').toLowerCase();
@@ -233,7 +242,7 @@ export default function AvailabilityResults({
       }
       return true;
     });
-  }, [clients, prescripteurInputValue]);
+  }, [clients, prescripteurInputValue, prescripteurTypeFilter]);
 
   // Filter usagers based on prescripteur only (for validation)
   const getUsagersForPrescripteur = useCallback(() => {
@@ -578,6 +587,22 @@ export default function AvailabilityResults({
               </Alert>
             ) : (
               <div className="space-y-3">
+                {/* Type de prescripteur filter */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Type de prescripteur</Label>
+                  <Tabs 
+                    value={prescripteurTypeFilter} 
+                    onValueChange={(value) => setPrescripteurTypeFilter(value as ClientCategory)}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="Association">Associations</TabsTrigger>
+                      <TabsTrigger value="Entreprise">Entreprises</TabsTrigger>
+                      <TabsTrigger value="Particulier">Particuliers</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
                 {/* Prescripteur autocomplete */}
                 <div className="relative">
                   <div className="flex justify-between items-center mb-1">
