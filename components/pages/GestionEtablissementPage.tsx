@@ -102,7 +102,7 @@ export default function GestionEtablissementPage() {
   // Render selected establishment display for all tabs
   const renderSelectedEstablishment = () => {
 
-    if (!selectedEstablishment) {
+    if (!selectedHotel) {
       if (activeTab === 'etablissement') {
         return (
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
@@ -125,21 +125,21 @@ export default function GestionEtablissementPage() {
       <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg">
         <div className="rounded-full h-3 w-3 bg-blue-600"></div>
         <div className="flex items-center gap-4 text-sm">
-          <span className="font-medium text-gray-900">{selectedEstablishment.nom}</span>
+          <span className="font-medium text-gray-900">{selectedHotel.nom}</span>
           <span className="flex items-center gap-1 text-gray-600">
             <MapPin className="h-3 w-3" />
-            {selectedEstablishment.ville}
+            {selectedHotel.ville}
           </span>
           <span className="flex items-center gap-1 text-gray-600">
             <Building2 className="h-3 w-3" />
-            {selectedEstablishment.chambres_total} chambres
+            {selectedHotel.chambresTotal} chambres
           </span>
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-            selectedEstablishment.statut === 'ACTIF' 
+            selectedHotel.statut === 'ACTIF' 
               ? 'bg-green-100 text-green-700' 
               : 'bg-gray-100 text-gray-700'
           }`}>
-            {selectedEstablishment.statut}
+            {selectedHotel.statut}
           </span>
         </div>
       </div>
