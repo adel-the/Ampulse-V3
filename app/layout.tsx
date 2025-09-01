@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Poppins, Roboto_Mono } from 'next/font/google'
 import './globals.css'
+import DynamicTitle from '../components/layout/DynamicTitle'
 
 // Police principale - Inter pour une excellente lisibilité
 const inter = Inter({ 
@@ -28,7 +29,7 @@ const robotoMono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'M',
+  title: 'SoliReserve Enhanced',
   description: 'Application moderne de gestion d\'hébergements sociaux avec interface intuitive et fonctionnalités avancées',
   keywords: 'gestion hôtelière, réservations, hébergement social, SoliReserve',
   authors: [{ name: 'SoliReserve Team' }],
@@ -50,6 +51,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${inter.variable} ${poppins.variable} ${robotoMono.variable}`}>
       <body className={`${inter.className} antialiased`}>
+        <DynamicTitle />
         {children}
         {isDevelopment && (
           <script src="/worktree-indicator.js" defer></script>
