@@ -38,7 +38,6 @@ import { clientsApi } from '@/lib/api/clients';
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
 import { reservationsApi, type SimpleReservationInsert } from '@/lib/api/reservations';
 import UsagerEditModal from '../modals/UsagerEditModal';
-import QuickUsagerCreateModal from '../modals/QuickUsagerCreateModal';
 
 export interface AvailableRoom extends Room {
   category?: RoomCategory;
@@ -435,37 +434,24 @@ export default function AvailabilityResults({
   };
 
   // Handle usager update success
-  const handleUsagerUpdateSuccess = async () => {
+  const handleUsagerUpdateSuccess = async (usagerId?: number) => {
     // Reload usagers to get updated data
     await loadUsagers();
     
     // Ensure the selected usager is still valid after reload
-    if (selectedUsagerId) {
-      // The usager list has been reloaded, selectedUsager will be updated automatically
-      // through the derived state on next render
+    const targetUsagerId = usagerId || selectedUsagerId;
+    if (targetUsagerId) {
+      // If a specific usager was updated, re-select it to update the display
+      const response = await usagersApi.getUsagerWithPrescripteur(targetUsagerId);
+      if (response.success && response.data) {
+        handleUsagerSelect(response.data);
+      }
     }
     
     setShowEditUsagerModal(false);
     addNotification('success', 'Usager mis à jour avec succès');
   };
 
-  // Handle new usager creation from quick modal
-  const handleUsagerCreated = async (usagerId: number) => {
-    setShowCreateUsagerModal(false);
-    
-    // Reload usagers list
-    await loadUsagers();
-    
-    // Find and select the newly created usager
-    const response = await usagersApi.getUsagerWithPrescripteur(usagerId);
-    if (response.success && response.data) {
-      const newUsager = response.data;
-      handleUsagerSelect(newUsager);
-      
-      // Show success notification
-      addNotification('success', `Usager ${newUsager.nom} ${newUsager.prenom} créé avec succès`);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -1013,13 +999,39 @@ export default function AvailabilityResults({
         />
       )}
       
-      {/* Quick Usager Create Modal */}
+      {/* Usager Create Modal - Now using the unified UsagerEditModal */}
       {selectedPrescripteur && (
-        <QuickUsagerCreateModal
+        <UsagerEditModal
           isOpen={showCreateUsagerModal}
           onClose={() => setShowCreateUsagerModal(false)}
-          prescripteur={selectedPrescripteur}
-          onUsagerCreated={handleUsagerCreated}
+          prescripteurId={selectedPrescripteur.id}
+          prescripteurs={[selectedPrescripteur]}
+          onSuccess={async (usagerId) => {
+            setShowCreateUsagerModal(false);
+            
+            // Si un usagerId est fourni (création), sélectionner automatiquement l'usager
+            if (usagerId) {
+              // Recharger la liste des usagers
+              await loadUsagers();
+              
+              // Récupérer les données complètes du nouvel usager
+              const response = await usagersApi.getUsagerWithPrescripteur(usagerId);
+              if (response.success && response.data) {
+                // Sélectionner automatiquement le nouvel usager
+                handleUsagerSelect(response.data);
+                
+                // Notification de succès avec emoji
+                addNotification('success', '✅ Usager créé et sélectionné');
+              } else {
+                // Si on ne peut pas récupérer l'usager, notification standard
+                addNotification('success', 'Usager créé avec succès');
+              }
+            } else {
+              // Cas de mise à jour (peu probable ici, mais au cas où)
+              await loadUsagers();
+              addNotification('success', 'Usager mis à jour avec succès');
+            }
+          }}
         />
       )}
       </>

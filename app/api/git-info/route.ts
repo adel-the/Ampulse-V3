@@ -22,7 +22,7 @@ export async function GET() {
 
     // Extract worktree letter from path
     let worktree = 'master';
-    let port = 3013; // Default port for master
+    let port = 3000; // Default port for master (updated to match CLAUDE.md)
 
     // Check if path contains worktree indicators (F, I, M)
     const pathParts = worktreePath.split(/[/\\]/);
@@ -45,11 +45,11 @@ export async function GET() {
           port = 3010;
           break;
         default:
-          port = 3013;
+          port = 3000;
       }
-    } else if (branch === 'master') {
+    } else if (branch === 'master' || branch === 'main') {
       worktree = 'master';
-      port = 3013;
+      port = 3000; // Use port 3000 for master as per CLAUDE.md
     }
 
     const gitInfo: GitInfo = {

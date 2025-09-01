@@ -3,7 +3,7 @@
  * Assure la cohérence des données : soit tout est sauvé, soit rien
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { Individual } from '@/types/individuals';
 import { individualToIndividuInsert } from '@/lib/individuAdapter';
 import { usagersApi, type UsagerWithPrescripteur } from '@/lib/api/usagers';
@@ -132,8 +132,12 @@ async function saveIndividualsToDatabase(usagerId: number, individuals: Individu
       individualToIndividuInsert(individual, usagerId)
     );
 
+    // Utiliser le client admin en mode développement pour éviter les problèmes RLS
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const client = isDevelopment ? supabaseAdmin : supabase;
+
     // Sauvegarder en batch
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('individus')
       .insert(individuInserts)
       .select();

@@ -29,7 +29,7 @@ interface UsagerEditModalProps {
   usager?: UsagerWithPrescripteur | null;
   prescripteurId?: number;
   prescripteurs?: Client[];
-  onSuccess?: () => void;
+  onSuccess?: (usagerId?: number) => void;
 }
 
 const AUTONOMIE_LEVELS = [
@@ -273,7 +273,7 @@ export default function UsagerEditModal({
         
         addNotification('success', successMessage);
         
-        if (onSuccess) onSuccess();
+        if (onSuccess) onSuccess(result.usagerId);
         handleClose();
       } else {
         // ========== ÉCHEC ==========

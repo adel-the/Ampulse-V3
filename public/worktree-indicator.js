@@ -4,10 +4,39 @@
 (function() {
     'use strict';
     
-    // Configuration
-    const WORKTREE_NAME = 'M';
-    const PORT = '3010';
-    const COLOR = '#10B981'; // Emerald-500
+    // Détection dynamique du port et du worktree
+    function detectWorktreeInfo() {
+        const currentPort = window.location.port || '3000';
+        let worktreeName = 'Master';
+        let color = '#3B82F6'; // Blue-500 par défaut pour master
+        
+        // Détection basée sur le port
+        if (currentPort >= '3000' && currentPort <= '3005') {
+            worktreeName = 'Master';
+            color = '#3B82F6'; // Blue-500
+        } else if (currentPort >= '3010' && currentPort <= '3015') {
+            worktreeName = 'M';
+            color = '#10B981'; // Emerald-500
+        } else if (currentPort >= '3020' && currentPort <= '3025') {
+            worktreeName = 'F';
+            color = '#8B5CF6'; // Purple-500
+        } else if (currentPort >= '3001' && currentPort <= '3009') {
+            worktreeName = 'I';
+            color = '#F97316'; // Orange-500
+        }
+        
+        return {
+            name: worktreeName,
+            port: currentPort,
+            color: color
+        };
+    }
+    
+    // Configuration dynamique
+    const worktreeInfo = detectWorktreeInfo();
+    const WORKTREE_NAME = worktreeInfo.name;
+    const PORT = worktreeInfo.port;
+    const COLOR = worktreeInfo.color;
     
     // Vérifier si on est en mode développement
     function isDevelopmentMode() {
@@ -43,10 +72,11 @@
         `;
         
         // Contenu du badge
+        const displayName = WORKTREE_NAME === 'Master' ? 'Master Branch' : `Worktree ${WORKTREE_NAME}`;
         indicator.innerHTML = `
             <div style="display: flex; align-items: center; gap: 6px;">
                 <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 2s infinite;"></div>
-                <span>Worktree ${WORKTREE_NAME} - Port ${PORT}</span>
+                <span>${displayName} - Port ${PORT}</span>
             </div>
         `;
         
