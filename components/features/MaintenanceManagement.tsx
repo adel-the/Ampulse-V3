@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useRooms, useMaintenanceTasks } from '@/hooks/useSupabase';
+import MaintenanceTaskForm from './MaintenanceTaskForm';
+import MaintenanceTasksTodoList from './MaintenanceTasksTodoList';
 import { useNotifications } from '@/hooks/useNotifications';
 import { 
   DropdownMenu, 
@@ -113,6 +115,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showAddTodoModal, setShowAddTodoModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<MaintenanceRoom | null>(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [selectedTaskRoom, setSelectedTaskRoom] = useState<number | null>(null);
   
   // Nouveaux états pour la navigation
   const [viewMode, setViewMode] = useState<'grid' | 'detail'>('grid');
@@ -162,30 +166,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     notes: ''
   });
 
-  // Fonctions utilitaires pour générer les données de maintenance
-  const generateMaintenanceDescription = (roomNumber: string): string => {
-    const descriptions = [
-      'Problème de climatisation',
-      'Réparation robinetterie',
-      'Attente pièces détachées',
-      'Maintenance électrique',
-      'Rénovation salle de bain',
-      'Changement revêtement sol',
-      'Réparation fenêtre',
-      'Maintenance chauffage'
-    ];
-    return descriptions[parseInt(roomNumber) % descriptions.length] || 'Maintenance générale';
-  };
-
-  const generatePriority = (index: number): 'basse' | 'moyenne' | 'haute' | 'critique' => {
-    const priorities: ('basse' | 'moyenne' | 'haute' | 'critique')[] = ['haute', 'moyenne', 'basse', 'critique'];
-    return priorities[index % priorities.length] || 'moyenne';
-  };
-
-  const generateResponsable = (index: number): string => {
-    const responsables = ['Jean Dupont', 'Marie Martin', 'Pierre Bernard', 'Sophie Dubois', 'Luc Moreau'];
-    return responsables[index % responsables.length] || 'Non assigné';
-  };
 
   // Traiter les vraies données de chambres - TOUTES les chambres
   useEffect(() => {
@@ -214,10 +194,10 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
           if (isMaintenanceRoom) {
             return {
               ...baseRoom,
-              description: room.description || generateMaintenanceDescription(room.numero),
-              priorite: generatePriority(index),
-              responsable: generateResponsable(index),
-              coutEstime: Math.floor(Math.random() * 500) + 100
+              description: room.description || 'Maintenance requise',
+              priorite: 'moyenne' as const,
+              responsable: undefined,
+              coutEstime: 0
             };
           }
 
@@ -231,72 +211,8 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
 
       setMaintenanceRooms(allRoomsData);
 
-      const demoItems: MaintenanceItem[] = [
-        {
-          id: 1,
-          nom: 'Réparation climatisation',
-          description: 'Maintenance et réparation des systèmes de climatisation',
-          categorie: 'climatisation',
-          coutMoyen: 300,
-          dureeMoyenne: 4
-        },
-        {
-          id: 2,
-          nom: 'Réparation plomberie',
-          description: 'Réparation des fuites et remplacement de robinetterie',
-          categorie: 'plomberie',
-          coutMoyen: 150,
-          dureeMoyenne: 2
-        },
-        {
-          id: 3,
-          nom: 'Réparation électrique',
-          description: 'Maintenance des installations électriques',
-          categorie: 'electricite',
-          coutMoyen: 200,
-          dureeMoyenne: 3
-        },
-        {
-          id: 4,
-          nom: 'Réparation mobilier',
-          description: 'Réparation et remplacement de mobilier',
-          categorie: 'mobilier',
-          coutMoyen: 100,
-          dureeMoyenne: 1
-        }
-      ];
-
-      const demoTodos: MaintenanceTodo[] = [
-        {
-          id: 1,
-          roomId: 1,
-          itemId: 1,
-          titre: 'Diagnostic climatisation',
-          description: 'Vérifier le système de climatisation de la chambre 101',
-          status: 'en_cours',
-          priorite: 'haute',
-          dateCreation: '2024-01-15',
-          dateEcheance: '2024-01-18',
-          responsable: 'Jean Dupont',
-          notes: 'Système en panne, température non régulée'
-        },
-        {
-          id: 2,
-          roomId: 2,
-          itemId: 2,
-          titre: 'Remplacement robinet',
-          description: 'Remplacer le robinet de la salle de bain',
-          status: 'termine',
-          priorite: 'moyenne',
-          dateCreation: '2024-01-10',
-          dateEcheance: '2024-01-15',
-          responsable: 'Marie Martin',
-          notes: 'Robinet remplacé avec succès'
-        }
-      ];
-
-      setMaintenanceItems(demoItems);
-      setTodos(demoTodos);
+      setMaintenanceItems([]);
+      setTodos([]);
       setLoading(false);
     };
 
@@ -1174,125 +1090,40 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
               </CardContent>
             </Card>
 
-            {/* To-Do List */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                    Liste des tâches
-                  </div>
-                  <Button 
-                    size="sm"
-                    onClick={() => {
-                      setSelectedRoom(selectedRoomForDetail);
-                      setShowAddTodoModal(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter une tâche
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {getTasksForRoom(selectedRoomForDetail.id).length > 0 ? (
-                    getTasksForRoom(selectedRoomForDetail.id).map((task, index) => (
-                      <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h4 className="font-medium text-gray-900">{task.titre}</h4>
-                              <Badge className={getPriorityColor(task.priorite)}>
-                                {task.priorite}
-                              </Badge>
-                              <Badge variant="outline" className={
-                                task.statut === 'terminee' ? 'bg-green-100 text-green-800' :
-                                task.statut === 'en_cours' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                              }>
-                                {task.statut === 'terminee' ? 'Terminé' :
-                                 task.statut === 'en_cours' ? 'En cours' : 'En attente'}
-                              </Badge>
-                            </div>
-                            
-                            <p className="text-gray-600 text-sm mb-3">{task.description}</p>
-                            
-                            <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              {task.responsable && (
-                                <span className="flex items-center">
-                                  <User className="h-3 w-3 mr-1" />
-                                  {task.responsable}
-                                </span>
-                              )}
-                              {task.date_echeance && (
-                                <span className="flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  Échéance: {new Date(task.date_echeance).toLocaleDateString('fr-FR')}
-                                </span>
-                              )}
-                            </div>
-                            
-                            {task.notes && (
-                              <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                                <span className="font-medium">Notes:</span> {task.notes}
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <select
-                              value={task.statut}
-                              onChange={(e) => updateTaskStatus(task.id, e.target.value as any)}
-                              className="text-xs px-2 py-1 border border-gray-300 rounded"
-                            >
-                              <option value="en_attente">En attente</option>
-                              <option value="en_cours">En cours</option>
-                              <option value="terminee">Terminé</option>
-                              <option value="annulee">Annulé</option>
-                            </select>
-                            <select
-                              value={task.priorite}
-                              onChange={(e) => updateTaskPriority(task.id, e.target.value as any)}
-                              className="text-xs px-2 py-1 border border-gray-300 rounded"
-                            >
-                              <option value="faible">Faible</option>
-                              <option value="moyenne">Moyenne</option>
-                              <option value="haute">Haute</option>
-                              <option value="urgente">Urgente</option>
-                            </select>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => deleteTaskHandler(task.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune tâche</h3>
-                      <p className="text-gray-500 mb-4">
-                        Aucune tâche n'a été créée pour cette chambre.
-                      </p>
-                      <Button 
-                        onClick={() => {
-                          setSelectedRoom(selectedRoomForDetail);
-                          setShowAddTodoModal(true);
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Créer la première tâche
-                      </Button>
-                    </div>
-                  )}
+            {/* Formulaire de création de tâche */}
+            {showTaskForm && (
+              <MaintenanceTaskForm
+                selectedRoomId={selectedRoomForDetail.id}
+                currentHotelId={selectedHotel?.id}
+                onTaskCreated={() => {
+                  setShowTaskForm(false);
+                }}
+                onCancel={() => setShowTaskForm(false)}
+                className="mb-6"
+              />
+            )}
+
+            {/* Liste des tâches */}
+            {selectedHotel?.id ? (
+              <MaintenanceTasksTodoList
+                roomId={selectedRoomForDetail.id}
+                hotelId={selectedHotel.id}
+                showAddButton={!showTaskForm}
+                onAddTask={() => {
+                  setSelectedTaskRoom(selectedRoomForDetail.id);
+                  setShowTaskForm(true);
+                }}
+              />
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+                  <p className="text-yellow-800">
+                    Aucun hôtel sélectionné. Veuillez sélectionner un établissement pour voir les tâches de maintenance.
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </div>
         )
       )}

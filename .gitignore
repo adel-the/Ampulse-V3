@@ -77,4 +77,29 @@ INSTRUCTIONS_MIGRATION_*.md
 INSTRUCTIONS_FINALES_*.md
 INSTRUCTIONS_DEPLOIEMENT_*.md
 MIGRATION_*_RESUME.md
-CONFIGURATION_*.md 
+CONFIGURATION_*.md
+
+# Worktree-specific files and directories
+*.local.backup
+.env.local.backup
+/worktree-specific/
+.worktree-*
+worktree-*.log
+
+# Worktree environment configurations  
+.env.local.M
+.env.local.F
+.env.local.I
+.env.local.*.backup
+
+# Temporary worktree files
+WORKTREE_*.tmp
+WORKTREE_*.log
+worktree-setup-*.js
+worktree-config-*.json
+
+# Scripts output and logs
+scripts/output/
+scripts/logs/
+scripts/temp/
+check-worktree-*.log 

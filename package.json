@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:m": "node start-dev.js",
+    "start:m": "PORT=3010 npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -28,7 +30,10 @@
     "test:reservations:count": "node test-reservations-count.js",
     "validate:reservations": "npm run test:reservations:count",
     "diagnose:convention-prix": "node scripts/diagnose-convention-prix.js",
-    "create-test-convention": "node scripts/create-test-convention.js"
+    "create-test-convention": "node scripts/create-test-convention.js",
+    "check:worktree": "node scripts/check-worktree.js",
+    "validate:env": "node scripts/check-worktree.js --info",
+    "setup:env": "node scripts/setup-env.js"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

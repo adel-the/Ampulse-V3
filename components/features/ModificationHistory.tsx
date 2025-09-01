@@ -79,10 +79,10 @@ export default function ModificationHistory({
       ];
 
       const demoReservations = [
-        { id: 1, numero: 'RES-2024-001', usager: 'Jean Dupont', hotel: 'Hôtel Central' },
-        { id: 2, numero: 'RES-2024-002', usager: 'Marie Martin', hotel: 'Résidence du Port' },
-        { id: 3, numero: 'RES-2024-003', usager: 'Pierre Bernard', hotel: 'Hôtel Central' },
-        { id: 4, numero: 'RES-2024-004', usager: 'Sophie Leroy', hotel: 'Hôtel du Parc' }
+        { id: 1, numero: 'RES-2024-001', usager: 'Usager Test 1', hotel: 'Établissement A' },
+        { id: 2, numero: 'RES-2024-002', usager: 'Usager Test 2', hotel: 'Établissement B' },
+        { id: 3, numero: 'RES-2024-003', usager: 'Usager Test 3', hotel: 'Établissement A' },
+        { id: 4, numero: 'RES-2024-004', usager: 'Usager Test 4', hotel: 'Établissement C' }
       ];
 
       const actions = ['create', 'update', 'delete', 'view'] as const;

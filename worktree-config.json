@@ -1,0 +1,76 @@
+{
+  "worktree": {
+    "name": "M",
+    "displayName": "Maintenance",
+    "description": "Worktree dédié aux fonctionnalités de maintenance et gestion des équipements",
+    "theme": {
+      "primary": "#10B981",
+      "primaryName": "Vert Émeraude",
+      "accent": "#059669",
+      "background": "#ECFDF5",
+      "text": "#064E3B"
+    },
+    "port": {
+      "default": 3010,
+      "range": [3010, 3011, 3012, 3013, 3014, 3015],
+      "description": "Ports autorisés pour le développement (3010-3015)"
+    },
+    "features": [
+      "Maintenance préventive",
+      "Gestion des équipements",
+      "Planning des interventions",
+      "Rapports de maintenance",
+      "Suivi des coûts"
+    ],
+    "scripts": {
+      "dev": "node start-dev.js",
+      "start": "PORT=3010 npm run dev",
+      "build": "npm run build",
+      "test": "npm run test:all"
+    },
+    "environment": {
+      "NODE_ENV": "development",
+      "NEXT_PUBLIC_WORKTREE": "M",
+      "NEXT_PUBLIC_THEME_COLOR": "#10B981"
+    },
+    "metadata": {
+      "created": "2025-08-31",
+      "version": "1.0.0",
+      "maintainer": "Équipe Maintenance",
+      "lastUpdated": "2025-08-31"
+    },
+    "development": {
+      "hotReload": true,
+      "sourceMaps": true,
+      "debugMode": false,
+      "notifications": {
+        "sound": true,
+        "desktop": false,
+        "console": true
+      }
+    },
+    "paths": {
+      "components": "./components",
+      "pages": "./app",
+      "hooks": "./hooks",
+      "lib": "./lib",
+      "public": "./public",
+      "styles": "./app/globals.css"
+    },
+    "integrations": {
+      "supabase": {
+        "enabled": true,
+        "tables": [
+          "maintenance_tasks",
+          "equipment",
+          "maintenance_schedules",
+          "maintenance_reports"
+        ]
+      },
+      "monitoring": {
+        "enabled": false,
+        "service": "none"
+      }
+    }
+  }
+}
