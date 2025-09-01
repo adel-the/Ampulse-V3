@@ -19,6 +19,7 @@ export interface SimpleReservationInsert {
   total_amount: number
   special_requests?: string
   statut?: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  prescripteur_name?: string  // Optional: nom du prescripteur pour affichage
 }
 
 export interface SimpleReservation extends Reservation {
@@ -85,11 +86,11 @@ export const reservationsApi = {
         total_amount: data.total_amount,
         special_requests: data.special_requests || null,
         statut: data.statut || 'pending',
-        prescripteur: `${usager.nom} ${usager.prenom}`, // Use actual usager name
-        prescripteur_id: usager.prescripteur_id, // Add prescripteur_id from usager
+        prescripteur: data.prescripteur_name || `${usager.nom} ${usager.prenom}`, // Use prescripteur name if provided, fallback to usager name
         prix: data.room_rate, // Keep compatibility with existing field
         duree: duration // Duration in days calculated from dates
         // Note: created_at and updated_at are auto-managed by database triggers
+        // Note: prescripteur_id column does not exist in the reservations table
       }
 
       const { data: reservation, error } = await supabaseAdmin
@@ -98,7 +99,6 @@ export const reservationsApi = {
         .select(`
           *,
           usagers:usager_id(*),
-          prescripteurs:prescripteur_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)
@@ -145,7 +145,8 @@ export const reservationsApi = {
         .from('reservations')
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
+          clients:prescripteur_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `, { count: 'exact' })
@@ -214,7 +215,7 @@ export const reservationsApi = {
         .from('reservations')
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)
@@ -264,7 +265,7 @@ export const reservationsApi = {
         .eq('id', id)
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)
@@ -344,7 +345,7 @@ export const reservationsApi = {
         .from('reservations')
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)
@@ -412,7 +413,7 @@ export const reservationsApi = {
         .eq('id', id)
         .select(`
           *,
-          clients:usager_id(*),
+          usagers:usager_id(*),
           rooms:chambre_id(*),
           hotels:hotel_id(*)
         `)

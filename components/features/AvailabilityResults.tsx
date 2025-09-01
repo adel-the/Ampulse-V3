@@ -409,8 +409,18 @@ export default function AvailabilityResults({
       return;
     }
 
+    if (!selectedPrescripteur) {
+      addNotification('error', 'Veuillez sélectionner un prescripteur');
+      return;
+    }
+
     setReservationLoading(true);
     try {
+      // Format prescripteur name based on client type
+      const prescripteurName = selectedPrescripteur.client_type === 'Particulier'
+        ? `${selectedPrescripteur.nom} ${selectedPrescripteur.prenom || ''}`.trim()
+        : selectedPrescripteur.raison_sociale || selectedPrescripteur.nom;
+
       const reservationData: SimpleReservationInsert = {
         hotel_id: selectedRoom.hotel_id,
         chambre_id: selectedRoom.id,
@@ -422,14 +432,17 @@ export default function AvailabilityResults({
         room_rate: selectedRoom.prix,
         total_amount: selectedRoom.prix * nights,
         special_requests: specialRequests.trim() || undefined,
-        statut: 'confirmed'
+        statut: 'confirmed',
+        prescripteur_name: prescripteurName
       };
 
       const response = await reservationsApi.createReservation(reservationData);
 
       if (response.success && response.data) {
-        addNotification('success', `Réservation ${response.data.reservation_number} créée avec succès`);
+        addNotification('success', '✅ Réservation enregistrée avec succès');
+        // Refresh the reservations list
         onReservationCreated?.();
+        // Reset form and go back to list
         handleBackToList();
       } else {
         addNotification('error', response.error || 'Erreur lors de la création de la réservation');
