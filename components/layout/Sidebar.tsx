@@ -71,18 +71,6 @@ export default function Sidebar({ activeTab, onTabChange, features, selectedHote
       icon: ClipboardList, 
       alwaysVisible: true
     },
-    { 
-      id: 'reservations-calendrier', 
-      label: 'Disponibilité', 
-      icon: CalendarCheck, 
-      alwaysVisible: true
-    },
-    {
-      id: 'availability-search',
-      label: 'Recherche de disponibilité',
-      icon: Search,
-      alwaysVisible: true
-    },
     {
       id: 'maintenance',
       label: 'Maintenance',

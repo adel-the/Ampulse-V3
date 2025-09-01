@@ -4,6 +4,7 @@ import ReservationsTable from '../features/ReservationsTable';
 import ReservationsAvailability from '../features/ReservationsAvailability';
 import ReservationsDashboard from '../features/ReservationsDashboard';
 import ReservationDetailPage from './ReservationDetailPage';
+import AvailabilitySearchPage from './AvailabilitySearchPage';
 import { ProlongationModal, EndCareModal } from '../modals/Modals';
 import NewReservationModal from '../modals/NewReservationModal';
 
@@ -11,7 +12,8 @@ import {
   CalendarDays, 
   Eye, 
   List,
-  CheckCircle
+  CheckCircle,
+  Search
 } from 'lucide-react';
 import { Reservation, ProcessusReservation, Hotel, DocumentTemplate, OperateurSocial } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -157,19 +159,8 @@ export default function ReservationsPage({
   onReservationSelect,
   activeSubTab = 'reservations-disponibilite'
 }: ReservationsPageProps) {
-  const [activeTab, setActiveTab] = useState(() => {
-    // Mapper les sous-onglets du menu principal vers les onglets internes
-    switch (activeSubTab) {
-      case 'reservations-disponibilite':
-        return 'reservations-availability';
-      case 'reservations-liste':
-        return 'reservations-all';
-      case 'reservations-calendrier':
-        return 'reservations-calendar';
-      default:
-        return 'reservations-availability';
-    }
-  });
+  // État initial simple pour éviter les problèmes d'hydratation
+  const [activeTab, setActiveTab] = useState('reservations-calendar');
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [processus, setProcessus] = useState<ProcessusReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,16 +185,16 @@ export default function ReservationsPage({
   useEffect(() => {
     switch (activeSubTab) {
       case 'reservations-disponibilite':
-        setActiveTab('reservations-availability');
+        setActiveTab('reservations-calendar');  // Afficher le calendrier des réservations
         break;
       case 'reservations-liste':
         setActiveTab('reservations-all');
         break;
       case 'reservations-calendrier':
-        setActiveTab('reservations-calendar');
+        setActiveTab('reservations-calendar');  // Afficher le calendrier des réservations
         break;
       default:
-        setActiveTab('reservations-availability');
+        setActiveTab('reservations-calendar');
     }
   }, [activeSubTab]);
 
@@ -425,7 +416,71 @@ export default function ReservationsPage({
   };
 
   const renderMainContent = () => {
+    // Afficher le sélecteur de vue pour les tabs principaux
+    const showTabSelector = ['reservations-calendar', 'availability-search', 'reservations-all'].includes(activeTab);
+
+    return (
+      <div className="space-y-4">
+        {/* Sélecteur de vue */}
+        {showTabSelector && (
+          <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
+            <button
+              onClick={() => setActiveTab('reservations-calendar')}
+              className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
+                activeTab === 'reservations-calendar'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Calendrier
+            </button>
+            <button
+              onClick={() => setActiveTab('availability-search')}
+              className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
+                activeTab === 'availability-search'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <Search className="w-4 h-4" />
+              Disponibilité
+            </button>
+            <button
+              onClick={() => setActiveTab('reservations-all')}
+              className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
+                activeTab === 'reservations-all'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <List className="w-4 h-4" />
+              Liste
+            </button>
+          </div>
+        )}
+
+        {/* Contenu selon l'onglet actif */}
+        {renderTabContent()}
+      </div>
+    );
+  };
+
+  const renderTabContent = () => {
     switch (activeTab) {
+      case 'availability-search':
+        return (
+          <div>
+            <AvailabilitySearchPage 
+              selectedHotelId={hotels.find(h => h.nom === selectedHotel)?.id}
+              onRoomSelect={(room, criteria) => {
+                console.log('Room selected from availability:', room, criteria);
+                // Gérer la sélection de chambre si nécessaire
+              }}
+            />
+          </div>
+        );
+
       case 'reservations-calendar':
         return <ReservationsCalendar reservations={reservations} hotels={hotels} selectedHotel={selectedHotel} />;
 
