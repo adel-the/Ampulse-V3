@@ -157,19 +157,21 @@ export default function ReservationsPage({
   templates,
   selectedHotel,
   onReservationSelect,
-  activeSubTab = 'reservations-disponibilite'
+  activeSubTab = 'reservations-search'
 }: ReservationsPageProps) {
   // État initial basé sur activeSubTab pour éviter les problèmes d'hydratation
   const [activeTab, setActiveTab] = useState(() => {
     switch (activeSubTab) {
+      case 'reservations-search':
+        return 'availability-search';
       case 'reservations-disponibilite':
-        return 'reservations-calendar';
+        return 'availability-search';
       case 'reservations-liste':
         return 'reservations-all';
       case 'reservations-calendrier':
         return 'reservations-calendar';
       default:
-        return 'reservations-calendar';
+        return 'availability-search';
     }
   });
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
@@ -198,8 +200,11 @@ export default function ReservationsPage({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       switch (activeSubTab) {
+        case 'reservations-search':
+          setActiveTab('availability-search');
+          break;
         case 'reservations-disponibilite':
-          setActiveTab('reservations-calendar');
+          setActiveTab('availability-search');
           break;
         case 'reservations-liste':
           setActiveTab('reservations-all');
@@ -208,7 +213,7 @@ export default function ReservationsPage({
           setActiveTab('reservations-calendar');
           break;
         default:
-          setActiveTab('reservations-calendar');
+          setActiveTab('availability-search');
       }
     }
   }, [activeSubTab]);
@@ -440,17 +445,6 @@ export default function ReservationsPage({
         {showTabSelector && (
           <div className="bg-white rounded-lg shadow-sm p-1 inline-flex">
             <button
-              onClick={() => setActiveTab('reservations-calendar')}
-              className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
-                activeTab === 'reservations-calendar'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              Calendrier
-            </button>
-            <button
               onClick={() => setActiveTab('availability-search')}
               className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
                 activeTab === 'availability-search'
@@ -460,6 +454,17 @@ export default function ReservationsPage({
             >
               <Search className="w-4 h-4" />
               Disponibilité
+            </button>
+            <button
+              onClick={() => setActiveTab('reservations-calendar')}
+              className={`px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm ${
+                activeTab === 'reservations-calendar'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Calendrier
             </button>
             <button
               onClick={() => setActiveTab('reservations-all')}
