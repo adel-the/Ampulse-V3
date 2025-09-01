@@ -2972,9 +2972,18 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
 
   // Real-time subscription
   useEffect(() => {
-    if (!enableRealTime || !user) return
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    
+    // In development, allow real-time even without user; in production, require user
+    if (!enableRealTime || (!user && !isDevelopment)) return
 
-    const channelName = hotelId ? `maintenance-tasks-${hotelId}` : `maintenance-tasks-user-${user.id}`
+    // In development, use fallback user ID for channel naming
+    const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b'
+    const userId = user?.id || (isDevelopment ? fallbackUserId : null)
+    
+    if (!userId) return
+
+    const channelName = hotelId ? `maintenance-tasks-${hotelId}` : `maintenance-tasks-user-${userId}`
     const channel = supabase
       .channel(channelName)
       .on(
@@ -2983,7 +2992,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
           event: '*',
           schema: 'public',
           table: 'maintenance_tasks',
-          filter: hotelId ? `hotel_id=eq.${hotelId}` : `user_owner_id=eq.${user.id}`
+          filter: hotelId ? `hotel_id=eq.${hotelId}` : `user_owner_id=eq.${userId}`
         },
         (payload) => {
           console.log('Real-time maintenance task update:', payload)

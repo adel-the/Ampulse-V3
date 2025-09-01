@@ -28,9 +28,18 @@ const getWorktreeInfo = async (): Promise<WorktreeInfo> => {
             if (data.branch === 'master' || data.worktree === 'master') {
               worktreeInfo = { name: 'master', displayName: 'Master' }
             } else if (data.worktree && data.worktree !== 'master') {
-              worktreeInfo = {
-                name: data.worktree.toLowerCase(),
-                displayName: `Worktree ${data.worktree.toUpperCase()}`
+              // Handle single-letter worktrees (F, I, M) differently from named ones
+              if (data.worktree.length === 1 && /[FIM]/.test(data.worktree)) {
+                worktreeInfo = {
+                  name: data.worktree.toLowerCase(),
+                  displayName: `Worktree ${data.worktree.toUpperCase()}`
+                }
+              } else {
+                // Named worktrees like "Todo"
+                worktreeInfo = {
+                  name: data.worktree.toLowerCase(),
+                  displayName: data.worktree
+                }
               }
             } else if (data.branch) {
               // Fallback to branch name
@@ -57,11 +66,18 @@ const getWorktreeInfo = async (): Promise<WorktreeInfo> => {
         } else {
           // Final fallback: detect from URL port
           const port = window.location.port
-          if (port >= '3010' && port <= '3015') {
-            worktreeInfo = { name: 'm', displayName: 'Worktree M' }
-          } else if (port >= '3020' && port <= '3025') {
+          const portNum = parseInt(port)
+          if (portNum >= 3010 && portNum <= 3015) {
+            // Could be M worktree or Todo worktree - check for further clues
+            if (portNum === 3010) {
+              // Default to Todo for port 3010 in case git-info fails
+              worktreeInfo = { name: 'todo', displayName: 'Todo' }
+            } else {
+              worktreeInfo = { name: 'm', displayName: 'Worktree M' }
+            }
+          } else if (portNum >= 3020 && portNum <= 3025) {
             worktreeInfo = { name: 'f', displayName: 'Worktree F' }
-          } else if (port >= '3001' && port <= '3005') {
+          } else if (portNum >= 3001 && portNum <= 3005) {
             worktreeInfo = { name: 'i', displayName: 'Worktree I' }
           }
         }

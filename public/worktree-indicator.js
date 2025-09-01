@@ -4,10 +4,64 @@
 (function() {
     'use strict';
     
-    // Configuration
-    const WORKTREE_NAME = 'M';
-    const PORT = '3010';
-    const COLOR = '#10B981'; // Emerald-500
+    // Dynamic Configuration - Will be set based on git-info API
+    let WORKTREE_NAME = 'Master';
+    let PORT = window.location.port || '3010';
+    let COLOR = '#3B82F6'; // Blue-500 par défaut pour master
+    
+    // Détecter automatiquement le worktree/branche actuel
+    async function detectWorktree() {
+        try {
+            const response = await fetch('/api/git-info');
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Utiliser les données détectées
+                if (data.worktree && data.worktree !== 'master') {
+                    // Handle single-letter worktrees (F, I, M) differently from named ones
+                    if (data.worktree.length === 1 && /[FIM]/.test(data.worktree)) {
+                        WORKTREE_NAME = data.worktree.toUpperCase();
+                    } else {
+                        // Named worktrees like "Todo"
+                        WORKTREE_NAME = data.worktree;
+                    }
+                } else if (data.branch === 'master') {
+                    WORKTREE_NAME = 'Master';
+                } else if (data.branch) {
+                    WORKTREE_NAME = data.branch;
+                }
+                
+                PORT = data.port || PORT;
+                
+                // Set color based on worktree
+                switch (WORKTREE_NAME.toUpperCase()) {
+                    case 'F':
+                        COLOR = '#F59E0B'; // Amber-500
+                        break;
+                    case 'I':
+                        COLOR = '#8B5CF6'; // Violet-500  
+                        break;
+                    case 'M':
+                        COLOR = '#EF4444'; // Red-500
+                        break;
+                    case 'TODO':
+                        COLOR = '#10B981'; // Emerald-500
+                        break;
+                    case 'MASTER':
+                        COLOR = '#3B82F6'; // Blue-500
+                        break;
+                    default:
+                        COLOR = '#6B7280'; // Gray-500 for unknown worktrees
+                        break;
+                }
+                
+                return true;
+            }
+        } catch (error) {
+            console.log('Could not detect worktree, using defaults');
+        }
+        return false;
+    }
     
     // Vérifier si on est en mode développement
     function isDevelopmentMode() {
@@ -18,6 +72,10 @@
     
     // Créer l'indicateur de worktree
     function createWorktreeIndicator() {
+        // Mettre à jour le titre de la page
+        const originalTitle = document.title;
+        document.title = `[${WORKTREE_NAME}] ${originalTitle}`;
+        
         const indicator = document.createElement('div');
         indicator.id = 'worktree-indicator';
         
@@ -46,7 +104,7 @@
         indicator.innerHTML = `
             <div style="display: flex; align-items: center; gap: 6px;">
                 <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 2s infinite;"></div>
-                <span>Worktree ${WORKTREE_NAME} - Port ${PORT}</span>
+                <span>${WORKTREE_NAME === 'Master' ? 'Master Branch' : `Worktree ${WORKTREE_NAME}`} - Port ${PORT}</span>
             </div>
         `;
         
@@ -86,10 +144,13 @@
     }
     
     // Attendre que le DOM soit chargé
-    function init() {
+    async function init() {
         if (!isDevelopmentMode()) {
             return;
         }
+        
+        // D'abord détecter le worktree
+        await detectWorktree();
         
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', createWorktreeIndicator);

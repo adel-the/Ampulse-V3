@@ -57,13 +57,10 @@ export default function MaintenanceTasksTodoList({
     currentInterval,
     metrics,
     debugInfo
-  } = useMaintenanceTasks({
-    hotelId,
-    roomId,
-    enablePolling: true,
-    basePollingInterval: 2000, // Polling agressif pour les tests
-    enablePageReloadFallback: true, // Activer fallback rechargement si nécessaire
-    debug: process.env.NODE_ENV === 'development'
+  } = useMaintenanceTasks(hotelId, roomId, {
+    enableRealTime: true,
+    autoRefresh: true,
+    refreshInterval: 2000 // Polling agressif pour les tests
   });
 
   // États pour les modals et formulaires
