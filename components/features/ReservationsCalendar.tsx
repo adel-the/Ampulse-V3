@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Reservation, Hotel } from '../../types';
-import { useRoomCategories } from '@/hooks/useSupabase';
+import { useRoomCategories, useRooms } from '@/hooks/useSupabase';
 import type { RoomCategory } from '@/lib/supabase';
 
 interface ReservationsCalendarProps {
@@ -69,6 +69,10 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   const [editNotes, setEditNotes] = useState<string>('');
   const [roomNumberFilter, setRoomNumberFilter] = useState<string>('');
   const { categories: roomCategories } = useRoomCategories();
+  
+  // Get real rooms from database - filter by selectedHotel if provided
+  const selectedHotelId = selectedHotel ? hotels.find(h => h.nom === selectedHotel)?.id : undefined;
+  const { rooms: realRooms, loading: roomsLoading } = useRooms(selectedHotelId);
 
   // Date stable pour éviter les problèmes d'hydratation
   const today = useMemo(() => {
@@ -102,24 +106,16 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     }
   };
 
-  // Génération du calendrier
+  // Génération du calendrier - seulement les jours du mois actuel
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
-    // Jours du mois précédent
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
-      days.push({ date: prevDate, isCurrentMonth: false, reservations: [] });
-    }
 
-    // Jours du mois actuel
+    // Jours du mois actuel seulement
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(year, month, day);
       const dayReservations = reservations.filter(reservation => {
@@ -128,13 +124,6 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
         return currentDate >= arrivee && currentDate <= depart;
       });
       days.push({ date: currentDate, isCurrentMonth: true, reservations: dayReservations });
-    }
-
-    // Jours du mois suivant
-    const remainingDays = 42 - days.length; // 6 semaines * 7 jours
-    for (let i = 1; i <= remainingDays; i++) {
-      const nextDate = new Date(year, month + 1, i);
-      days.push({ date: nextDate, isCurrentMonth: false, reservations: [] });
     }
 
     return days;
@@ -161,11 +150,32 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     }
   };
 
-  const weekDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  // Create dynamic headers for all days of the month
+  const createDayHeaders = (days: any[]) => {
+    return days.map(day => {
+      const dayNum = day.date.getDate();
+      const dayName = day.date.toLocaleDateString('fr-FR', { weekday: 'short' });
+      return { dayNum, dayName };
+    });
+  };
+  
+  const dayHeaders = createDayHeaders(days);
+  const totalColumns = dayHeaders.length + 1; // +1 for room column
 
-  // Fonctions pour la vue par chambre avec nouveaux statuts
+  // Function to get real rooms from database
   const getRoomsByHotel = (hotelName: string) => {
-    // Simulation des chambres par hôtel
+    // If we have real rooms data, use it
+    if (realRooms && realRooms.length > 0) {
+      return realRooms.map(room => ({
+        id: room.id.toString(),
+        numero: room.numero,
+        category_id: room.category_id,
+        category_name: roomCategories?.find(cat => cat.id === room.category_id)?.name || 'Standard',
+        etage: room.etage || 1
+      }));
+    }
+    
+    // Fallback to simulated data if no real data available
     const roomCounts: Record<string, number> = {
       'Hôtel Central': 25,
       'Hôtel du Parc': 30,
@@ -600,12 +610,13 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                 </div>
               </CardHeader>
               <CardContent>
-                {/* En-têtes des jours de la semaine */}
-                <div className="grid grid-cols-8 gap-1 mb-2">
+                {/* En-têtes des jours du mois */}
+                <div className={`grid gap-1 mb-2`} style={{gridTemplateColumns: `200px repeat(${dayHeaders.length}, 1fr)`}}>
                   <div className="text-sm font-medium text-gray-500 py-2">Chambre</div>
-                  {weekDays.map(day => (
-                    <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                      {day}
+                  {dayHeaders.map(({ dayNum, dayName }, index) => (
+                    <div key={index} className="text-center text-sm font-medium text-gray-500 py-2">
+                      <div className="font-semibold">{dayNum}</div>
+                      <div className="text-xs">{dayName}</div>
                     </div>
                   ))}
                 </div>
@@ -613,7 +624,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                 {/* Grille du calendrier par chambre */}
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
                   {getFilteredRooms(selectedHotel, selectedRoomType).map((room) => (
-                    <div key={room.id} className="grid grid-cols-8 gap-1 border-b border-gray-200 pb-2">
+                    <div key={room.id} className={`grid gap-1 border-b border-gray-200 pb-2`} style={{gridTemplateColumns: `200px repeat(${dayHeaders.length}, 1fr)`}}>
                       <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
                         <Bed className="h-4 w-4 text-gray-600" />
                         <div>
@@ -622,7 +633,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                         </div>
                       </div>
                       
-                      {days.slice(0, 7).map((day, dayIndex) => {
+                      {days.map((day, dayIndex) => {
                         const roomStatus = getRoomStatusForDate(room.id, day.date);
                         const isEditable = true; // Permettre l'édition de toutes les chambres
                         const hasCustomState = roomStates.some(state => 
