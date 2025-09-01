@@ -159,8 +159,19 @@ export default function ReservationsPage({
   onReservationSelect,
   activeSubTab = 'reservations-disponibilite'
 }: ReservationsPageProps) {
-  // État initial simple pour éviter les problèmes d'hydratation
-  const [activeTab, setActiveTab] = useState('reservations-calendar');
+  // État initial basé sur activeSubTab pour éviter les problèmes d'hydratation
+  const [activeTab, setActiveTab] = useState(() => {
+    switch (activeSubTab) {
+      case 'reservations-disponibilite':
+        return 'reservations-calendar';
+      case 'reservations-liste':
+        return 'reservations-all';
+      case 'reservations-calendrier':
+        return 'reservations-calendar';
+      default:
+        return 'reservations-calendar';
+    }
+  });
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [processus, setProcessus] = useState<ProcessusReservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,26 +186,30 @@ export default function ReservationsPage({
   const [isNewReservationModalOpen, setIsNewReservationModalOpen] = useState(false);
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
 
-  // Charger les données au montage du composant
+  // Charger les données au montage du composant - seulement côté client
   useEffect(() => {
-    loadReservations();
-    loadProcessus();
+    if (typeof window !== 'undefined') {
+      loadReservations();
+      loadProcessus();
+    }
   }, []);
 
-  // Synchroniser l'onglet actif quand activeSubTab change
+  // Synchronisation avec hydratation-safe - seulement côté client
   useEffect(() => {
-    switch (activeSubTab) {
-      case 'reservations-disponibilite':
-        setActiveTab('reservations-calendar');  // Afficher le calendrier des réservations
-        break;
-      case 'reservations-liste':
-        setActiveTab('reservations-all');
-        break;
-      case 'reservations-calendrier':
-        setActiveTab('reservations-calendar');  // Afficher le calendrier des réservations
-        break;
-      default:
-        setActiveTab('reservations-calendar');
+    if (typeof window !== 'undefined') {
+      switch (activeSubTab) {
+        case 'reservations-disponibilite':
+          setActiveTab('reservations-calendar');
+          break;
+        case 'reservations-liste':
+          setActiveTab('reservations-all');
+          break;
+        case 'reservations-calendrier':
+          setActiveTab('reservations-calendar');
+          break;
+        default:
+          setActiveTab('reservations-calendar');
+      }
     }
   }, [activeSubTab]);
 

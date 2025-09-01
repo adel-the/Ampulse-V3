@@ -137,7 +137,9 @@ export default function ReservationsTable({ reservations, processus, hotels = []
       const matchesHotel = hotelFilter === 'all' || hotelName === hotelFilter;
       
       const matchesDate = dateFilter === 'all' || (() => {
-        const today = new Date();
+        const today = typeof window === 'undefined' 
+          ? new Date('2024-01-01T00:00:00.000Z') 
+          : new Date();
         const arrivalDate = new Date(reservation.dateArrivee);
         const departureDate = new Date(reservation.dateDepart);
         

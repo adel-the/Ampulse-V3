@@ -23,7 +23,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Reservation, Hotel } from '../../types';
 import { useRoomCategories } from '@/hooks/useSupabase';
 import type { RoomCategory } from '@/lib/supabase';
@@ -52,7 +52,14 @@ interface RoomState {
 }
 
 export default function ReservationsCalendar({ reservations, hotels = [], selectedHotel }: ReservationsCalendarProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // État initial hydratation-safe pour éviter les différences serveur/client
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (typeof window === 'undefined') {
+      // Retourner une date fixe pour le SSR
+      return new Date('2024-01-01T00:00:00.000Z');
+    }
+    return new Date();
+  });
   const [selectedRoomType, setSelectedRoomType] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -62,6 +69,15 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   const [editNotes, setEditNotes] = useState<string>('');
   const [roomNumberFilter, setRoomNumberFilter] = useState<string>('');
   const { categories: roomCategories } = useRoomCategories();
+
+  // Date stable pour éviter les problèmes d'hydratation
+  const today = useMemo(() => {
+    if (typeof window === 'undefined') {
+      // SSR: utiliser une date fixe
+      return new Date('2024-01-01T00:00:00.000Z');
+    }
+    return new Date();
+  }, []);
 
   // Navigation dans le calendrier
   const goToPreviousMonth = () => {
@@ -81,7 +97,9 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    if (typeof window !== 'undefined') {
+      setCurrentDate(new Date());
+    }
   };
 
   // Génération du calendrier
@@ -324,7 +342,6 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     // Filtrer par état de disponibilité si spécifié
     if (availabilityFilter !== 'all') {
       rooms = rooms.filter(room => {
-        const today = new Date();
         const status = getRoomStatusForDate(room.id, today);
         return status.status === availabilityFilter;
       });
@@ -335,7 +352,9 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
   const getRoomStatsByStatus = (hotelName: string, roomType: string = 'all') => {
     const rooms = getRoomsByType(hotelName, roomType);
-    const today = new Date();
+    const todayForStats = typeof window === 'undefined' 
+      ? new Date('2024-01-01T00:00:00.000Z') 
+      : new Date();
     
     const stats = {
       available: 0,
@@ -348,7 +367,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
     };
 
     rooms.forEach(room => {
-      const status = getRoomStatusForDate(room.id, today);
+      const status = getRoomStatusForDate(room.id, todayForStats);
       stats[status.status]++;
     });
 
