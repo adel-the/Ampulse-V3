@@ -475,7 +475,7 @@ export default function ReservationsPage({
               }`}
             >
               <List className="w-4 h-4" />
-              Liste
+              Réservations
             </button>
           </div>
         )}
