@@ -9,9 +9,27 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
-import { Hotel, OperateurSocial, Reservation } from '../../types';
+import { Hotel, Reservation } from '../../types';
+
+// Define Client interface to match the clients table
+interface Client {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  adresse: string;
+  ville: string;
+  code_postal: string;
+  statut: string;
+  numero_client: string;
+  raison_sociale?: string;
+  siret?: string;
+  client_type: string;
+}
 import { supabase } from '../../lib/supabase';
 import { useRoomCategories } from '@/hooks/useSupabase';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface NewReservationModalProps {
   isOpen: boolean;
@@ -20,7 +38,7 @@ interface NewReservationModalProps {
   onSuccess?: () => void;
   isLoading?: boolean;
   hotels: Hotel[];
-  operateurs: OperateurSocial[];
+  operateurs: Client[]; // Changed from OperateurSocial[] to Client[]
 }
 
 interface FormData {
@@ -50,6 +68,7 @@ export default function NewReservationModal({
   operateurs
 }: NewReservationModalProps) {
   const { categories: roomCategories } = useRoomCategories();
+  const { addNotification } = useNotifications();
   
   // Helper to get category name from category_id
   const getCategoryName = (categoryId: number | null) => {
@@ -69,7 +88,7 @@ export default function NewReservationModal({
     date_depart: '',
     nombre_personnes: 1,
     statut: 'EN_COURS',
-    prescripteur: operateurs.length > 0 ? operateurs[0].organisation : '',
+    prescripteur: operateurs.length > 0 ? (operateurs[0].raison_sociale || `${operateurs[0].nom} ${operateurs[0].prenom}`) : '',
     prix: 0,
     notes: ''
   });
@@ -92,7 +111,7 @@ export default function NewReservationModal({
     if (formData.operateur_id) {
       const operateur = operateurs.find(op => op.id === formData.operateur_id);
       if (operateur) {
-        setFormData(prev => ({ ...prev, prescripteur: operateur.organisation }));
+        setFormData(prev => ({ ...prev, prescripteur: operateur.raison_sociale || `${operateur.nom} ${operateur.prenom}` }));
       }
     }
   }, [formData.operateur_id, operateurs]);
@@ -227,7 +246,10 @@ export default function NewReservationModal({
     setIsSubmitting(true);
     
     try {
-      // Créer d'abord l'usager
+      // The operateur_id is actually a client_id (prescripteur)
+      const prescripteurId = formData.operateur_id;
+
+      // Créer d'abord l'usager avec le prescripteur_id correct
       const { data: usagerData, error: usagerError } = await supabase
         .from('usagers')
         .insert({
@@ -235,12 +257,16 @@ export default function NewReservationModal({
           prenom: formData.usager_prenom,
           telephone: formData.usager_telephone,
           email: formData.usager_email,
-          statut: 'heberge'
+          statut: 'actif',
+          prescripteur_id: prescripteurId, // This is the key fix - set the prescripteur_id
+          date_naissance: '1990-01-01' // Adding a default birth date as it might be required
         })
         .select()
         .single();
 
       if (usagerError) {
+        console.error('Erreur détaillée usager:', usagerError);
+        addNotification('error', `Erreur lors de la création de l'usager: ${usagerError.message}`);
         throw new Error(`Erreur lors de la création de l'usager: ${usagerError.message}`);
       }
 
@@ -263,22 +289,31 @@ export default function NewReservationModal({
           prix: formData.prix,
           duree: duree,
           operateur_id: formData.operateur_id,
-          notes: formData.notes
+          notes: formData.notes,
+          prescripteur_id: prescripteurId, // Also add prescripteur_id to reservation
+          adults_count: formData.nombre_personnes,
+          children_count: 0,
+          room_rate: formData.prix / duree, // Calculate nightly rate
+          total_amount: formData.prix
         })
         .select(`
           *,
           usagers (nom, prenom, telephone, email),
           hotels (nom, adresse, ville),
-          rooms (numero, category_id),
-          operateurs_sociaux (nom, prenom, organisation)
+          rooms (numero, category_id)
         `)
         .single();
 
       if (reservationError) {
+        console.error('Erreur détaillée réservation:', reservationError);
+        addNotification('error', `Erreur lors de la création de la réservation: ${reservationError.message}`);
         throw new Error(`Erreur lors de la création de la réservation: ${reservationError.message}`);
       }
 
       console.log('Réservation créée avec succès:', reservationData);
+      
+      // Show success notification
+      addNotification('success', 'Réservation créée avec succès!');
       
       // Appeler le callback de succès
       if (onSuccess) {
@@ -293,7 +328,9 @@ export default function NewReservationModal({
       
     } catch (error) {
       console.error('Erreur lors de la création de la réservation:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Une erreur inattendue s\'est produite' });
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue s\'est produite';
+      setErrors({ submit: errorMessage });
+      // Notification already added above in specific error cases
     } finally {
       setIsSubmitting(false);
     }
@@ -312,7 +349,7 @@ export default function NewReservationModal({
       date_depart: '',
       nombre_personnes: 1,
       statut: 'EN_COURS',
-      prescripteur: operateurs.length > 0 ? operateurs[0].organisation : '',
+      prescripteur: operateurs.length > 0 ? (operateurs[0].raison_sociale || `${operateurs[0].nom} ${operateurs[0].prenom}`) : '',
       prix: 0,
       notes: ''
     });
@@ -530,7 +567,7 @@ export default function NewReservationModal({
                       <option value="">Sélectionner un opérateur</option>
                       {operateurs.map((operateur) => (
                         <option key={operateur.id} value={operateur.id}>
-                          {operateur.organisation}
+                          {operateur.raison_sociale || `${operateur.nom} ${operateur.prenom}`}
                         </option>
                       ))}
                     </select>
