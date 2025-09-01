@@ -331,12 +331,12 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
 
   const getRoomStatusText = (status: string) => {
     switch (status) {
-      case 'occupied': return 'Occupée';
-      case 'occupied_maintenance': return 'Occupée + Maintenance';
-      case 'cleaning': return 'Ménage';
-      case 'maintenance': return 'Maintenance';
-      case 'checkin': return 'Check-in';
-      case 'checkout': return 'Check-out';
+      case 'occupied': return 'Occ.';
+      case 'occupied_maintenance': return 'O+M';
+      case 'cleaning': return 'Mén.';
+      case 'maintenance': return 'Maint.';
+      case 'checkin': return 'In';
+      case 'checkout': return 'Out';
       default: return 'Libre';
     }
   };
@@ -710,15 +710,15 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                   {/* Wrapper avec overflow horizontal SEULEMENT */}
                   <div className="overflow-x-auto overflow-y-hidden custom-scrollbar-horizontal">
                     {/* Conteneur avec largeur minimale pour forcer le scroll */}
-                    <div className="min-w-fit" style={{ minWidth: `${240 + (dayHeaders.length * 70)}px` }}>
+                    <div className="min-w-fit" style={{ minWidth: `${120 + (dayHeaders.length * 36)}px` }}>
                       
                       {/* En-têtes des jours du mois - FIXES, ne scrollent pas verticalement */}
                       <div className="flex border-b-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100">
                         {/* Colonne des chambres - sticky */}
-                        <div className="sticky left-0 z-20 bg-gradient-to-r from-gray-50 to-gray-100 border-r-2 border-gray-300 w-52 sm:w-60 lg:w-68 flex-shrink-0 shadow-sm">
-                          <div className="text-sm font-bold text-gray-700 py-3 px-4 flex items-center">
-                            <Bed className="h-4 w-4 mr-2 text-gray-600" />
-                            Chambre
+                        <div className="sticky left-0 z-20 bg-gradient-to-r from-gray-50 to-gray-100 border-r-2 border-gray-300 w-32 sm:w-36 lg:w-40 flex-shrink-0 shadow-sm">
+                          <div className="text-xs font-bold text-gray-700 py-2 px-2 flex items-center">
+                            <Bed className="h-3 w-3 mr-1 text-gray-600" />
+                            Ch.
                           </div>
                         </div>
                         
@@ -732,7 +732,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                             return (
                               <div 
                                 key={index} 
-                                className={`text-center text-sm font-medium py-3 px-3 border-r border-gray-200 last:border-r-0 w-18 sm:w-22 lg:w-26 flex-shrink-0 transition-all duration-200 ${
+                                className={`text-center text-xs font-medium py-2 px-1 border-r border-gray-200 last:border-r-0 w-10 sm:w-12 lg:w-14 flex-shrink-0 transition-all duration-200 ${
                                   isToday 
                                     ? 'bg-blue-100 text-blue-800 border-blue-300 shadow-sm' 
                                     : isWeekend 
@@ -740,7 +740,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                                     : 'text-gray-600 hover:bg-gray-100'
                                 }`}
                               >
-                                <div className={`font-bold text-base ${
+                                <div className={`font-bold text-xs ${
                                   isToday ? 'text-blue-900' : isWeekend ? 'text-red-800' : 'text-gray-800'
                                 }`}>{dayNum}</div>
                                 <div className={`text-xs capitalize ${
@@ -759,19 +759,19 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                             roomIndex % 2 === 0 ? 'hover:bg-blue-50' : 'bg-gray-25 hover:bg-blue-50'
                           }`}>
                             {/* Colonne des chambres - sticky */}
-                            <div className={`sticky left-0 z-10 border-r-2 border-gray-300 w-52 sm:w-60 lg:w-68 flex-shrink-0 shadow-sm ${
+                            <div className={`sticky left-0 z-10 border-r-2 border-gray-300 w-32 sm:w-36 lg:w-40 flex-shrink-0 shadow-sm ${
                               roomIndex % 2 === 0 ? 'bg-white' : 'bg-gray-25'
                             }`}>
-                              <div className="flex items-center space-x-3 p-4 h-full min-h-[72px]">
+                              <div className="flex items-center space-x-2 p-2 h-full min-h-[56px]">
                                 <div className="flex-shrink-0">
-                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                    <Bed className="h-4 w-4 text-blue-600" />
+                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <Bed className="h-3 w-3 text-blue-600" />
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-bold text-base text-gray-900">{room.numero}</div>
-                                  <div className="text-sm text-gray-600 truncate">{room.category_name}</div>
-                                  <div className="text-xs text-gray-500">Étage {room.etage}</div>
+                                  <div className="font-bold text-sm text-gray-900">{room.numero}</div>
+                                  <div className="text-xs text-gray-600 truncate">{room.category_name}</div>
+                                  <div className="text-xs text-gray-500">E{room.etage}</div>
                                 </div>
                               </div>
                             </div>
@@ -788,9 +788,9 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                                 return (
                                   <div
                                     key={dayIndex}
-                                    className={`min-h-[72px] p-2 border-r border-gray-200 last:border-r-0 ${
+                                    className={`min-h-[56px] p-1 border-r border-gray-200 last:border-r-0 ${
                                       getRoomStatusColor(roomStatus.status)
-                                    } text-white text-xs flex flex-col items-center justify-center relative cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200 w-18 sm:w-22 lg:w-26 flex-shrink-0 shadow-sm group`}
+                                    } text-white text-xs flex flex-col items-center justify-center relative cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200 w-10 sm:w-12 lg:w-14 flex-shrink-0 shadow-sm group`}
                                     title={`${room.numero} - ${getRoomStatusText(roomStatus.status)}`}
                                     onClick={() => openEditModal(room.id, day.date)}
                                   >
@@ -818,7 +818,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                                     {roomStatus.reservations.length > 0 && (
                                       <div className="text-center mt-1 bg-white bg-opacity-20 rounded px-1 py-0.5">
                                         <div className="font-bold text-xs">{roomStatus.reservations.length}</div>
-                                        <div className="text-xs">réserv.</div>
+                                        <div className="text-xs">rés.</div>
                                       </div>
                                     )}
                                     
