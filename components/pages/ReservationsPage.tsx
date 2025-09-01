@@ -224,16 +224,17 @@ export default function ReservationsPage({
       console.log('🔍 [DEBUG] Test query result:', { testData, testError });
 
       if (testError) {
-        console.warn('⚠️ [DEBUG] Supabase non accessible, utilisation des données de fallback:', testError);
+        console.error('❌ [DEBUG] Erreur de connexion Supabase:', testError);
         console.log('🔍 [DEBUG] Test error details:', {
           message: testError.message,
           details: testError.details,
           hint: testError.hint,
           code: testError.code
         });
-        setError(`Test de connexion échoué: ${testError.message}`);
-        setUseFallbackData(true);
-        setReservations(fallbackReservations);
+        setError(`Erreur de connexion: ${testError.message}`);
+        // Force utilisation des vraies données, pas de fallback
+        setUseFallbackData(false);
+        setReservations([]);
         setLoading(false);
         return;
       }
@@ -245,23 +246,24 @@ export default function ReservationsPage({
           *,
           usagers:usager_id(id, nom, prenom, telephone, email),
           hotels:hotel_id(id, nom, adresse, ville),
-          rooms:chambre_id(id, numero, bed_type)
+          rooms:chambre_id(id, numero, bed_type, prix)
         `)
         .order('date_arrivee', { ascending: false });
 
       console.log('🔍 [DEBUG] Main query result:', { dataLength: data?.length, error });
 
       if (error) {
-        console.warn('⚠️ [DEBUG] Erreur Supabase, utilisation des données de fallback:', error);
+        console.error('❌ [DEBUG] Erreur lors du chargement des réservations:', error);
         console.log('🔍 [DEBUG] Main query error details:', {
           message: error.message,
           details: error.details,
           hint: error.hint,
           code: error.code
         });
-        setError(`Erreur de requête: ${error.message}`);
-        setUseFallbackData(true);
-        setReservations(fallbackReservations);
+        setError(`Erreur de chargement: ${error.message}`);
+        // Force utilisation des vraies données, pas de fallback
+        setUseFallbackData(false);
+        setReservations([]);
         setLoading(false);
         return;
       }
@@ -326,16 +328,17 @@ export default function ReservationsPage({
       console.log('✅ [DEBUG] loadReservations completed successfully with real data');
       console.log('✅ [DEBUG] Fallback data is DISABLED - using real database data');
     } catch (err) {
-      console.warn('💥 [DEBUG] Exception lors du chargement, utilisation des données de fallback:', err);
+      console.error('💥 [DEBUG] Exception lors du chargement des réservations:', err);
       console.log('🔍 [DEBUG] Exception details:', {
         name: err.name,
         message: err.message,
         stack: err.stack
       });
       setError(err instanceof Error ? err.message : 'Erreur inconnue lors du chargement');
-      setUseFallbackData(true);
-      setReservations(fallbackReservations);
-      console.log('⚠️ [DEBUG] Fallback data activated due to exception');
+      // Force utilisation des vraies données, pas de fallback
+      setUseFallbackData(false);
+      setReservations([]);
+      console.log('❌ [DEBUG] Aucune réservation chargée suite à l\'exception');
     } finally {
       setLoading(false);
       console.log('🔍 [DEBUG] loadReservations function completed');
