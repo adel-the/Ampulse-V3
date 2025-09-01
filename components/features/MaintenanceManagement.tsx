@@ -16,6 +16,14 @@ import {
   DropdownMenuTrigger 
 } from '../ui/dropdown-menu';
 import { 
+  getMaintenanceStatusInfo, 
+  getStatusIcon, 
+  getValidStatusTransitions, 
+  requiresConfirmation, 
+  getConfirmationMessage 
+} from '@/lib/maintenanceStatusUtils';
+import type { RoomMaintenanceStatus } from '@/types';
+import { 
   Wrench, 
   Plus, 
   CheckCircle, 
@@ -47,7 +55,7 @@ interface MaintenanceRoom {
   id: number;
   numero: string;
   hotel: string;
-  status: 'maintenance' | 'reparation' | 'commande' | 'termine' | 'disponible' | 'occupee';
+  status: RoomMaintenanceStatus;
   dateDebut: string;
   dateFin?: string;
   description: string;
@@ -176,13 +184,13 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
       // Transformer toutes les chambres avec enrichissement pour celles en maintenance
       const allRoomsData: MaintenanceRoom[] = realRooms
         .map((room, index) => {
-          const isMaintenanceRoom = room.statut === 'maintenance';
+          const isMaintenanceRoom = room.statut.includes('maintenance');
           
           const baseRoom = {
             id: room.id,
             numero: room.numero,
             hotel: selectedHotel?.nom || 'Établissement',
-            status: room.statut as 'maintenance' | 'reparation' | 'commande' | 'termine' | 'disponible' | 'occupee',
+            status: room.statut as RoomMaintenanceStatus,
             dateDebut: new Date().toISOString().split('T')[0],
             description: room.description || '',
             priorite: 'moyenne' as const,
@@ -366,16 +374,9 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
       }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'maintenance': return 'bg-orange-100 text-orange-800';
-      case 'reparation': return 'bg-blue-100 text-blue-800';
-      case 'commande': return 'bg-yellow-100 text-yellow-800';
-      case 'termine': return 'bg-green-100 text-green-800';
-      case 'disponible': return 'bg-green-100 text-green-800';
-      case 'occupee': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getStatusColor = (status: RoomMaintenanceStatus) => {
+    const statusInfo = getMaintenanceStatusInfo(status);
+    return `${statusInfo.bgColor} ${statusInfo.color} border`;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -388,50 +389,20 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'maintenance': return <Wrench className="h-4 w-4" />;
-      case 'reparation': return <Settings className="h-4 w-4" />;
-      case 'commande': return <Clock className="h-4 w-4" />;
-      case 'termine': return <CheckCircle className="h-4 w-4" />;
-      case 'disponible': return <CheckCircle className="h-4 w-4" />;
-      case 'occupee': return <Bed className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
-    }
+  const getStatusIconComponent = (status: RoomMaintenanceStatus) => {
+    const IconComponent = getStatusIcon(status);
+    return <IconComponent className="h-4 w-4" />;
   };
 
-  // Validation des transitions de statut
-  const getValidTransitions = (currentStatus: string): ('disponible' | 'occupee' | 'maintenance')[] => {
-    switch (currentStatus) {
-      case 'disponible':
-        return ['occupee', 'maintenance'];
-      case 'occupee':
-        return ['disponible', 'maintenance'];
-      case 'maintenance':
-        return ['disponible'];
-      default:
-        return ['disponible', 'occupee', 'maintenance'];
-    }
-  };
-
-  const requiresConfirmation = (currentStatus: string, newStatus: string): boolean => {
-    // Confirmation pour les changements sensibles
-    if (currentStatus === 'occupee' && (newStatus === 'maintenance' || newStatus === 'disponible')) {
-      return true;
-    }
-    if (currentStatus === 'maintenance' && newStatus === 'occupee') {
-      return true;
-    }
-    return false;
-  };
+  // Les fonctions de validation sont maintenant dans maintenanceStatusUtils
 
   // Gestionnaire de changement de statut
-  const handleStatusChange = async (roomId: number, newStatus: 'disponible' | 'occupee' | 'maintenance') => {
+  const handleStatusChange = async (roomId: number, newStatus: RoomMaintenanceStatus) => {
     const room = filteredRooms.find(r => r.id === roomId);
     if (!room) return;
 
     // Vérifier si la transition est valide
-    const validTransitions = getValidTransitions(room.status);
+    const validTransitions = getValidStatusTransitions(room.status);
     if (!validTransitions.includes(newStatus)) {
       addNotification('error', `Transition de ${room.status} vers ${newStatus} non autorisée`);
       return;
@@ -443,11 +414,8 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
       const result = await updateRoomStatus(roomId, newStatus);
       
       if (result.success) {
-        const statusText = {
-          'disponible': 'disponible',
-          'occupee': 'occupée',
-          'maintenance': 'en maintenance'
-        }[newStatus];
+        const statusInfo = getMaintenanceStatusInfo(newStatus);
+        const statusText = statusInfo.label.toLowerCase();
         
         addNotification('success', `Chambre ${room.numero} marquée comme ${statusText}`);
       } else {
@@ -461,7 +429,7 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
     }
   };
 
-  const handleStatusChangeWithConfirmation = (roomId: number, newStatus: 'disponible' | 'occupee' | 'maintenance') => {
+  const handleStatusChangeWithConfirmation = (roomId: number, newStatus: RoomMaintenanceStatus) => {
     const room = filteredRooms.find(r => r.id === roomId);
     if (!room) return;
 
@@ -479,7 +447,7 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
 
   const confirmStatusChange = () => {
     if (confirmModal.roomId && confirmModal.newStatus) {
-      handleStatusChange(confirmModal.roomId, confirmModal.newStatus as 'disponible' | 'occupee' | 'maintenance');
+      handleStatusChange(confirmModal.roomId, confirmModal.newStatus as RoomMaintenanceStatus);
     }
     setConfirmModal({ isOpen: false });
   };
@@ -802,12 +770,12 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
                     className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="all">Tous les statuts</option>
-                    <option value="maintenance">En maintenance</option>
-                    <option value="reparation">En réparation</option>
-                    <option value="commande">Commande en cours</option>
-                    <option value="termine">Terminé</option>
                     <option value="disponible">Disponible</option>
                     <option value="occupee">Occupée</option>
+                    <option value="maintenance">En maintenance (standard)</option>
+                    <option value="maintenance_disponible">Maintenance disponible</option>
+                    <option value="maintenance_occupee">Maintenance occupée</option>
+                    <option value="maintenance_hors_usage">Hors d'usage</option>
                   </select>
                   
                   {/* Priorité */}
@@ -880,12 +848,9 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(room.status)}>
-                            {getStatusIcon(room.status)}
+                            {getStatusIconComponent(room.status)}
                             <span className="ml-1">
-                              {room.status === 'maintenance' ? 'Maintenance' :
-                               room.status === 'disponible' ? 'Disponible' :
-                               room.status === 'occupee' ? 'Occupée' :
-                               room.status}
+                              {getMaintenanceStatusInfo(room.status).label}
                             </span>
                           </Badge>
                           {room.isMaintenanceRoom && room.priorite && (
@@ -912,14 +877,9 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {getValidTransitions(room.status).map((status) => {
-                                const statusInfo = {
-                                  'disponible': { label: 'Disponible', icon: CheckCircle, color: 'text-green-600' },
-                                  'occupee': { label: 'Occupée', icon: Bed, color: 'text-blue-600' },
-                                  'maintenance': { label: 'Maintenance', icon: Wrench, color: 'text-orange-600' }
-                                }[status];
-                                
-                                const Icon = statusInfo.icon;
+                              {getValidStatusTransitions(room.status).map((status) => {
+                                const statusInfo = getMaintenanceStatusInfo(status);
+                                const IconComponent = getStatusIcon(status);
                                 
                                 return (
                                   <DropdownMenuItem
@@ -927,8 +887,13 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
                                     onClick={() => handleStatusChangeWithConfirmation(room.id, status)}
                                     className="flex items-center gap-2 cursor-pointer"
                                   >
-                                    <Icon className={`h-4 w-4 ${statusInfo.color}`} />
+                                    <IconComponent className={`h-4 w-4 ${statusInfo.color}`} />
                                     {statusInfo.label}
+                                    {statusInfo.description && (
+                                      <span className="text-xs text-gray-500 block">
+                                        {statusInfo.description.slice(0, 40)}...
+                                      </span>
+                                    )}
                                   </DropdownMenuItem>
                                 );
                               })}
@@ -1015,7 +980,7 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge className={getStatusColor(selectedRoomForDetail.status)}>
-                      {getStatusIcon(selectedRoomForDetail.status)}
+                      {getStatusIconComponent(selectedRoomForDetail.status)}
                       <span className="ml-1">{selectedRoomForDetail.status}</span>
                     </Badge>
                     <Badge className={getPriorityColor(selectedRoomForDetail.priorite)}>
@@ -1107,42 +1072,28 @@ export default function MaintenanceManagement(props: MaintenanceManagementProps)
             <h3 className="text-lg font-semibold mb-4">Confirmer le changement de statut</h3>
             
             <div className="mb-6">
-              <p className="text-gray-600">
-                Voulez-vous vraiment changer le statut de la chambre de
-                <span className="font-medium mx-1">
-                  {confirmModal.currentStatus === 'maintenance' ? 'maintenance' :
-                   confirmModal.currentStatus === 'disponible' ? 'disponible' :
-                   confirmModal.currentStatus === 'occupee' ? 'occupée' : confirmModal.currentStatus}
-                </span>
-                vers
-                <span className="font-medium mx-1">
-                  {confirmModal.newStatus === 'maintenance' ? 'maintenance' :
-                   confirmModal.newStatus === 'disponible' ? 'disponible' :
-                   confirmModal.newStatus === 'occupee' ? 'occupée' : confirmModal.newStatus}
-                </span>?
-              </p>
-              
-              {confirmModal.currentStatus === 'occupee' && confirmModal.newStatus === 'maintenance' && (
-                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-700">
-                    ⚠️ Cette chambre est actuellement occupée. Assurez-vous que le client a été relocalisé.
+              {confirmModal.currentStatus && confirmModal.newStatus && (
+                <div className="space-y-4">
+                  <p className="text-gray-800 font-medium">
+                    {getConfirmationMessage(
+                      confirmModal.currentStatus as RoomMaintenanceStatus,
+                      confirmModal.newStatus as RoomMaintenanceStatus
+                    )}
                   </p>
-                </div>
-              )}
-              
-              {confirmModal.currentStatus === 'occupee' && confirmModal.newStatus === 'disponible' && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-700">
-                    ℹ️ Assurez-vous que le client a bien quitté la chambre et que le nettoyage est terminé.
-                  </p>
-                </div>
-              )}
-              
-              {confirmModal.currentStatus === 'maintenance' && confirmModal.newStatus === 'occupee' && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-700">
-                    ℹ️ Assurez-vous que la maintenance est terminée avant de marquer cette chambre comme occupée.
-                  </p>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Statut actuel:</span>
+                      <span className="font-medium">
+                        {getMaintenanceStatusInfo(confirmModal.currentStatus as RoomMaintenanceStatus).label}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm text-gray-600">Nouveau statut:</span>
+                      <span className="font-medium">
+                        {getMaintenanceStatusInfo(confirmModal.newStatus as RoomMaintenanceStatus).label}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

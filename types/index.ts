@@ -19,7 +19,7 @@ export interface Room {
   numero: string;
   type: string;
   prix: number;
-  statut: 'disponible' | 'occupee' | 'maintenance';
+  statut: 'disponible' | 'occupee' | 'maintenance' | 'maintenance_disponible' | 'maintenance_occupee' | 'maintenance_hors_usage';
   description?: string;
   etage?: number;
   capacite: number;
@@ -59,7 +59,7 @@ export interface RoomAvailability {
   id: number;
   roomId: number;
   dateDisponibilite: string;
-  statut: 'disponible' | 'reservee' | 'occupee' | 'maintenance' | 'bloquee';
+  statut: 'disponible' | 'reservee' | 'occupee' | 'maintenance' | 'maintenance_disponible' | 'maintenance_occupee' | 'maintenance_hors_usage' | 'bloquee';
   reservationId?: number;
   prixJour?: number;
   notes?: string;
@@ -672,4 +672,45 @@ export interface ClientSearchFilters {
   date_creation_fin?: string;
   segment_id?: number;
   limit?: number;
-} 
+}
+
+// Types et constantes pour les nouveaux statuts de maintenance
+export type RoomMaintenanceStatus = 'disponible' | 'occupee' | 'maintenance' | 'maintenance_disponible' | 'maintenance_occupee' | 'maintenance_hors_usage';
+
+export const ROOM_MAINTENANCE_STATUSES = {
+  DISPONIBLE: 'disponible',
+  OCCUPEE: 'occupee',
+  MAINTENANCE: 'maintenance',
+  MAINTENANCE_DISPONIBLE: 'maintenance_disponible',
+  MAINTENANCE_OCCUPEE: 'maintenance_occupee', 
+  MAINTENANCE_HORS_USAGE: 'maintenance_hors_usage'
+} as const;
+
+// Labels français pour l'interface utilisateur
+export const MAINTENANCE_STATUS_LABELS = {
+  'disponible': 'Disponible',
+  'occupee': 'Occupée',
+  'maintenance': 'En maintenance',
+  'maintenance_disponible': 'En maintenance disponible',
+  'maintenance_occupee': 'En maintenance occupée',
+  'maintenance_hors_usage': 'En maintenance hors d\'usage'
+} as const;
+
+// Descriptions détaillées pour les nouveaux statuts de maintenance
+export const MAINTENANCE_STATUS_DESCRIPTIONS = {
+  'maintenance_disponible': 'Chambre sous maintenance légère mais reste réservable (ex: retouche peinture)',
+  'maintenance_occupee': 'Chambre en maintenance pendant qu\'elle est occupée par un usager',
+  'maintenance_hors_usage': 'Chambre en maintenance lourde et totalement indisponible (panne majeure)'
+} as const;
+
+// Interface pour les informations de maintenance enrichies
+export interface MaintenanceStatusInfo {
+  status: RoomMaintenanceStatus;
+  label: string;
+  description?: string;
+  color: string;
+  bgColor: string;
+  icon: string;
+  canBeReserved: boolean;
+  priorityLevel: 'low' | 'medium' | 'high' | 'critical';
+}

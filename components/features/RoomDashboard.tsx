@@ -39,8 +39,11 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Wrench
 } from 'lucide-react';
+import { getMaintenanceStatusInfo, getStatusIcon } from '@/lib/maintenanceStatusUtils';
+import type { RoomMaintenanceStatus } from '@/types';
 
 interface RoomDashboardProps {
   selectedHotel?: {
@@ -86,12 +89,16 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
     }
   };
 
-  // Calculer les statistiques réelles
+  // Calculer les statistiques réelles avec les nouveaux statuts de maintenance
   const roomStats = {
     totalRooms: rooms.length,
     occupiedRooms: rooms.filter(r => r.statut === 'occupee').length,
     availableRooms: rooms.filter(r => r.statut === 'disponible').length,
     maintenanceRooms: rooms.filter(r => r.statut === 'maintenance').length,
+    maintenanceDisponibleRooms: rooms.filter(r => r.statut === 'maintenance_disponible').length,
+    maintenanceOccupeeRooms: rooms.filter(r => r.statut === 'maintenance_occupee').length,
+    maintenanceHorsUsageRooms: rooms.filter(r => r.statut === 'maintenance_hors_usage').length,
+    allMaintenanceRooms: rooms.filter(r => r.statut.includes('maintenance')).length,
     cleaningRooms: 0, // Pas de statut "cleaning" dans notre schéma
     occupancyRate: rooms.length > 0 ? Math.round((rooms.filter(r => r.statut === 'occupee').length / rooms.length) * 100) : 0,
     averageRating: 4.6, // Valeur par défaut car pas de ratings dans le schéma
@@ -212,11 +219,14 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
           </CardHeader>
           <CardContent>
             {renderPieChart([
-              { label: 'Occupées', value: roomStats.occupiedRooms, color: 'bg-green-500' },
-              { label: 'Disponibles', value: roomStats.availableRooms, color: 'bg-blue-500' },
-              { label: 'Maintenance', value: roomStats.maintenanceRooms, color: 'bg-orange-500' },
+              { label: 'Occupées', value: roomStats.occupiedRooms, color: 'bg-blue-500' },
+              { label: 'Disponibles', value: roomStats.availableRooms, color: 'bg-green-500' },
+              { label: 'Maintenance standard', value: roomStats.maintenanceRooms, color: 'bg-orange-500' },
+              { label: 'Maint. disponible', value: roomStats.maintenanceDisponibleRooms, color: 'bg-yellow-500' },
+              { label: 'Maint. occupée', value: roomStats.maintenanceOccupeeRooms, color: 'bg-amber-500' },
+              { label: 'Hors d\'usage', value: roomStats.maintenanceHorsUsageRooms, color: 'bg-red-500' },
               { label: 'Nettoyage', value: roomStats.cleaningRooms, color: 'bg-purple-500' }
-            ])}
+            ].filter(item => item.value > 0)}
           </CardContent>
         </Card>
       </div>
@@ -284,6 +294,89 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
         </Card>
       </div>
 
+      {/* Statuts de maintenance détaillés */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Wrench className="h-5 w-5 mr-2 text-orange-600" />
+            États de maintenance détaillés
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Maintenance disponible */}
+            {roomStats.maintenanceDisponibleRooms > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Settings className="h-5 w-5 text-yellow-600 mr-2" />
+                    <span className="font-medium text-yellow-900">Maintenance légère</span>
+                  </div>
+                  <Badge className="bg-yellow-100 text-yellow-800">
+                    {roomStats.maintenanceDisponibleRooms}
+                  </Badge>
+                </div>
+                <p className="text-xs text-yellow-700">
+                  Chambres en maintenance mais réservables
+                </p>
+              </div>
+            )}
+
+            {/* Maintenance occupée */}
+            {roomStats.maintenanceOccupeeRooms > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <Clock className="h-5 w-5 text-amber-600 mr-2" />
+                    <span className="font-medium text-amber-900">Maintenance active</span>
+                  </div>
+                  <Badge className="bg-amber-100 text-amber-800">
+                    {roomStats.maintenanceOccupeeRooms}
+                  </Badge>
+                </div>
+                <p className="text-xs text-amber-700">
+                  Maintenance pendant l'occupation
+                </p>
+              </div>
+            )}
+
+            {/* Maintenance hors d'usage */}
+            {roomStats.maintenanceHorsUsageRooms > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <XCircle className="h-5 w-5 text-red-600 mr-2" />
+                    <span className="font-medium text-red-900">Hors service</span>
+                  </div>
+                  <Badge className="bg-red-100 text-red-800">
+                    {roomStats.maintenanceHorsUsageRooms}
+                  </Badge>
+                </div>
+                <p className="text-xs text-red-700">
+                  Indisponibles pour maintenance lourde
+                </p>
+              </div>
+            )}
+
+            {/* Résumé maintenance */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="font-medium text-blue-900">Total maintenance</span>
+                </div>
+                <Badge className="bg-blue-100 text-blue-800">
+                  {roomStats.allMaintenanceRooms}
+                </Badge>
+              </div>
+              <p className="text-xs text-blue-700">
+                {Math.round((roomStats.allMaintenanceRooms / (roomStats.totalRooms || 1)) * 100)}% des chambres
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Métriques de performance */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -314,12 +407,12 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Maintenance</span>
+                <span className="text-sm text-gray-600">Chambres opérationnelles</span>
                 <div className="flex items-center space-x-2">
                   <div className="w-20 bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '96%' }}></div>
+                    <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.round(((roomStats.totalRooms - roomStats.maintenanceHorsUsageRooms) / (roomStats.totalRooms || 1)) * 100)}%` }}></div>
                   </div>
-                  <span className="text-sm font-medium">96%</span>
+                  <span className="text-sm font-medium">{Math.round(((roomStats.totalRooms - roomStats.maintenanceHorsUsageRooms) / (roomStats.totalRooms || 1)) * 100)}%</span>
                 </div>
               </div>
             </div>
@@ -355,11 +448,38 @@ export default function RoomDashboard({ selectedHotel, onActionClick }: RoomDash
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
+                  <Wrench className="h-4 w-4 text-orange-500" />
+                  <span className="text-sm text-gray-700">Maintenance standard</span>
+                </div>
+                <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                  {roomStats.maintenanceRooms}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Settings className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm text-gray-700">Maint. disponible</span>
+                </div>
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                  {roomStats.maintenanceDisponibleRooms}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm text-gray-700">Maint. occupée</span>
+                </div>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                  {roomStats.maintenanceOccupeeRooms}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
                   <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-sm text-gray-700">Maintenance</span>
+                  <span className="text-sm text-gray-700">Hors d'usage</span>
                 </div>
                 <Badge variant="outline" className="bg-red-50 text-red-700">
-                  {roomStats.maintenanceRooms}
+                  {roomStats.maintenanceHorsUsageRooms}
                 </Badge>
               </div>
             </div>

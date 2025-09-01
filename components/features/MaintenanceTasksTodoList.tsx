@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -44,6 +44,16 @@ export default function MaintenanceTasksTodoList({
 }: MaintenanceTasksTodoListProps) {
   const { addNotification } = useNotifications();
   
+  // État pour détecter la frappe utilisateur et arrêter temporairement le polling
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  
+  // Construire les options du hook séparément pour éviter les problèmes d'initialisation
+  const hookOptions = useMemo(() => ({
+    enableRealTime: true,
+    autoRefresh: !isUserTyping, // Dynamically disable auto-refresh when user is typing
+    refreshInterval: 15000 // Increased from 2000ms to 15000ms (15 seconds)
+  }), [isUserTyping]);
+  
   // Utiliser le hook bulletproof avec toutes les stratégies de synchronisation
   const { 
     tasks, 
@@ -57,11 +67,7 @@ export default function MaintenanceTasksTodoList({
     currentInterval,
     metrics,
     debugInfo
-  } = useMaintenanceTasks(hotelId, roomId, {
-    enableRealTime: true,
-    autoRefresh: true,
-    refreshInterval: 2000 // Polling agressif pour les tests
-  });
+  } = useMaintenanceTasks(hotelId, roomId, hookOptions);
 
   // États pour les modals et formulaires
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -73,6 +79,25 @@ export default function MaintenanceTasksTodoList({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Handlers pour détecter la frappe utilisateur
+  const handleInputStart = () => {
+    console.log('🔤 User started typing - disabling auto-refresh temporarily');
+    setIsUserTyping(true);
+  };
+
+  const handleInputEnd = () => {
+    console.log('🔤 User stopped typing - re-enabling auto-refresh');
+    setIsUserTyping(false);
+  };
+
+  // Debounced handler pour les changements de valeur
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    // Clear the typing state after a delay
+    clearTimeout(window.typingTimeout);
+    window.typingTimeout = setTimeout(handleInputEnd, 2000); // 2 seconds after last keystroke
+  };
 
   // Filtrer les tâches
   const filteredTasks = tasks.filter(task => {
@@ -365,14 +390,28 @@ export default function MaintenanceTasksTodoList({
                 type="text"
                 placeholder="Rechercher..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={handleInputStart}
+                onBlur={() => {
+                  clearTimeout(window.typingTimeout);
+                  setTimeout(handleInputEnd, 500); // Short delay to allow blur to complete
+                }}
+                onChange={(e) => {
+                  handleInputStart(); // Immediately mark as typing
+                  handleSearchChange(e.target.value);
+                }}
                 className="pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
               />
             </div>
             
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onFocus={handleInputStart}
+              onBlur={() => setTimeout(handleInputEnd, 500)}
+              onChange={(e) => {
+                handleInputStart();
+                setStatusFilter(e.target.value);
+                setTimeout(handleInputEnd, 1000); // End typing after selection
+              }}
               className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">Tous les statuts</option>
@@ -384,7 +423,13 @@ export default function MaintenanceTasksTodoList({
             
             <select
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
+              onFocus={handleInputStart}
+              onBlur={() => setTimeout(handleInputEnd, 500)}
+              onChange={(e) => {
+                handleInputStart();
+                setPriorityFilter(e.target.value);
+                setTimeout(handleInputEnd, 1000); // End typing after selection
+              }}
               className="px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">Toutes les priorités</option>
