@@ -460,7 +460,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
   return (
     <div className="space-y-6">
       <style jsx global>{`
-        /* Custom scrollbar styles */
+        /* Custom scrollbar styles for vertical scroll */
         .custom-scrollbar::-webkit-scrollbar {
           width: 12px;
           height: 12px;
@@ -483,6 +483,29 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
         /* Firefox scrollbar */
         .custom-scrollbar {
           scrollbar-width: auto;
+          scrollbar-color: #64748b #f1f5f9;
+        }
+        
+        /* Custom scrollbar styles for horizontal scroll only */
+        .custom-scrollbar-horizontal::-webkit-scrollbar {
+          width: 0px;
+          height: 12px;
+        }
+        .custom-scrollbar-horizontal::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 6px;
+        }
+        .custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
+          background: #64748b;
+          border-radius: 6px;
+          border: 2px solid #f1f5f9;
+        }
+        .custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+        /* Firefox horizontal scrollbar */
+        .custom-scrollbar-horizontal {
+          scrollbar-width: thin;
           scrollbar-color: #64748b #f1f5f9;
         }
       `}</style>
@@ -647,12 +670,12 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
               <CardContent className="p-6">
                 {/* Conteneur responsive avec scroll horizontal et vertical */}
                 <div className="w-full border border-gray-200 rounded-lg overflow-hidden shadow-inner">
-                  {/* Wrapper avec overflow horizontal */}
-                  <div className="overflow-x-auto custom-scrollbar">
+                  {/* Wrapper avec overflow horizontal SEULEMENT */}
+                  <div className="overflow-x-auto overflow-y-hidden custom-scrollbar-horizontal">
                     {/* Conteneur avec largeur minimale pour forcer le scroll */}
                     <div className="min-w-fit" style={{ minWidth: `${240 + (dayHeaders.length * 70)}px` }}>
                       
-                      {/* En-têtes des jours du mois */}
+                      {/* En-têtes des jours du mois - FIXES, ne scrollent pas verticalement */}
                       <div className="flex border-b-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100">
                         {/* Colonne des chambres - sticky */}
                         <div className="sticky left-0 z-20 bg-gradient-to-r from-gray-50 to-gray-100 border-r-2 border-gray-300 w-52 sm:w-60 lg:w-68 flex-shrink-0 shadow-sm">
@@ -692,7 +715,7 @@ export default function ReservationsCalendar({ reservations, hotels = [], select
                         </div>
                       </div>
 
-                      {/* Grille du calendrier par chambre avec scroll vertical */}
+                      {/* Grille du calendrier par chambre avec scroll vertical UNIQUEMENT */}
                       <div className="max-h-[500px] overflow-y-auto custom-scrollbar bg-white">
                         {getFilteredRooms(selectedHotel, selectedRoomType).map((room, roomIndex) => (
                           <div key={room.id} className={`flex border-b border-gray-200 transition-colors duration-150 ${
