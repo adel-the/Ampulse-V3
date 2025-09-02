@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -19,6 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface QuickReservationModalProps {
   isOpen: boolean;
@@ -75,6 +77,8 @@ export default function QuickReservationModal({
   hotels,
   operateurs
 }: QuickReservationModalProps) {
+  const router = useRouter();
+  const { addNotification } = useNotifications();
   const [formData, setFormData] = useState<FormData>({
     usagers: [{
       id: '1',
@@ -275,7 +279,8 @@ export default function QuickReservationModal({
         throw new Error(`Erreur lors de la création de la réservation: ${error.message}`);
       }
 
-      console.log('Réservation créée avec succès, ID:', reservationId);
+      // Notification de succès
+      addNotification('success', 'Réservation créée - La réservation a été enregistrée avec succès.');
       
       // Appeler le callback de succès
       if (onSuccess) {
@@ -288,8 +293,15 @@ export default function QuickReservationModal({
       // Réinitialiser le formulaire
       resetForm();
       
+      // Rediriger vers la liste des réservations
+      setTimeout(() => {
+        window.location.href = '/?tab=reservations';
+      }, 500);
+      
     } catch (error) {
       console.error('Erreur lors de la création de la réservation:', error);
+      // Notification d'erreur
+      addNotification('error', 'Échec de la création - Impossible d\'enregistrer la réservation. Réessayez.');
       setErrors({ submit: error instanceof Error ? error.message : 'Une erreur inattendue s\'est produite' });
     } finally {
       setIsSubmitting(false);

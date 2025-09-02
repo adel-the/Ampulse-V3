@@ -439,17 +439,27 @@ export default function AvailabilityResults({
       const response = await reservationsApi.createReservation(reservationData);
 
       if (response.success && response.data) {
-        addNotification('success', '✅ Réservation enregistrée avec succès');
+        // Notification de succès avec message détaillé
+        addNotification('success', 'Réservation créée - La réservation a été enregistrée avec succès.');
+        
         // Refresh the reservations list
         onReservationCreated?.();
+        
         // Reset form and go back to list
         handleBackToList();
+        
+        // Rediriger vers la liste des réservations après un court délai
+        setTimeout(() => {
+          window.location.href = '/?tab=reservations';
+        }, 500);
       } else {
-        addNotification('error', response.error || 'Erreur lors de la création de la réservation');
+        // Notification d'erreur détaillée
+        addNotification('error', 'Échec de la création - Impossible d\'enregistrer la réservation. Réessayez.');
       }
     } catch (error) {
       console.error('Error creating reservation:', error);
-      addNotification('error', 'Erreur lors de la création de la réservation');
+      // Notification d'erreur générique
+      addNotification('error', 'Échec de la création - Impossible d\'enregistrer la réservation. Réessayez.');
     } finally {
       setReservationLoading(false);
     }

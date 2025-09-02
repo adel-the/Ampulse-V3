@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { X, Calendar, Users, Hotel, CreditCard, FileText, Check, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -30,6 +31,7 @@ export default function CreateReservationModal({
   searchCriteria,
   onSuccess
 }: CreateReservationModalProps) {
+  const router = useRouter();
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
@@ -95,16 +97,30 @@ export default function CreateReservationModal({
       const response = await reservationsApi.createReservation(reservationData);
 
       if (response.success && response.data) {
-        addNotification('success', `Réservation ${response.data.reservation_number} créée avec succès`);
+        // Notification de succès avec les détails appropriés
+        addNotification('success', 'Réservation créée - La réservation a été enregistrée avec succès.');
+        
+        // Appeler onSuccess si fourni
         onSuccess?.();
+        
+        // Fermer le modal
         onClose();
         resetForm();
+        
+        // Rediriger vers la liste des réservations après un court délai pour que la notification soit visible
+        setTimeout(() => {
+          // Si nous sommes dans une SPA, nous utilisons window.location pour forcer un refresh
+          // Cela garantit que la liste des réservations sera mise à jour
+          window.location.href = '/?tab=reservations';
+        }, 500);
       } else {
-        addNotification('error', response.error || 'Erreur lors de la création de la réservation');
+        // Notification d'erreur détaillée
+        addNotification('error', response.error || 'Échec de la création - Impossible d\'enregistrer la réservation. Réessayez.');
       }
     } catch (error) {
       console.error('Error creating reservation:', error);
-      addNotification('error', 'Erreur lors de la création de la réservation');
+      // Notification d'erreur générique
+      addNotification('error', 'Échec de la création - Impossible d\'enregistrer la réservation. Réessayez.');
     } finally {
       setLoading(false);
     }

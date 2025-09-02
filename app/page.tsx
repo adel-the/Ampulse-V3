@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
+import NotificationSystem from '../components/layout/NotificationSystem';
 
 import ReservationsPage from '../components/pages/ReservationsPage';
 
@@ -36,7 +38,10 @@ import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../lib/supabase';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('reservations');
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(tabFromUrl || 'reservations');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -65,6 +70,24 @@ export default function Home() {
 
   // Hooks
   const { notifications, addNotification, removeNotification } = useNotifications();
+
+  // Synchroniser activeTab avec l'URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      // Map des redirections pour différents formats de tabs
+      const tabMapping: { [key: string]: string } = {
+        'reservations': 'reservations-liste',
+        'reservations-liste': 'reservations-liste',
+        'chambres': 'chambres',
+        'clients': 'clients',
+        // Ajoutez d'autres mappings si nécessaire
+      };
+      
+      const mappedTab = tabMapping[tabParam] || tabParam;
+      setActiveTab(mappedTab);
+    }
+  }, [searchParams]);
 
   // Fonctions pour gérer les paramètres
   const handleFeatureToggle = (feature: string, enabled: boolean) => {
@@ -481,6 +504,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header notifications={[]} onNotificationClick={() => {}} />
+      <NotificationSystem 
+        notifications={notifications}
+        onRemoveNotification={removeNotification}
+      />
       <div className="flex">
         <Sidebar 
           activeTab={activeTab} 
