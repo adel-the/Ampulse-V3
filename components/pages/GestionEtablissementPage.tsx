@@ -14,16 +14,20 @@ import EquipmentsSection from '../features/EquipmentsSection';
 import RoomCategoriesSection from '../features/RoomCategoriesSection';
 import { establishmentsApi } from '../../lib/api/establishments';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useEstablishment } from '../../contexts/EstablishmentContext';
 import type { Establishment } from '../../lib/api/establishments';
 
 export default function GestionEtablissementPage() {
   const [activeTab, setActiveTab] = useState('etablissement');
   
-  // Global hotel selector state for Rooms and Equipments sections
+  // Utiliser le contexte global pour la sélection d'établissement
+  const { selectedHotelId, setSelectedHotelId, availableHotels } = useEstablishment();
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
   const [loadingEstablishments, setLoadingEstablishments] = useState(true);
   const { addNotification } = useNotifications();
+  
+  // Trouver l'établissement sélectionné à partir de l'ID
+  const selectedEstablishment = establishments.find(e => e.id === selectedHotelId) || null;
 
   // Load establishments for global hotel selector
   useEffect(() => {
@@ -36,10 +40,7 @@ export default function GestionEtablissementPage() {
       const response = await establishmentsApi.getEstablishments();
       if (response.success && response.data) {
         setEstablishments(response.data);
-        // Auto-select first hotel if available
-        if (response.data.length > 0 && !selectedEstablishment) {
-          setSelectedEstablishment(response.data[0]);
-        }
+        // Ne pas auto-sélectionner, laisser le contexte gérer cela
       }
     } catch (error) {
       console.error('Erreur lors du chargement des établissements:', error);
@@ -50,7 +51,8 @@ export default function GestionEtablissementPage() {
   };
 
   const handleEstablishmentSelect = (establishment: Establishment) => {
-    setSelectedEstablishment(establishment);
+    // Mettre à jour le contexte global
+    setSelectedHotelId(establishment.id);
   };
 
   const topBarItems = [
@@ -83,7 +85,7 @@ export default function GestionEtablissementPage() {
           <EstablishmentsSection 
             onEstablishmentUpdate={loadEstablishments}
             onEstablishmentSelect={handleEstablishmentSelect}
-            currentSelectedId={selectedEstablishment?.id}
+            currentSelectedId={selectedHotelId}
           />
         );
       

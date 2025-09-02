@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import NotificationSystem from '../components/layout/NotificationSystem';
+import { EstablishmentProvider, useEstablishment } from '../contexts/EstablishmentContext';
 
 import ReservationsPage from '../components/pages/ReservationsPage';
 
@@ -37,7 +38,13 @@ import { Hotel, Reservation, OperateurSocial, ConventionPrix, ProcessusReservati
 import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../lib/supabase';
 
-export default function Home() {
+interface HomePageProps {
+  selectedHotel: number | null;
+  setSelectedHotel: (hotelId: number | null) => void;
+  onHotelsLoaded: (hotels: Hotel[]) => void;
+}
+
+function HomePage({ selectedHotel: selectedHotelProp, setSelectedHotel: setSelectedHotelProp, onHotelsLoaded }: HomePageProps) {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   
@@ -55,7 +62,10 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
-  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
+  
+  // Utiliser les props pour l'établissement sélectionné
+  const selectedHotel = selectedHotelProp;
+  const setSelectedHotel = setSelectedHotelProp;
 
   // État pour les fonctionnalités activées/désactivées
   const [features, setFeatures] = useState({
@@ -64,9 +74,6 @@ export default function Home() {
     statistiques: true,
     notifications: true
   });
-
-  // État pour l'établissement sélectionné
-  const [selectedHotel, setSelectedHotel] = useState<number | null>(null);
 
   // Hooks
   const { notifications, addNotification, removeNotification } = useNotifications();
@@ -198,13 +205,7 @@ export default function Home() {
           const fallbackHotels = generateHotels();
           setHotels(fallbackHotels);
           transformedHotels = fallbackHotels;
-          
-          // Sélectionner automatiquement le premier établissement par défaut
-          if (fallbackHotels.length > 0 && !selectedHotel) {
-            const firstHotel = fallbackHotels[0];
-            setSelectedHotel(firstHotel.id);
-            addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
-          }
+          onHotelsLoaded(fallbackHotels);
         } else {
           // Transformer les données Supabase pour correspondre au format attendu
           transformedHotels = hotelsData?.map(hotel => ({
@@ -223,13 +224,7 @@ export default function Home() {
           })) || [];
 
           setHotels(transformedHotels);
-          
-          // Sélectionner automatiquement le premier établissement par défaut
-          if (transformedHotels.length > 0 && !selectedHotel) {
-            const firstHotel = transformedHotels[0];
-            setSelectedHotel(firstHotel.id);
-            addNotification('info', `Établissement par défaut sélectionné : ${firstHotel.nom}`);
-          }
+          onHotelsLoaded(transformedHotels);
         }
 
         // Charger les opérateurs sociaux depuis Supabase
@@ -281,6 +276,7 @@ export default function Home() {
     };
 
     loadDataFromSupabase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Charger les paramètres au démarrage
@@ -520,5 +516,46 @@ export default function Home() {
         </main>
       </div>
     </div>
+  );
+}
+
+// Composant wrapper qui utilise le contexte
+function HomePageWithContext() {
+  const { selectedHotelId: selectedHotelFromContext, setSelectedHotelId: setSelectedHotelContext, setAvailableHotels } = useEstablishment();
+  const [localSelectedHotel, setLocalSelectedHotel] = useState<number | null>(null);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  
+  // Synchroniser avec le contexte lors du chargement initial
+  useEffect(() => {
+    if (selectedHotelFromContext !== null && localSelectedHotel === null) {
+      setLocalSelectedHotel(selectedHotelFromContext);
+    }
+  }, [selectedHotelFromContext, localSelectedHotel]);
+  
+  // Synchroniser les changements locaux vers le contexte
+  const handleSetSelectedHotel = (hotelId: number | null) => {
+    setLocalSelectedHotel(hotelId);
+    setSelectedHotelContext(hotelId);
+  };
+  
+  // Passer les hôtels au contexte lors du chargement
+  useEffect(() => {
+    if (hotels.length > 0) {
+      setAvailableHotels(hotels);
+    }
+  }, [hotels, setAvailableHotels]);
+  
+  return <HomePage 
+    selectedHotel={localSelectedHotel || selectedHotelFromContext} 
+    setSelectedHotel={handleSetSelectedHotel}
+    onHotelsLoaded={setHotels}
+  />;
+}
+
+export default function Home() {
+  return (
+    <EstablishmentProvider>
+      <HomePageWithContext />
+    </EstablishmentProvider>
   );
 } 

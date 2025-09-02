@@ -46,14 +46,6 @@ export default function EstablishmentsSection({ onEstablishmentSelect, currentSe
           if (selected) {
             setSelectedEstablishment(selected);
           }
-        } else if (response.data.length > 0 && !selectedEstablishment) {
-          // Sinon, sélectionner le premier par défaut
-          const firstEstablishment = response.data[0];
-          setSelectedEstablishment(firstEstablishment);
-          // Notifier le composant parent
-          if (onEstablishmentSelect) {
-            onEstablishmentSelect(firstEstablishment);
-          }
         }
       }
     } catch (error) {
