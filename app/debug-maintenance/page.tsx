@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import MaintenanceTasksTodoList from '@/components/features/MaintenanceTasksTodoList'
+import TaskCreationDebugger from '@/components/debug/TaskCreationDebugger'
 
 // Debug page for testing simplified maintenance tasks approach
 
@@ -43,6 +44,11 @@ const DebugMaintenancePage = () => {
             <li><strong>No Complex Real-time:</strong> Simple optimistic updates with API sync</li>
           </ul>
         </div>
+
+        <TaskCreationDebugger 
+          hotelId={selectedHotelId}
+          onTaskCreated={(task) => console.log('🎯 Task created from debugger:', task)}
+        />
 
         <MaintenanceTasksTodoList 
           hotelId={selectedHotelId}

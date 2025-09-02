@@ -140,3 +140,113 @@ Room management tests in `tests/` directory:
 - Verify Supabase connection in Network tab
 - Use `console.log` in development only
 - Check `supabase/config.toml` for local setup
+
+## Claude Code Status Line Configuration
+
+### Statusline Setup
+To display git worktree and branch information in Claude Code, create the following configuration:
+
+**1. Create `~/.claude/settings.json` with:**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c 'input=$(cat); cwd=$(echo \"$input\" | jq -r \".workspace.current_dir // .cwd // \\\"\\\"\"); if [ -n \"$cwd\" ] && [ -d \"$cwd\" ]; then cd \"$cwd\"; fi; worktree_name=\"\"; branch_name=\"\"; if git rev-parse --git-dir >/dev/null 2>&1; then branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || \"detached\"); git_dir=$(git rev-parse --git-common-dir 2>/dev/null); if [ -n \"$git_dir\" ]; then main_worktree=$(git worktree list --porcelain | head -1 | sed \"s/^worktree //\"); current_worktree=$(git worktree list --porcelain | grep -A1 \"$(pwd)\" | head -1 | sed \"s/^worktree //\"); if [ -n \"$current_worktree\" ]; then if [ \"$current_worktree\" = \"$main_worktree\" ]; then worktree_name=\"master\"; else worktree_name=$(basename \"$current_worktree\"); fi; else current_dir=$(pwd); if [[ \"$current_dir\" == *\"/Todo\"* ]] || [[ \"$current_dir\" == *\"\\\\Todo\"* ]]; then worktree_name=\"Todo\"; else worktree_name=\"master\"; fi; fi; fi; fi; if [ -n \"$worktree_name\" ] && [ -n \"$branch_name\" ]; then printf \"📍 Worktree: %s | 🌿 Branch: %s\" \"$worktree_name\" \"$branch_name\"; elif [ -n \"$branch_name\" ]; then printf \"🌿 Branch: %s\" \"$branch_name\"; else printf \"📁 %s\" \"$(basename \"$(pwd)\")\"; fi'"
+  }
+}
+```
+
+**2. Alternative: Using a separate script file**
+Create `~/.claude/statusline-script.sh`:
+```bash
+#!/bin/bash
+# SoliReserve Enhanced - Claude Code Status Line Script
+input=$(cat)
+cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""')
+
+if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+    cd "$cwd"
+fi
+
+worktree_name=""
+branch_name=""
+
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || "detached")
+    
+    git_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+    if [ -n "$git_dir" ]; then
+        main_worktree=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+        current_worktree=$(git worktree list --porcelain | grep -A1 "$(pwd)" | head -1 | sed 's/^worktree //')
+        
+        if [ -n "$current_worktree" ]; then
+            if [ "$current_worktree" = "$main_worktree" ]; then
+                worktree_name="master"
+            else
+                worktree_name=$(basename "$current_worktree")
+            fi
+        else
+            current_dir=$(pwd)
+            if [[ "$current_dir" == *"/Todo"* ]] || [[ "$current_dir" == *"\\Todo"* ]]; then
+                worktree_name="Todo"
+            else
+                worktree_name="master"
+            fi
+        fi
+    fi
+fi
+
+if [ -n "$worktree_name" ] && [ -n "$branch_name" ]; then
+    printf "📍 Worktree: %s | 🌿 Branch: %s" "$worktree_name" "$branch_name"
+elif [ -n "$branch_name" ]; then
+    printf "🌿 Branch: %s" "$branch_name"
+else
+    printf "📁 %s" "$(basename "$(pwd)")"
+fi
+```
+
+Then update `~/.claude/settings.json`:
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-script.sh"
+  }
+}
+```
+
+### Features:
+- Shows current git worktree (Todo, master, etc.)
+- Shows current git branch
+- Handles detached HEAD states
+- Fallback to directory name for non-git directories
+- Uses emojis for visual clarity: 📍 for worktree, 🌿 for branch
+- Automatically updates when switching worktrees/branches
+
+### Windows Implementation Notes:
+For Windows systems, the Claude configuration directory is typically located at:
+- `C:\Users\[USERNAME]\.claude\`
+- Or `%USERPROFILE%\.claude\`
+
+**Quick Setup Commands:**
+```bash
+# Create the Claude config directory
+mkdir -p ~/.claude
+
+# Create the settings file directly
+cat > ~/.claude/settings.json << 'EOF'
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c 'input=$(cat); cwd=$(echo \"$input\" | jq -r \".workspace.current_dir // .cwd // \\\"\\\"\"); if [ -n \"$cwd\" ] && [ -d \"$cwd\" ]; then cd \"$cwd\"; fi; worktree_name=\"\"; branch_name=\"\"; if git rev-parse --git-dir >/dev/null 2>&1; then branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || \"detached\"); git_dir=$(git rev-parse --git-common-dir 2>/dev/null); if [ -n \"$git_dir\" ]; then main_worktree=$(git worktree list --porcelain | head -1 | sed \"s/^worktree //\"); current_worktree=$(git worktree list --porcelain | grep -A1 \"$(pwd)\" | head -1 | sed \"s/^worktree //\"); if [ -n \"$current_worktree\" ]; then if [ \"$current_worktree\" = \"$main_worktree\" ]; then worktree_name=\"master\"; else worktree_name=$(basename \"$current_worktree\"); fi; else current_dir=$(pwd); if [[ \"$current_dir\" == *\"/Todo\"* ]] || [[ \"$current_dir\" == *\"\\\\Todo\"* ]]; then worktree_name=\"Todo\"; else worktree_name=\"master\"; fi; fi; fi; fi; if [ -n \"$worktree_name\" ] && [ -n \"$branch_name\" ]; then printf \"📍 Worktree: %s | 🌿 Branch: %s\" \"$worktree_name\" \"$branch_name\"; elif [ -n \"$branch_name\" ]; then printf \"🌿 Branch: %s\" \"$branch_name\"; else printf \"📁 %s\" \"$(basename \"$(pwd)\")\"; fi'"
+  }
+}
+EOF
+```
+
+**Expected Status Line Output:**
+- Current: `📍 Worktree: Todo | 🌿 Branch: Todo`
+- When in master: `📍 Worktree: master | 🌿 Branch: master`
+- Non-git directories: `📁 [directory-name]`
+
+**Activation:** Restart Claude Code after creating the configuration file.

@@ -1,0 +1,6 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c 'branch=$(git branch --show-current 2>/dev/null || echo \"unknown\"); pwd_check=$(pwd); if echo \"$pwd_check\" | grep -q \"Todo\"; then printf \"📍 Todo | 🌿 %s\" \"$branch\"; else printf \"📍 Master | 🌿 %s\" \"$branch\"; fi'"
+  }
+}

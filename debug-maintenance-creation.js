@@ -1,130 +1,146 @@
-// Script de débogage pour identifier le problème de création des tâches de maintenance
-const fs = require('fs');
-const path = require('path');
+// Script de debug pour tester la création de tâches de maintenance
+const { createClient } = require('@supabase/supabase-js');
 
-console.log('=== ANALYSE DU PROBLÈME DE CRÉATION DES TÂCHES DE MAINTENANCE ===\n');
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iqrqhzgtjhizvfyiuhao.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// 1. Vérifier la fonction handleCreateSubmit
-const todoListPath = path.join(__dirname, 'components/features/MaintenanceTasksTodoList.tsx');
-const todoListContent = fs.readFileSync(todoListPath, 'utf8');
+if (!supabaseServiceKey) {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY manquante');
+  process.exit(1);
+}
 
-console.log('1. ANALYSE DE handleCreateSubmit:');
-console.log('-------------------------------');
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Extraire la fonction handleCreateSubmit
-const createSubmitMatch = todoListContent.match(/const handleCreateSubmit = async \(data: any\) => \{([\s\S]*?)^\s*\};/m);
-if (createSubmitMatch) {
-  const functionBody = createSubmitMatch[1];
-  
-  console.log('✓ Fonction handleCreateSubmit trouvée');
-  
-  // Vérifier les étapes critiques
-  const criticalSteps = [
-    { name: 'Création de la tâche optimiste', pattern: /optimisticTask.*=.*\{/ },
-    { name: 'Ajout immédiat à l\'état', pattern: /setTasks\(prev => \[optimisticTask.*prev\]/ },
-    { name: 'Appel API', pattern: /maintenanceApi\.createMaintenanceTask/ },
-    { name: 'Remplacement par données serveur', pattern: /task\.id === optimisticTask\.id.*result\.data/ },
-    { name: 'Réinitialisation des filtres', pattern: /setStatusFilter.*setSearchTerm/ },
-  ];
-  
-  criticalSteps.forEach(step => {
-    if (step.pattern.test(functionBody)) {
-      console.log(`  ✓ ${step.name} - OK`);
+async function testMaintenanceTaskCreation() {
+  console.log('🔧 Test de création de tâche de maintenance...\n');
+
+  // Test 1: Créer une tâche avec les données exactes du formulaire
+  const testTaskData = {
+    titre: 'Test création tâche DEBUG',
+    description: 'Test de création depuis le script de debug',
+    priorite: 'moyenne', // Valeur correcte pour la base de données
+    responsable: 'Debug User',
+    date_echeance: '2025-09-03',
+    notes: 'Créé depuis script de debug',
+    room_id: 1,
+    hotel_id: 1,
+    user_owner_id: 'c8c827c4-419f-409c-a696-e6bf0856984b',
+    created_by: 'c8c827c4-419f-409c-a696-e6bf0856984b',
+    statut: 'en_attente',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    console.log('📝 Données de test:', JSON.stringify(testTaskData, null, 2));
+    
+    const { data, error } = await supabase
+      .from('maintenance_tasks')
+      .insert(testTaskData)
+      .select(`
+        *,
+        room:rooms(numero, bed_type),
+        hotel:hotels(nom)
+      `)
+      .single();
+
+    if (error) {
+      console.error('❌ Erreur lors de la création:', error);
+      console.error('Code:', error.code);
+      console.error('Details:', error.details);
+      console.error('Hint:', error.hint);
+      console.error('Message:', error.message);
     } else {
-      console.log(`  ✗ ${step.name} - MANQUANT OU INCORRECT`);
+      console.log('✅ Tâche créée avec succès:');
+      console.log('ID:', data.id);
+      console.log('Titre:', data.titre);
+      console.log('Statut:', data.statut);
+      console.log('Priorité:', data.priorite);
     }
-  });
-} else {
-  console.log('✗ Fonction handleCreateSubmit non trouvée');
-}
+  } catch (err) {
+    console.error('❌ Exception lors de la création:', err);
+  }
 
-console.log('\n2. ANALYSE DE L\'API MAINTENANCE:');
-console.log('--------------------------------');
+  // Test 2: Vérifier les contraintes de priorité
+  console.log('\n🔧 Test des contraintes de priorité...');
+  
+  const priorityTests = ['faible', 'moyenne', 'haute', 'urgente', 'invalide'];
+  
+  for (const priorite of priorityTests) {
+    try {
+      const testData = {
+        ...testTaskData,
+        titre: `Test priorité ${priorite}`,
+        priorite: priorite
+      };
+      
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .insert(testData)
+        .select('id, titre, priorite')
+        .single();
 
-// 2. Vérifier l'API maintenance
-const apiPath = path.join(__dirname, 'lib/api/maintenance.ts');
-const apiContent = fs.readFileSync(apiPath, 'utf8');
-
-// Vérifier la fonction createMaintenanceTask
-const createFunctionMatch = apiContent.match(/export async function createMaintenanceTask\(([\s\S]*?)^\}/m);
-if (createFunctionMatch) {
-  const functionBody = createFunctionMatch[1];
-  
-  console.log('✓ Fonction createMaintenanceTask trouvée');
-  
-  // Vérifier les points critiques
-  const apiChecks = [
-    { name: 'Validation userId', pattern: /if.*!actualUserId.*return/ },
-    { name: 'Construction insertData', pattern: /insertData.*=.*\{/ },
-    { name: 'Insert avec select', pattern: /\.insert\(insertData\).*\.select/ },
-    { name: 'Jointures room/hotel', pattern: /room:rooms.*hotel:hotels/ },
-    { name: 'Retour des données', pattern: /return.*\{.*data.*error.*success/ },
-  ];
-  
-  apiChecks.forEach(check => {
-    if (check.pattern.test(functionBody)) {
-      console.log(`  ✓ ${check.name} - OK`);
-    } else {
-      console.log(`  ✗ ${check.name} - POTENTIEL PROBLÈME`);
+      if (error) {
+        console.log(`❌ Priorité '${priorite}': ${error.message}`);
+      } else {
+        console.log(`✅ Priorité '${priorite}': OK (ID: ${data.id})`);
+      }
+    } catch (err) {
+      console.log(`❌ Priorité '${priorite}': Exception - ${err.message}`);
     }
-  });
-} else {
-  console.log('✗ Fonction createMaintenanceTask non trouvée');
-}
-
-console.log('\n3. PROBLÈMES POTENTIELS IDENTIFIÉS:');
-console.log('-----------------------------------');
-
-// 3. Analyser les problèmes potentiels
-const potentialIssues = [];
-
-// Vérifier si room_id est optionnel dans Insert
-const supabaseTypesPath = path.join(__dirname, 'lib/supabase.ts');
-const supabaseContent = fs.readFileSync(supabaseTypesPath, 'utf8');
-
-const maintenanceTaskInsertMatch = supabaseContent.match(/maintenance_tasks:[\s\S]*?Insert:\s*\{([\s\S]*?)\}/);
-if (maintenanceTaskInsertMatch) {
-  const insertDef = maintenanceTaskInsertMatch[1];
-  
-  if (insertDef.includes('room_id: number') && !insertDef.includes('room_id?: number')) {
-    potentialIssues.push('❌ room_id est OBLIGATOIRE dans Insert mais peut être undefined dans les données');
   }
+
+  // Test 3: Vérifier les contraintes de statut
+  console.log('\n🔧 Test des contraintes de statut...');
   
-  if (!insertDef.includes('hotel_id: number')) {
-    potentialIssues.push('❌ hotel_id manquant dans Insert');
+  const statusTests = ['en_attente', 'en_cours', 'terminee', 'annulee', 'invalide'];
+  
+  for (const statut of statusTests) {
+    try {
+      const testData = {
+        ...testTaskData,
+        titre: `Test statut ${statut}`,
+        statut: statut
+      };
+      
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .insert(testData)
+        .select('id, titre, statut')
+        .single();
+
+      if (error) {
+        console.log(`❌ Statut '${statut}': ${error.message}`);
+      } else {
+        console.log(`✅ Statut '${statut}': OK (ID: ${data.id})`);
+      }
+    } catch (err) {
+      console.log(`❌ Statut '${statut}': Exception - ${err.message}`);
+    }
   }
-} else {
-  potentialIssues.push('❌ Définition Insert de maintenance_tasks non trouvée');
+
+  // Test 4: Vérifier l'existence des références room_id et hotel_id
+  console.log('\n🔧 Test des références foreign key...');
+  
+  try {
+    const { data: rooms } = await supabase
+      .from('rooms')
+      .select('id, numero, hotel_id')
+      .limit(5);
+    
+    console.log('🏨 Chambres disponibles:', rooms?.map(r => `ID: ${r.id}, Numéro: ${r.numero}, Hôtel: ${r.hotel_id}`));
+    
+    const { data: hotels } = await supabase
+      .from('hotels')
+      .select('id, nom')
+      .limit(5);
+    
+    console.log('🏨 Hôtels disponibles:', hotels?.map(h => `ID: ${h.id}, Nom: ${h.nom}`));
+  } catch (err) {
+    console.error('❌ Erreur lors de la vérification des références:', err);
+  }
+
+  console.log('\n✨ Tests terminés');
 }
 
-// Vérifier la logique des filtres
-if (todoListContent.includes('statusFilter !== \'all\'') && todoListContent.includes('setStatusFilter(\'all\')')) {
-  console.log('  ✓ Réinitialisation des filtres - logique présente');
-} else {
-  potentialIssues.push('❌ Logique de réinitialisation des filtres manquante ou incomplète');
-}
-
-// Vérifier les optimistic updates
-if (todoListContent.includes('_isOptimistic: true') && todoListContent.includes('task.id === optimisticTask.id')) {
-  console.log('  ✓ Optimistic updates - logique présente');
-} else {
-  potentialIssues.push('❌ Logique d\'optimistic updates incomplète');
-}
-
-// Afficher les problèmes
-if (potentialIssues.length > 0) {
-  potentialIssues.forEach(issue => console.log(issue));
-} else {
-  console.log('  ✓ Aucun problème évident détecté dans le code statique');
-}
-
-console.log('\n4. RECOMMANDATIONS DE DÉBOGAGE:');
-console.log('-------------------------------');
-
-console.log(`  1. Vérifier les logs de la console du navigateur lors de la création d'une tâche
-  2. Ajouter des console.log dans handleCreateSubmit pour tracer l'exécution
-  3. Vérifier que room_id est bien passé même quand il est optionnel
-  4. Tester avec les filtres sur 'all' pour éviter qu'une nouvelle tâche soit masquée
-  5. Vérifier que l'API retourne bien les données attendues avec les jointures`);
-
-console.log('\n=== FIN DE L\'ANALYSE ===');
+testMaintenanceTaskCreation().catch(console.error);

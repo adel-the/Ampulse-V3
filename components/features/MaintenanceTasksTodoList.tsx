@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -54,14 +55,24 @@ export default function MaintenanceTasksTodoList({
   const [taskToDelete, setTaskToDelete] = useState<MaintenanceTaskWithRelations | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
 
-  // Simple fetch function
+  // Simple fetch function - preserves optimistic tasks
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const result = await maintenanceApi.getMaintenanceTasks(hotelId, roomId);
       if (result.success) {
-        setTasks(result.data);
+        // Preserve optimistic tasks when fetching new data
+        setTasks(prevTasks => {
+          const optimisticTasks = prevTasks.filter(task => task._isOptimistic);
+          const newTasks = [...optimisticTasks, ...result.data];
+          console.log('🔄 FetchTasks - Preserved optimistic tasks:', {
+            optimisticCount: optimisticTasks.length,
+            newFromServer: result.data.length,
+            total: newTasks.length
+          });
+          return newTasks;
+        });
       } else {
         setError(result.error);
       }
@@ -99,6 +110,23 @@ export default function MaintenanceTasksTodoList({
     const matchesPriority = priorityFilter === 'all' || task.priorite === priorityFilter;
     const matchesSearch = task.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Log pour déboguer le filtrage des nouvelles tâches
+    if (task._isOptimistic) {
+      console.log('🔍 Filtrage tâche optimiste:', {
+        titre: task.titre,
+        statut: task.statut,
+        priorite: task.priorite,
+        statusFilter,
+        priorityFilter,
+        searchTerm,
+        matchesStatus,
+        matchesPriority,
+        matchesSearch,
+        visible: matchesStatus && matchesPriority && matchesSearch
+      });
+    }
+    
     return matchesStatus && matchesPriority && matchesSearch;
   });
 
@@ -233,16 +261,20 @@ export default function MaintenanceTasksTodoList({
       return { success: false, error: 'ID d\'hôtel requis' };
     }
     
-    // Reset filters FIRST to ensure new task will be visible
+    // Reset filters FIRST to ensure new task will be visible - using flushSync for immediate update
     if (statusFilter !== 'all' || priorityFilter !== 'all' || searchTerm !== '') {
-      setStatusFilter('all');
-      setPriorityFilter('all');
-      setSearchTerm('');
+      console.log('🔍 AVANT réinitialisation filtres:', { statusFilter, priorityFilter, searchTerm });
+      flushSync(() => {
+        setStatusFilter('all');
+        setPriorityFilter('all');
+        setSearchTerm('');
+      });
+      console.log('🔍 APRÈS réinitialisation filtres - forcée avec flushSync');
     }
     
     // 1. Create optimistic task immediately
     const optimisticTask: MaintenanceTaskWithRelations = {
-      id: Date.now(), // Temporary ID
+      id: -Date.now(), // Negative ID to avoid collisions with existing tasks
       ...data,
       hotel_id: hotelId,
       room_id: data.room_id || null, // Explicitly allow null
@@ -258,10 +290,19 @@ export default function MaintenanceTasksTodoList({
     };
 
     // 2. Add to state immediately - INSTANT DISPLAY
-    console.log('🎯 Adding optimistic task to state:', optimisticTask);
+    console.log('🎯 Adding optimistic task to state:', {
+      titre: optimisticTask.titre,
+      priorite: optimisticTask.priorite,
+      statut: optimisticTask.statut,
+      id: optimisticTask.id
+    });
     setTasks(prev => {
       const newTasks = [optimisticTask, ...prev];
-      console.log('📋 New tasks array length:', newTasks.length);
+      console.log('📋 Tasks update:', {
+        before: prev.length,
+        after: newTasks.length,
+        newTaskTitle: optimisticTask.titre
+      });
       return newTasks;
     });
     
@@ -276,14 +317,23 @@ export default function MaintenanceTasksTodoList({
       
       if (result.success) {
         // 5. Replace optimistic with server data
-        console.log('✅ API Success - Replacing optimistic task with server data');
+        console.log('✅ API Success - Replacing optimistic task with server data:', {
+          optimisticId: optimisticTask.id,
+          serverId: result.data?.id,
+          serverTitle: result.data?.titre
+        });
         setTasks(prev => {
           const updatedTasks = prev.map(task => 
             task.id === optimisticTask.id 
               ? { ...result.data!, _isOptimistic: undefined }
               : task
           );
-          console.log('📋 Tasks after API success:', updatedTasks.length);
+          console.log('📋 Tasks after API success:', {
+            before: prev.length,
+            after: updatedTasks.length,
+            replacedOptimistic: prev.some(t => t.id === optimisticTask.id),
+            hasServerTask: updatedTasks.some(t => t.id === result.data?.id)
+          });
           return updatedTasks;
         });
         
@@ -366,6 +416,15 @@ export default function MaintenanceTasksTodoList({
       return { success: false, error: errorMsg };
     }
   };
+
+  // Debug: vérifier les tâches filtrées
+  console.log('📊 Rendu - Statistiques des tâches:', {
+    totalTasks: tasks.length,
+    filteredTasks: filteredTasks.length,
+    optimisticTasks: tasks.filter(t => t._isOptimistic).length,
+    filteredOptimisticTasks: filteredTasks.filter(t => t._isOptimistic).length,
+    currentFilters: { statusFilter, priorityFilter, searchTerm }
+  });
 
   // Calculer les statistiques
   const stats = {
