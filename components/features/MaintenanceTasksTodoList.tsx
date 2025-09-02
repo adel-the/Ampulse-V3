@@ -141,11 +141,6 @@ export default function MaintenanceTasksTodoList({
       }
 
       if (result?.success) {
-        // Dispatch force refresh event for other components
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
-          detail: { hotelId, roomId }
-        }));
-        
         const actionText = action === 'complete' ? 'terminée' : action === 'start' ? 'démarrée' : 'annulée';
         addNotification('success', `Tâche ${actionText} avec succès`);
       } else {
@@ -172,11 +167,6 @@ export default function MaintenanceTasksTodoList({
       const result = await deleteTask(taskId);
 
       if (result.success) {
-        // Dispatch force refresh event for other components
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
-          detail: { hotelId, roomId }
-        }));
-        
         addNotification('success', 'Tâche supprimée avec succès');
       } else {
         addNotification('error', result.error || 'Erreur lors de la suppression');
@@ -213,11 +203,6 @@ export default function MaintenanceTasksTodoList({
       const result = await createTask(data);
       
       if (result.success) {
-        // Dispatch force refresh event for other components
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
-          detail: { hotelId, roomId }
-        }));
-        
         addNotification('success', 'Tâche créée avec succès');
         return { success: true };
       } else {
@@ -254,11 +239,6 @@ export default function MaintenanceTasksTodoList({
       const result = await updateTask(taskId, data);
       
       if (result.success) {
-        // Dispatch force refresh event for other components
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
-          detail: { hotelId, roomId }
-        }));
-        
         addNotification('success', 'Tâche modifiée avec succès');
         return { success: true };
       } else {

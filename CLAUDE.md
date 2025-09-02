@@ -228,25 +228,70 @@ For Windows systems, the Claude configuration directory is typically located at:
 - `C:\Users\[USERNAME]\.claude\`
 - Or `%USERPROFILE%\.claude\`
 
-**Quick Setup Commands:**
+**Quick Setup Commands (Cross-Platform):**
+
+**For Windows (Git Bash/MSYS2/WSL):**
 ```bash
 # Create the Claude config directory
-mkdir -p ~/.claude
+mkdir -p "$USERPROFILE/.claude" || mkdir -p ~/.claude
 
 # Create the settings file directly
 cat > ~/.claude/settings.json << 'EOF'
 {
   "statusLine": {
     "type": "command",
-    "command": "bash -c 'input=$(cat); cwd=$(echo \"$input\" | jq -r \".workspace.current_dir // .cwd // \\\"\\\"\"); if [ -n \"$cwd\" ] && [ -d \"$cwd\" ]; then cd \"$cwd\"; fi; worktree_name=\"\"; branch_name=\"\"; if git rev-parse --git-dir >/dev/null 2>&1; then branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || \"detached\"); git_dir=$(git rev-parse --git-common-dir 2>/dev/null); if [ -n \"$git_dir\" ]; then main_worktree=$(git worktree list --porcelain | head -1 | sed \"s/^worktree //\"); current_worktree=$(git worktree list --porcelain | grep -A1 \"$(pwd)\" | head -1 | sed \"s/^worktree //\"); if [ -n \"$current_worktree\" ]; then if [ \"$current_worktree\" = \"$main_worktree\" ]; then worktree_name=\"master\"; else worktree_name=$(basename \"$current_worktree\"); fi; else current_dir=$(pwd); if [[ \"$current_dir\" == *\"/Todo\"* ]] || [[ \"$current_dir\" == *\"\\\\Todo\"* ]]; then worktree_name=\"Todo\"; else worktree_name=\"master\"; fi; fi; fi; fi; if [ -n \"$worktree_name\" ] && [ -n \"$branch_name\" ]; then printf \"📍 Worktree: %s | 🌿 Branch: %s\" \"$worktree_name\" \"$branch_name\"; elif [ -n \"$branch_name\" ]; then printf \"🌿 Branch: %s\" \"$branch_name\"; else printf \"📁 %s\" \"$(basename \"$(pwd)\")\"; fi'"
+    "command": "bash -c 'input=$(cat); cwd=$(echo \"$input\" | jq -r \".workspace.current_dir // .cwd // \\\"\\\"\"); if [ -n \"$cwd\" ] && [ -d \"$cwd\" ]; then cd \"$cwd\"; fi; worktree_name=\"\"; branch_name=\"\"; if git rev-parse --git-dir >/dev/null 2>&1; then branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || \"detached\"); git_dir=$(git rev-parse --git-common-dir 2>/dev/null); if [ -n \"$git_dir\" ]; then main_worktree=$(git worktree list --porcelain | head -1 | sed \"s/^worktree //\"); current_worktree=$(git worktree list --porcelain | grep -A1 \"$(pwd)\" | head -1 | sed \"s/^worktree //\"); if [ -n \"$current_worktree\" ]; then if [ \"$current_worktree\" = \"$main_worktree\" ]; then worktree_name=\"master\"; else worktree_name=$(basename \"$current_worktree\"); fi; else current_dir=$(pwd); if [[ \"$current_dir\" == *\"/Todo\"* ]] || [[ \"$current_dir\" == *\"\\\\Todo\"* ]] || [[ \"$current_dir\" == *\"/todo\"* ]] || [[ \"$current_dir\" == *\"\\\\todo\"* ]]; then worktree_name=\"Todo\"; else worktree_name=\"master\"; fi; fi; fi; fi; if [ -n \"$worktree_name\" ] && [ -n \"$branch_name\" ]; then printf \"Worktree: %s | Branch: %s\" \"$worktree_name\" \"$branch_name\"; elif [ -n \"$branch_name\" ]; then printf \"Branch: %s\" \"$branch_name\"; else printf \"%s\" \"$(basename \"$(pwd)\")\"; fi'"
+  }
+}
+EOF
+```
+
+**For Linux/macOS:**
+```bash
+# Create the Claude config directory
+mkdir -p ~/.claude
+
+# Create the settings file directly (same command as Windows)
+cat > ~/.claude/settings.json << 'EOF'
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c 'input=$(cat); cwd=$(echo \"$input\" | jq -r \".workspace.current_dir // .cwd // \\\"\\\"\"); if [ -n \"$cwd\" ] && [ -d \"$cwd\" ]; then cd \"$cwd\"; fi; worktree_name=\"\"; branch_name=\"\"; if git rev-parse --git-dir >/dev/null 2>&1; then branch_name=$(git branch --show-current 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || \"detached\"); git_dir=$(git rev-parse --git-common-dir 2>/dev/null); if [ -n \"$git_dir\" ]; then main_worktree=$(git worktree list --porcelain | head -1 | sed \"s/^worktree //\"); current_worktree=$(git worktree list --porcelain | grep -A1 \"$(pwd)\" | head -1 | sed \"s/^worktree //\"); if [ -n \"$current_worktree\" ]; then if [ \"$current_worktree\" = \"$main_worktree\" ]; then worktree_name=\"master\"; else worktree_name=$(basename \"$current_worktree\"); fi; else current_dir=$(pwd); if [[ \"$current_dir\" == *\"/Todo\"* ]] || [[ \"$current_dir\" == *\"\\\\Todo\"* ]] || [[ \"$current_dir\" == *\"/todo\"* ]] || [[ \"$current_dir\" == *\"\\\\todo\"* ]]; then worktree_name=\"Todo\"; else worktree_name=\"master\"; fi; fi; fi; fi; if [ -n \"$worktree_name\" ] && [ -n \"$branch_name\" ]; then printf \"Worktree: %s | Branch: %s\" \"$worktree_name\" \"$branch_name\"; elif [ -n \"$branch_name\" ]; then printf \"Branch: %s\" \"$branch_name\"; else printf \"%s\" \"$(basename \"$(pwd)\")\"; fi'"
   }
 }
 EOF
 ```
 
 **Expected Status Line Output:**
-- Current: `📍 Worktree: Todo | 🌿 Branch: Todo`
-- When in master: `📍 Worktree: master | 🌿 Branch: master`
-- Non-git directories: `📁 [directory-name]`
+- Current (Todo worktree): `Worktree: Todo | Branch: Todo`
+- When in master: `Worktree: master | Branch: master`
+- Single worktree setup: `Branch: main` or `Branch: master`
+- Non-git directories: `Ampulse v3` (directory name)
+- Detached HEAD: `Worktree: Todo | Branch: detached`
 
 **Activation:** Restart Claude Code after creating the configuration file.
+
+**Testing the Configuration:**
+After setup, you can test the statusline by:
+1. Opening Claude Code in your project directory
+2. The statusline should show your current worktree and branch
+3. Switch between worktrees to see the statusline update automatically
+
+**Troubleshooting:**
+If the statusline doesn't work:
+1. Verify `bash`, `git`, and `jq` are available in your PATH
+2. Check that the settings file exists at `~/.claude/settings.json` (or `%USERPROFILE%\.claude\settings.json` on Windows)
+3. Ensure you're running Claude Code from a directory that contains git repositories
+4. Try manually running the command in a terminal to debug issues
+5. On Windows, ensure you're using Git Bash or WSL for full compatibility
+
+**Manual Setup (Windows PowerShell/CMD Alternative):**
+If you prefer to create the file manually on Windows:
+1. Navigate to `%USERPROFILE%\.claude\` (create the directory if needed)
+2. Create a `settings.json` file with the configuration shown above
+3. Restart Claude Code
+
+**Dependencies:**
+- `bash` - Available in Git for Windows, WSL, or MSYS2
+- `git` - Git for Windows or your preferred Git installation  
+- `jq` - JSON processor (install via package manager or download from jqlang.github.io/jq)

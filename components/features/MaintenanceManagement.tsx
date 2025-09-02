@@ -394,11 +394,6 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       const result = await createTask(taskData);
         
       if (result.success) {
-        // Dispatch force refresh event for other components
-        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
-          detail: { hotelId: selectedHotel?.id, roomId: selectedRoom.id }
-        }));
-        
         addNotification('success', 'Tâche ajoutée avec succès');
       } else {
         // Reopen modal on error

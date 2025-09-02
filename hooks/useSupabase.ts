@@ -2685,8 +2685,6 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
 
 // Hook for maintenance tasks (complete CRUD with multi-tenancy)
 export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?: HookOptions) => {
-  console.log('🔧 useMaintenanceTasks hook called with:', { hotelId, roomId, options })
-  
   const [tasks, setTasks] = useState<MaintenanceTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -2695,27 +2693,20 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
   const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
 
   const fetchTasks = async () => {
-    console.log('🔧 [useMaintenanceTasks] fetchTasks called for maintenance tasks')
-    console.log('🔍 [useMaintenanceTasks] État actuel - tasks.length avant fetch:', tasks.length)
-    console.log('🔍 [useMaintenanceTasks] Paramètres - hotelId:', hotelId, 'roomId:', roomId)
-    
     try {
       setLoading(true)
       setError(null)
 
       // In development mode, we allow fetching tasks without authentication
       const isDevelopment = process.env.NODE_ENV === 'development'
-      console.log('🔧 isDevelopment:', isDevelopment)
       
       if (!user && !isDevelopment) {
-        console.log('🔧 No user authenticated and not in development, setting empty tasks array')
         setTasks([])
         return
       }
 
       // TEMP: Using admin client for development to bypass RLS issues
       const client = isDevelopment ? supabaseAdmin : supabase
-      console.log('🔧 Using client:', isDevelopment ? 'supabaseAdmin' : 'supabase')
       
       let query = client
         .from('maintenance_tasks')
@@ -2742,16 +2733,11 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
         query = query.eq('room_id', roomId)
       }
 
-      console.log('🔧 Executing maintenance tasks query:', query)
       const { data, error } = await query
-      console.log('🔧 [useMaintenanceTasks] Query result - data count:', data?.length || 0, 'error:', error)
 
       if (error) throw error
       
-      console.log('🔍 [useMaintenanceTasks] Avant setTasks - ancien tasks.length:', tasks.length)
       setTasks(data || [])
-      console.log('🔧 [useMaintenanceTasks] Tasks loaded successfully, count:', data?.length || 0)
-      console.log('🔍 [useMaintenanceTasks] setTasks appelé avec:', data?.length || 0, 'éléments')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des tâches de maintenance'
       console.error('🔧 Error in fetchTasks:', err)
@@ -2759,15 +2745,10 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       console.error('Error fetching maintenance tasks:', err)
     } finally {
       setLoading(false)
-      console.log('🔧 [useMaintenanceTasks] fetchTasks completed, loading set to false')
-      console.log('🔍 [useMaintenanceTasks] État final - tasks.length:', tasks.length)
     }
   }
 
   const createTask = async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
-    console.log('🔧 [useMaintenanceTasks] createTask DÉMARRÉ')
-    console.log('🔍 [useMaintenanceTasks] État avant création - tasks.length:', tasks.length)
-    
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
@@ -2814,14 +2795,8 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       if (error) throw error
       
       // Update local state optimistically
-      console.log('🔍 [useMaintenanceTasks] createTask - Avant ajout optimiste, tasks.length:', tasks.length)
-      setTasks(prev => {
-        const newTasks = [data, ...prev]
-        console.log('🔍 [useMaintenanceTasks] createTask - Après ajout optimiste, nouveau length:', newTasks.length)
-        return newTasks
-      })
+      setTasks(prev => [data, ...prev])
       
-      console.log('🔧 [useMaintenanceTasks] createTask TERMINÉ avec succès')
       return { data, error: null, success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche'
@@ -3022,29 +2997,8 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     fetchTasks()
   }, [user, hotelId, roomId])
 
-  // Listener pour la synchronisation globale via événement personnalisé
-  useEffect(() => {
-    const handleForceTaskRefresh = (event: CustomEvent) => {
-      console.log('📡 [useMaintenanceTasks] Événement de force refresh reçu:', event.detail);
-      
-      // Vérifier si ce hook doit réagir à l'événement
-      const { hotelId: eventHotelId, roomId: eventRoomId } = event.detail;
-      const shouldRefresh = !hotelId || !eventHotelId || hotelId === eventHotelId;
-      
-      if (shouldRefresh) {
-        console.log('🔄 [useMaintenanceTasks] Déclenchement du refresh suite à l\'événement');
-        fetchTasks(); // Refresh immédiat pour synchronisation
-      } else {
-        console.log('⏭️ [useMaintenanceTasks] Événement ignoré (hotelId différent)');
-      }
-    };
-
-    window.addEventListener('forceTaskRefresh', handleForceTaskRefresh as EventListener);
-    
-    return () => {
-      window.removeEventListener('forceTaskRefresh', handleForceTaskRefresh as EventListener);
-    };
-  }, [hotelId, roomId, fetchTasks]);
+  // Force refresh event listener removed to prevent overwriting optimistic updates
+  // Relying on optimistic updates and real-time WebSocket subscriptions instead
 
   // Global function pollution removed - using proper event system instead
 
