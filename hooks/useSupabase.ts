@@ -2695,9 +2695,6 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
   const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
 
   const fetchTasks = useCallback(async () => {
-    // Don't fetch if there are optimistic updates in progress
-    if (hasOptimisticUpdates) return;
-    
     try {
       setLoading(true)
       setError(null)
@@ -2751,7 +2748,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     } finally {
       setLoading(false)
     }
-  }, [hotelId, roomId, user, hasOptimisticUpdates])
+  }, [hotelId, roomId, user]) // Removed hasOptimisticUpdates from dependencies
 
   const createTask = useCallback(async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
     // Generate temporary negative ID for optimistic update
@@ -3015,23 +3012,21 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
           switch (payload.eventType) {
             case 'INSERT':
               setTasks(prev => {
-                // Check if this is replacing an optimistic update
-                const optimisticIndex = prev.findIndex(t => 
-                  // Optimistic tasks have negative IDs and same title
-                  (t.id < 0 && t.titre === payload.new.titre) ||
-                  // Or same real ID
-                  t.id === payload.new.id
+                // Check if task already exists (optimistic or real)
+                const existingIndex = prev.findIndex(t => 
+                  // Match by real ID
+                  t.id === payload.new.id ||
+                  // Or match optimistic by title (negative ID)
+                  (t.id < 0 && t.titre === payload.new.titre)
                 );
                 
-                if (optimisticIndex >= 0) {
-                  // Replace optimistic with real data
-                  const updated = [...prev];
-                  updated[optimisticIndex] = payload.new as MaintenanceTask;
-                  return updated;
+                if (existingIndex >= 0) {
+                  // Don't add duplicate - task already exists (optimistic or real)
+                  return prev;
                 }
                 
-                // Only add if truly new
-                return [payload.new as MaintenanceTask, ...prev];
+                // Only add if truly new (not an optimistic update being confirmed)
+                return [payload.new as MaintenanceTaskWithRelations, ...prev];
               })
               break
             case 'UPDATE':
@@ -3054,10 +3049,13 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
 
   // Auto-refresh removed - using real-time subscriptions instead
 
-  // Initial fetch
+  // Initial fetch - only on mount and when key params change
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+    // Don't fetch if optimistic updates are in progress
+    if (!hasOptimisticUpdates) {
+      fetchTasks()
+    }
+  }, [hotelId, roomId, user?.id, hasOptimisticUpdates, fetchTasks]) // Include all dependencies
 
   // Force refresh event listener removed to prevent overwriting optimistic updates
   // Relying on optimistic updates and real-time WebSocket subscriptions instead
