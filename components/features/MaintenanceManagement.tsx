@@ -94,7 +94,7 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
   const { rooms: realRooms, loading: roomsLoading, error: roomsError, updateRoomStatus } = useRooms(selectedHotel?.id);
   const { addNotification } = useNotifications();
   
-  // Récupérer les vraies tâches de maintenance
+  // Récupérer les vraies tâches de maintenance avec real-time et auto-refresh activés
   const {
     tasks: maintenanceTasks,
     loading: tasksLoading,
@@ -103,7 +103,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     updateTask,
     deleteTask,
     getTaskStatistics
-  } = useMaintenanceTasks(selectedHotel?.id);
+  } = useMaintenanceTasks(selectedHotel?.id, undefined, {
+    enableRealTime: true
+  });
   
   const [maintenanceRooms, setMaintenanceRooms] = useState<MaintenanceRoom[]>([]);
   const [maintenanceItems, setMaintenanceItems] = useState<MaintenanceItem[]>([]);
@@ -342,52 +344,89 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
       return;
     }
 
-    try {
-      // Validate and map priority values correctly
-      const priorityMapping: Record<string, 'faible' | 'moyenne' | 'haute' | 'urgente'> = {
-        'basse': 'faible',
-        'moyenne': 'moyenne', 
-        'haute': 'haute',
-        'critique': 'urgente'
-      };
-      
-      const taskData = {
-        titre: newTodo.titre.trim(),
-        description: newTodo.description?.trim() || null,
-        priorite: priorityMapping[newTodo.priorite] || 'moyenne',
-        responsable: newTodo.responsable?.trim() || null,
-        date_echeance: newTodo.dateEcheance || null,
-        notes: newTodo.notes?.trim() || null,
-        room_id: selectedRoom.id
-      };
+    // Validate and map priority values correctly
+    const priorityMapping: Record<string, 'faible' | 'moyenne' | 'haute' | 'urgente'> = {
+      'basse': 'faible',
+      'moyenne': 'moyenne', 
+      'haute': 'haute',
+      'critique': 'urgente'
+    };
+    
+    const taskData = {
+      titre: newTodo.titre.trim(),
+      description: newTodo.description?.trim() || null,
+      priorite: priorityMapping[newTodo.priorite] || 'moyenne',
+      responsable: newTodo.responsable?.trim() || null,
+      date_echeance: newTodo.dateEcheance || null,
+      notes: newTodo.notes?.trim() || null,
+      room_id: selectedRoom.id
+    };
 
-      // Validate the task data
-      const validation = validateTaskData(taskData);
-      if (!validation.isValid) {
-        addNotification('error', `Erreurs de validation: ${validation.errors.join(', ')}`);
-        return;
-      }
-        
+    // Validate the task data
+    const validation = validateTaskData(taskData);
+    if (!validation.isValid) {
+      addNotification('error', `Erreurs de validation: ${validation.errors.join(', ')}`);
+      return;
+    }
+    
+    // Reset filters to ensure new task will be visible
+    if (statusFilter !== 'all' || priorityFilter !== 'all' || searchTerm !== '') {
+      setStatusFilter('all');
+      setPriorityFilter('all');
+      setSearchTerm('');
+    }
+    
+    // Close modal immediately for better UX (optimistic UI)
+    setShowAddTodoModal(false);
+    
+    // Reset form
+    setNewTodo({
+      titre: '',
+      description: '',
+      priorite: 'moyenne',
+      responsable: '',
+      dateEcheance: '',
+      notes: ''
+    });
+    
+    try {
+      // Use the hook's create function which handles optimistic updates
       const result = await createTask(taskData);
         
       if (result.success) {
+        // Dispatch force refresh event for other components
+        window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
+          detail: { hotelId: selectedHotel?.id, roomId: selectedRoom.id }
+        }));
+        
         addNotification('success', 'Tâche ajoutée avec succès');
-        setNewTodo({
-          titre: '',
-          description: '',
-          priorite: 'moyenne',
-          responsable: '',
-          dateEcheance: '',
-          notes: ''
-        });
-        setShowAddTodoModal(false);
       } else {
+        // Reopen modal on error
+        setShowAddTodoModal(true);
+        setNewTodo({
+          titre: taskData.titre,
+          description: taskData.description || '',
+          priorite: newTodo.priorite,
+          responsable: taskData.responsable || '',
+          dateEcheance: taskData.date_echeance || '',
+          notes: taskData.notes || ''
+        });
         addNotification('error', result.error || 'Erreur lors de la création de la tâche');
       }
-      } catch (error) {
-        console.error('Error creating task:', error);
-        addNotification('error', 'Erreur lors de la création de la tâche');
-      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      // Reopen modal on error
+      setShowAddTodoModal(true);
+      setNewTodo({
+        titre: taskData.titre,
+        description: taskData.description || '',
+        priorite: newTodo.priorite,
+        responsable: taskData.responsable || '',
+        dateEcheance: taskData.date_echeance || '',
+        notes: taskData.notes || ''
+      });
+      addNotification('error', 'Erreur lors de la création de la tâche');
+    }
   };
 
   const getStatusColor = (status: string) => {

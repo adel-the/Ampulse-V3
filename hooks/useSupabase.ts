@@ -3015,13 +3015,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     }
   }, [user, hotelId, enableRealTime])
 
-  // Auto-refresh
-  useEffect(() => {
-    if (!autoRefresh) return
-
-    const interval = setInterval(fetchTasks, refreshInterval)
-    return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, hotelId, roomId])
+  // Auto-refresh removed - using real-time subscriptions instead
 
   // Initial fetch
   useEffect(() => {
@@ -3039,7 +3033,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       
       if (shouldRefresh) {
         console.log('🔄 [useMaintenanceTasks] Déclenchement du refresh suite à l\'événement');
-        setTimeout(fetchTasks, 200); // Petit délai pour éviter les conflicts
+        fetchTasks(); // Refresh immédiat pour synchronisation
       } else {
         console.log('⏭️ [useMaintenanceTasks] Événement ignoré (hotelId différent)');
       }
@@ -3052,16 +3046,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     };
   }, [hotelId, roomId, fetchTasks]);
 
-  // Exposer fetchTasks globalement pour les solutions de dernier recours
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).__maintenanceTasksFetch = fetchTasks;
-      
-      return () => {
-        delete (window as any).__maintenanceTasksFetch;
-      };
-    }
-  }, [fetchTasks]);
+  // Global function pollution removed - using proper event system instead
 
   return { 
     tasks, 
