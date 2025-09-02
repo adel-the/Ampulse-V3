@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { useAuth } from './useAuth'
 import type { 
@@ -38,6 +38,7 @@ import type {
   MaintenanceTask,
   MaintenanceTaskInsert,
   MaintenanceTaskUpdate,
+  MaintenanceTaskWithRelations,
   IndividuRow,
   IndividuInsert,
   IndividuUpdate,
@@ -2685,14 +2686,18 @@ export const useHotelEquipmentCRUD = (hotelId?: number, options?: HookOptions) =
 
 // Hook for maintenance tasks (complete CRUD with multi-tenancy)
 export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?: HookOptions) => {
-  const [tasks, setTasks] = useState<MaintenanceTask[]>([])
+  const [tasks, setTasks] = useState<MaintenanceTaskWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasOptimisticUpdates, setHasOptimisticUpdates] = useState(false)
   const { user } = useAuth()
 
   const { enableRealTime = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
+    // Don't fetch if there are optimistic updates in progress
+    if (hasOptimisticUpdates) return;
+    
     try {
       setLoading(true)
       setError(null)
@@ -2746,19 +2751,49 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
     } finally {
       setLoading(false)
     }
-  }
+  }, [hotelId, roomId, user, hasOptimisticUpdates])
 
-  const createTask = async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
+  const createTask = useCallback(async (taskData: Omit<MaintenanceTaskInsert, 'user_owner_id' | 'hotel_id'>): Promise<ApiResponse<MaintenanceTask>> => {
+    // Generate temporary negative ID for optimistic update
+    const tempId = -Date.now()
+    
+    // Create optimistic task with placeholder relations
+    const optimisticTask: MaintenanceTaskWithRelations = {
+      id: tempId,
+      ...taskData,
+      hotel_id: hotelId!,
+      statut: 'en_attente' as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user_owner_id: user?.id || 'temp-user',
+      created_by: user?.id || 'temp-user',
+      // Add placeholder relations
+      room: taskData.room_id ? { numero: 'Loading...', bed_type: 'simple' } : null,
+      hotel: { nom: 'Loading...' }
+    }
+    
+    // Set optimistic update flag to prevent fetchTasks from overwriting
+    setHasOptimisticUpdates(true)
+    
+    // Optimistic update - add task immediately
+    setTasks(prev => [optimisticTask, ...prev])
+    
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
       const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b' // Working test user ID
       
       if (!user && !isDevelopment) {
+        // Rollback optimistic update
+        setTasks(prev => prev.filter(t => t.id !== tempId))
+        setHasOptimisticUpdates(false)
         return { data: null, error: 'Utilisateur non authentifié', success: false }
       }
 
       if (!hotelId) {
+        // Rollback optimistic update
+        setTasks(prev => prev.filter(t => t.id !== tempId))
+        setHasOptimisticUpdates(false)
         return { data: null, error: 'ID d\'hôtel requis', success: false }
       }
 
@@ -2766,6 +2801,9 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       
       const userId = user?.id || (isDevelopment ? fallbackUserId : null)
       if (!userId) {
+        // Rollback optimistic update
+        setTasks(prev => prev.filter(t => t.id !== tempId))
+        setHasOptimisticUpdates(false)
         return { data: null, error: 'ID utilisateur requis', success: false }
       }
       
@@ -2794,19 +2832,30 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
 
       if (error) throw error
       
-      // Update local state optimistically
-      setTasks(prev => [data, ...prev])
+      // Replace optimistic task with real data
+      setTasks(prev => prev.map(t => 
+        t.id === tempId ? data : t
+      ))
+      
+      // Clear optimistic update flag
+      setHasOptimisticUpdates(false)
       
       return { data, error: null, success: true }
     } catch (err) {
+      // Rollback optimistic update on error
+      setTasks(prev => prev.filter(t => t.id !== tempId))
+      
+      // Clear optimistic update flag
+      setHasOptimisticUpdates(false)
+      
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche'
       setError(errorMessage)
       console.error('Error creating maintenance task:', err)
       return { data: null, error: errorMessage, success: false }
     }
-  }
+  }, [user, hotelId])
 
-  const updateTask = async (id: number, updates: MaintenanceTaskUpdate): Promise<ApiResponse<MaintenanceTask>> => {
+  const updateTask = useCallback(async (id: number, updates: MaintenanceTaskUpdate): Promise<ApiResponse<MaintenanceTask>> => {
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
@@ -2855,9 +2904,9 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       console.error('Error updating maintenance task:', err)
       return { data: null, error: errorMessage, success: false }
     }
-  }
+  }, [user])
 
-  const deleteTask = async (id: number): Promise<ApiResponse<boolean>> => {
+  const deleteTask = useCallback(async (id: number): Promise<ApiResponse<boolean>> => {
     try {
       // For development: use fallback user ID if no user is authenticated
       const isDevelopment = process.env.NODE_ENV === 'development'
@@ -2895,19 +2944,19 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
       console.error('Error deleting maintenance task:', err)
       return { data: false, error: errorMessage, success: false }
     }
-  }
+  }, [user])
 
-  const completeTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+  const completeTask = useCallback(async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
     return updateTask(id, { statut: 'terminee' })
-  }
+  }, [updateTask])
 
-  const cancelTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+  const cancelTask = useCallback(async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
     return updateTask(id, { statut: 'annulee' })
-  }
+  }, [updateTask])
 
-  const startTask = async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
+  const startTask = useCallback(async (id: number): Promise<ApiResponse<MaintenanceTask>> => {
     return updateTask(id, { statut: 'en_cours' })
-  }
+  }, [updateTask])
 
   const getTaskStatistics = () => {
     const total = tasks.length
@@ -2966,10 +3015,23 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
           switch (payload.eventType) {
             case 'INSERT':
               setTasks(prev => {
-                if (!prev.some(t => t.id === payload.new.id)) {
-                  return [payload.new as MaintenanceTask, ...prev]
+                // Check if this is replacing an optimistic update
+                const optimisticIndex = prev.findIndex(t => 
+                  // Optimistic tasks have negative IDs and same title
+                  (t.id < 0 && t.titre === payload.new.titre) ||
+                  // Or same real ID
+                  t.id === payload.new.id
+                );
+                
+                if (optimisticIndex >= 0) {
+                  // Replace optimistic with real data
+                  const updated = [...prev];
+                  updated[optimisticIndex] = payload.new as MaintenanceTask;
+                  return updated;
                 }
-                return prev
+                
+                // Only add if truly new
+                return [payload.new as MaintenanceTask, ...prev];
               })
               break
             case 'UPDATE':
@@ -2995,7 +3057,7 @@ export const useMaintenanceTasks = (hotelId?: number, roomId?: number, options?:
   // Initial fetch
   useEffect(() => {
     fetchTasks()
-  }, [user, hotelId, roomId])
+  }, [fetchTasks])
 
   // Force refresh event listener removed to prevent overwriting optimistic updates
   // Relying on optimistic updates and real-time WebSocket subscriptions instead
