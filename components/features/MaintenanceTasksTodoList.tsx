@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { MaintenanceTask } from '@/lib/supabase';
+import { MaintenanceTaskWithRelations } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useMaintenanceTasks } from '@/hooks/useSupabase';
-// 🔧 TEMPORARY FIX: Import the fixed hook for better re-rendering
-// import { useMaintenanceTasksFixed as useMaintenanceTasks } from '@/hooks/useMaintenanceTasksFixed';
+import { useAuth } from '@/hooks/useAuth';
+import * as maintenanceApi from '@/lib/api/maintenance';
 import MaintenanceTaskFormComplete from './MaintenanceTaskFormComplete';
-import MaintenanceDebugPanel from '../debug/MaintenanceDebugPanel';
 import { 
   Plus, 
   Pencil, 
@@ -43,39 +41,57 @@ export default function MaintenanceTasksTodoList({
   onAddTask
 }: MaintenanceTasksTodoListProps) {
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
   
-  // Utiliser le hook bulletproof avec toutes les stratégies de synchronisation
-  const { 
-    tasks, 
-    loading, 
-    error,
-    createTask,
-    updateTask,
-    deleteTask,
-    forceRefresh,
-    isPollingActive,
-    currentInterval,
-    metrics,
-    debugInfo
-  } = useMaintenanceTasks({
-    hotelId,
-    roomId,
-    enablePolling: true,
-    basePollingInterval: 2000, // Polling agressif pour les tests
-    enablePageReloadFallback: true, // Activer fallback rechargement si nécessaire
-    debug: process.env.NODE_ENV === 'development'
-  });
+  // Direct component state management
+  const [tasks, setTasks] = useState<MaintenanceTaskWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // États pour les modals et formulaires
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
-  const [taskToDelete, setTaskToDelete] = useState<MaintenanceTask | null>(null);
+  const [editingTask, setEditingTask] = useState<MaintenanceTaskWithRelations | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<MaintenanceTaskWithRelations | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
+
+  // Simple fetch function
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await maintenanceApi.getMaintenanceTasks(hotelId, roomId);
+      if (result.success) {
+        setTasks(result.data);
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError('Erreur lors du chargement des tâches');
+    } finally {
+      setLoading(false);
+    }
+  }, [hotelId, roomId]);
 
   // États pour les filtres
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // Optional: Simple periodic refresh when page is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && !showCreateForm && !editingTask) {
+        fetchTasks();
+      }
+    }, 60000); // Every minute
+
+    return () => clearInterval(interval);
+  }, [fetchTasks, showCreateForm, editingTask]);
 
   // Filtrer les tâches
   const filteredTasks = tasks.filter(task => {
@@ -130,131 +146,225 @@ export default function MaintenanceTasksTodoList({
     }
   };
 
-  // Gestionnaires d'événements pour les actions rapides (optimisées avec bulletproof)
+  // Optimistic quick actions with instant feedback
   const handleQuickAction = async (taskId: number, action: 'complete' | 'start' | 'cancel') => {
+    const statusMap = {
+      complete: 'terminee',
+      start: 'en_cours', 
+      cancel: 'annulee'
+    };
+    
+    const newStatus = statusMap[action];
+    const originalTasks = tasks;
+    
+    // 1. Update state immediately - INSTANT FEEDBACK
+    setTasks(prev => prev.map(task => 
+      task.id === taskId 
+        ? { ...task, statut: newStatus as any, updated_at: new Date().toISOString() }
+        : task
+    ));
+    
     setActionLoading(prev => ({ ...prev, [taskId]: true }));
 
     try {
-      let result;
-      const statusMap = {
-        complete: 'terminee',
-        start: 'en_cours',
-        cancel: 'annulee'
-      };
-      
-      result = await updateTask(taskId, { statut: statusMap[action] });
+      // 2. Call API
+      const result = await maintenanceApi.updateMaintenanceTask(taskId, { statut: newStatus }, user?.id);
 
       if (result.success) {
-        const actionText = action === 'complete' ? 'terminée' : action === 'start' ? 'démarrée' : 'annulée';
-        addNotification('success', `Tâche ${actionText} avec succès - Synchronisation automatique en cours`);
+        // 3. Update with server data
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? result.data! : task
+        ));
         
-        // Le hook bulletproof gère automatiquement la synchronisation
-        console.log('🔄 Action effectuée, synchronisation automatique activée');
+        const actionText = action === 'complete' ? 'terminée' : action === 'start' ? 'démarrée' : 'annulée';
+        addNotification('success', `Tâche ${actionText} avec succès`);
       } else {
+        // 4. Revert on error
+        setTasks(originalTasks);
         addNotification('error', result.error || `Erreur lors de l'action sur la tâche`);
       }
     } catch (error) {
+      // 5. Revert on network error
+      setTasks(originalTasks);
       console.error('Error performing quick action:', error);
       addNotification('error', 'Erreur inattendue lors de l\'action');
-      
-      // En cas d'erreur critique, forcer un refresh
-      setTimeout(() => forceRefresh(), 1000);
     } finally {
       setActionLoading(prev => ({ ...prev, [taskId]: false }));
     }
   };
 
-  // Gestionnaire de suppression avec confirmation
+  // Optimistic delete with immediate removal
   const handleDelete = async () => {
     if (!taskToDelete) return;
 
-    setActionLoading(prev => ({ ...prev, [taskToDelete.id]: true }));
+    const originalTasks = tasks;
+    const taskId = taskToDelete.id;
+    
+    // 1. Remove immediately - INSTANT FEEDBACK
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+    setTaskToDelete(null);
+    setActionLoading(prev => ({ ...prev, [taskId]: true }));
 
     try {
-      const result = await deleteTask(taskToDelete.id);
+      // 2. Call API
+      const result = await maintenanceApi.deleteMaintenanceTask(taskId, user?.id);
 
       if (result.success) {
         addNotification('success', 'Tâche supprimée avec succès');
-        setTaskToDelete(null);
       } else {
+        // 3. Restore on error
+        setTasks(originalTasks);
         addNotification('error', result.error || 'Erreur lors de la suppression');
       }
     } catch (error) {
+      // 4. Restore on network error
+      setTasks(originalTasks);
       console.error('Error deleting task:', error);
       addNotification('error', 'Erreur inattendue lors de la suppression');
     } finally {
-      setActionLoading(prev => ({ ...prev, [taskToDelete.id]: false }));
+      setActionLoading(prev => ({ ...prev, [taskId]: false }));
     }
   };
 
-  // Gestionnaire de création de tâche
+  // Optimistic create with instant display
   const handleCreateSubmit = async (data: any) => {
-    console.log('🚀 [MaintenanceTasksTodoList] handleCreateSubmit DÉMARRÉ');
-    console.log('🚀 Création de tâche démarrée avec data:', data);
-    console.log('🔍 État actuel - tasks.length:', tasks.length);
-    console.log('🔍 fetchTasks disponible:', typeof fetchTasks, fetchTasks !== undefined);
-    
-    const result = await createTask(data);
-    console.log('🔍 Résultat createTask:', result);
-    
-    if (result.success) {
-      console.log('✅ Tâche créée avec succès:', result.data);
-      console.log('🔍 État après création - tasks.length:', tasks.length);
-      
-      // 🚨 SOLUTION FINALE BRUTALE : Rechargement garanti
-      console.log('💥 SOLUTION RADICALE : Rechargement automatique obligatoire');
-      
-      setShowCreateForm(false);
-      addNotification('success', 'Tâche créée avec succès ! Rechargement automatique...');
-      
-      // SOLUTION GARANTIE : Rechargement complet après 1.5 secondes
-      console.log('⏰ Rechargement automatique programmé dans 1.5 secondes');
-      setTimeout(() => {
-        console.log('🔄 RECHARGEMENT FORCÉ - window.location.reload()');
-        window.location.reload();
-      }, 1500);
-    } else {
-      console.error('❌ Échec de création:', result.error);
-      addNotification('error', result.error || 'Erreur lors de la création');
+    if (!hotelId) {
+      addNotification('error', 'ID d\'hôtel requis');
+      return { success: false, error: 'ID d\'hôtel requis' };
     }
     
-    console.log('🏁 [MaintenanceTasksTodoList] handleCreateSubmit TERMINÉ');
-    return result;
+    // Reset filters FIRST to ensure new task will be visible
+    if (statusFilter !== 'all' || priorityFilter !== 'all' || searchTerm !== '') {
+      setStatusFilter('all');
+      setPriorityFilter('all');
+      setSearchTerm('');
+    }
+    
+    // 1. Create optimistic task immediately
+    const optimisticTask: MaintenanceTaskWithRelations = {
+      id: Date.now(), // Temporary ID
+      ...data,
+      hotel_id: hotelId,
+      room_id: data.room_id || null, // Explicitly allow null
+      statut: 'en_attente' as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user_owner_id: user?.id || 'temp-user',
+      created_by: user?.id || 'temp-user',
+      completed_at: null,
+      room: data.room_id ? { numero: 'Loading...', bed_type: 'simple' } : null,
+      hotel: { nom: 'Loading...' },
+      _isOptimistic: true as any // Flag for tracking
+    };
+
+    // 2. Add to state immediately - INSTANT DISPLAY
+    console.log('🎯 Adding optimistic task to state:', optimisticTask);
+    setTasks(prev => {
+      const newTasks = [optimisticTask, ...prev];
+      console.log('📋 New tasks array length:', newTasks.length);
+      return newTasks;
+    });
+    
+    // 3. Close form after adding task
+    setShowCreateForm(false);
+
+    try {
+      // 4. Call API
+      console.log('🌐 Calling maintenance API with data:', data);
+      const result = await maintenanceApi.createMaintenanceTask(data, hotelId, user?.id);
+      console.log('📡 API response:', result);
+      
+      if (result.success) {
+        // 5. Replace optimistic with server data
+        console.log('✅ API Success - Replacing optimistic task with server data');
+        setTasks(prev => {
+          const updatedTasks = prev.map(task => 
+            task.id === optimisticTask.id 
+              ? { ...result.data!, _isOptimistic: undefined }
+              : task
+          );
+          console.log('📋 Tasks after API success:', updatedTasks.length);
+          return updatedTasks;
+        });
+        
+        addNotification('success', 'Tâche créée avec succès');
+        return { success: true };
+      } else {
+        // 6. On error, remove optimistic task and show error
+        console.log('❌ API Error - Removing optimistic task:', result.error);
+        setTasks(prev => prev.filter(task => task.id !== optimisticTask.id));
+        setError(result.error);
+        addNotification('error', result.error || 'Erreur lors de la création');
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      // 7. On network error, mark task as failed but keep it
+      console.log('🔥 Network Error - Marking task as failed:', err);
+      setTasks(prev => prev.map(task => 
+        task.id === optimisticTask.id 
+          ? { ...task, _hasError: true as any }
+          : task
+      ));
+      
+      const errorMsg = 'Erreur réseau - tâche sauvegardée localement';
+      setError(errorMsg);
+      addNotification('error', errorMsg);
+      return { success: false, error: errorMsg };
+    }
   };
 
-  // Gestionnaire d'édition de tâche
+  // Optimistic edit with instant update
   const handleEditSubmit = async (data: any) => {
     if (!editingTask) return { success: false, error: 'Aucune tâche à modifier' };
 
-    console.log('📝 Modification de tâche démarrée pour ID:', editingTask.id);
-    const result = await updateTask(editingTask.id, data);
+    const originalTasks = tasks;
+    const taskId = editingTask.id;
     
-    if (result.success) {
-      console.log('✅ Tâche modifiée avec succès:', result.data);
-      
-      // S'assurer que la tâche modifiée reste visible si les filtres ont changé
-      const updatedTask = result.data;
-      if (updatedTask) {
-        // Si la tâche modifiée ne correspond plus aux filtres actuels, les réinitialiser
-        const matchesStatus = statusFilter === 'all' || updatedTask.statut === statusFilter;
-        const matchesPriority = priorityFilter === 'all' || updatedTask.priorite === priorityFilter;
-        
-        if (!matchesStatus || !matchesPriority) {
-          setStatusFilter('all');
-          setPriorityFilter('all');
-          setSearchTerm('');
-          console.log('🔄 Filtres réinitialisés pour afficher la tâche modifiée');
-        }
-      }
-      
-      setEditingTask(null);
-      addNotification('success', 'Tâche modifiée avec succès');
-    } else {
-      console.error('❌ Échec de modification:', result.error);
-      addNotification('error', result.error || 'Erreur lors de la modification');
+    // 1. Update state immediately - INSTANT FEEDBACK
+    setTasks(prev => prev.map(task => 
+      task.id === taskId 
+        ? { ...task, ...data, updated_at: new Date().toISOString() }
+        : task
+    ));
+    
+    setEditingTask(null);
+    
+    // Reset filters if needed to keep updated task visible
+    const updatedTask = { ...editingTask, ...data };
+    const matchesStatus = statusFilter === 'all' || updatedTask.statut === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || updatedTask.priorite === priorityFilter;
+    
+    if (!matchesStatus || !matchesPriority) {
+      setStatusFilter('all');
+      setPriorityFilter('all');
+      setSearchTerm('');
     }
-    
-    return result;
+
+    try {
+      // 2. Call API
+      const result = await maintenanceApi.updateMaintenanceTask(taskId, data, user?.id);
+      
+      if (result.success) {
+        // 3. Update with server data
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? result.data! : task
+        ));
+        
+        addNotification('success', 'Tâche modifiée avec succès');
+        return { success: true };
+      } else {
+        // 4. Revert on error
+        setTasks(originalTasks);
+        addNotification('error', result.error || 'Erreur lors de la modification');
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      // 5. Revert on network error
+      setTasks(originalTasks);
+      const errorMsg = 'Erreur lors de la modification';
+      addNotification('error', errorMsg);
+      return { success: false, error: errorMsg };
+    }
   };
 
   // Calculer les statistiques

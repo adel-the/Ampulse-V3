@@ -82,9 +82,10 @@ export default function MaintenanceTaskFormComplete({
       newErrors.hotel = 'L\'hôtel est requis';
     }
     
-    if (!roomId || roomId === 0) {
-      newErrors.room = 'La chambre est requise';
-    }
+    // Room is optional - maintenance tasks can be general (not room-specific)
+    // if (!roomId || roomId === 0) {
+    //   newErrors.room = 'La chambre est requise';
+    // }
     
     if (formData.date_echeance) {
       const echeanceDate = new Date(formData.date_echeance);
@@ -129,14 +130,18 @@ export default function MaintenanceTaskFormComplete({
         taskId: task?.id,
         submitData,
         hotelId,
-        roomId
+        roomId,
+        timestamp: new Date().toISOString()
       });
       
       const result = await onSubmit(submitData);
+      console.log('🔄 Résultat du callback onSubmit:', result);
       
       if (!result.success) {
         console.error('❌ Erreur lors de la soumission:', result.error);
         setErrors({ submit: result.error || 'Erreur lors de la soumission' });
+      } else {
+        console.log('✅ Formulaire soumis avec succès');
       }
       // Si succès, le parent gère la fermeture du formulaire
       

@@ -1172,7 +1172,7 @@ export interface Database {
           date_echeance: string | null
           notes: string | null
           statut: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
-          room_id: number
+          room_id: number | null
           hotel_id: number
           user_owner_id: string
           created_by: string | null
@@ -1189,7 +1189,7 @@ export interface Database {
           date_echeance?: string | null
           notes?: string | null
           statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
-          room_id: number
+          room_id?: number | null
           hotel_id: number
           user_owner_id: string
           created_by?: string | null
@@ -1206,7 +1206,7 @@ export interface Database {
           date_echeance?: string | null
           notes?: string | null
           statut?: 'en_attente' | 'en_cours' | 'terminee' | 'annulee'
-          room_id?: number
+          room_id?: number | null
           hotel_id?: number
           user_owner_id?: string
           created_by?: string | null
@@ -1325,6 +1325,13 @@ export type ConventionTarifaire = Tables<'conventions_tarifaires'>
 export type MaintenanceTask = Tables<'maintenance_tasks'>
 export type MaintenanceTaskInsert = Inserts<'maintenance_tasks'>
 export type MaintenanceTaskUpdate = Updates<'maintenance_tasks'>
+
+// Type for maintenance_tasks with foreign key expansion
+// Used when querying with .select('*, room:rooms(numero, bed_type), hotel:hotels(nom)')
+export interface MaintenanceTaskWithRelations extends MaintenanceTask {
+  room?: { numero: string; bed_type: string } | null;
+  hotel?: { nom: string } | null;
+}
 
 // Type for conventions_tarifaires with foreign key expansion
 // Used when querying with .select('*, clients(raison_sociale), room_categories(name, capacity), hotels(nom)')

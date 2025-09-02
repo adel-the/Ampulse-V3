@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Maintenance - Browser</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #22c55e;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .info {
+            color: #3b82f6;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test API Maintenance - Browser</h1>
+    
+    <div class="container">
+        <h2>Configuration Supabase</h2>
+        <div class="form-group">
+            <label>URL Supabase:</label>
+            <input type="text" id="supabaseUrl" value="http://127.0.0.1:15421" />
+        </div>
+        <div class="form-group">
+            <label>Clé Anon:</label>
+            <input type="text" id="supabaseKey" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" />
+        </div>
+        <button onclick="initSupabase()">Initialiser Supabase</button>
+        <div id="supabaseStatus" class="info">Non initialisé</div>
+    </div>
+
+    <div class="container">
+        <h2>Test de création de tâche</h2>
+        <div class="form-group">
+            <label>Titre:</label>
+            <input type="text" id="taskTitle" value="Test Browser Task" />
+        </div>
+        <div class="form-group">
+            <label>Description:</label>
+            <textarea id="taskDescription" rows="3">Test de création de tâche depuis le navigateur</textarea>
+        </div>
+        <div class="form-group">
+            <label>Priorité:</label>
+            <select id="taskPriority">
+                <option value="faible">Faible</option>
+                <option value="moyenne" selected>Moyenne</option>
+                <option value="haute">Haute</option>
+                <option value="urgente">Urgente</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Responsable:</label>
+            <input type="text" id="taskResponsable" value="Test User" />
+        </div>
+        <div class="form-group">
+            <label>Hotel ID:</label>
+            <input type="number" id="taskHotelId" value="1" />
+        </div>
+        <div class="form-group">
+            <label>Room ID:</label>
+            <input type="number" id="taskRoomId" value="10" />
+        </div>
+        <button onclick="testDirectSupabaseCall()" id="testDirectBtn" disabled>Test Direct Supabase</button>
+        <button onclick="testViaMaintenanceAPI()" id="testAPIBtn" disabled>Test via Maintenance API</button>
+        <button onclick="fetchExistingTasks()" id="fetchBtn" disabled>Récupérer tâches existantes</button>
+    </div>
+
+    <div class="container">
+        <h2>Logs</h2>
+        <button onclick="clearLogs()">Effacer les logs</button>
+        <div id="logs" class="log"></div>
+    </div>
+
+    <script>
+        let supabase = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            const logElement = document.getElementById('logs');
+            logElement.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function initSupabase() {
+            const url = document.getElementById('supabaseUrl').value;
+            const key = document.getElementById('supabaseKey').value;
+            
+            try {
+                supabase = window.supabase.createClient(url, key);
+                document.getElementById('supabaseStatus').textContent = 'Initialisé ✅';
+                document.getElementById('supabaseStatus').className = 'success';
+                
+                // Activer les boutons
+                document.getElementById('testDirectBtn').disabled = false;
+                document.getElementById('testAPIBtn').disabled = false;
+                document.getElementById('fetchBtn').disabled = false;
+                
+                log('Supabase client initialisé avec succès', 'success');
+                log(`URL: ${url}`, 'info');
+            } catch (error) {
+                log(`Erreur initialisation Supabase: ${error.message}`, 'error');
+                document.getElementById('supabaseStatus').textContent = 'Erreur ❌';
+                document.getElementById('supabaseStatus').className = 'error';
+            }
+        }
+
+        async function fetchExistingTasks() {
+            if (!supabase) {
+                log('Supabase non initialisé', 'error');
+                return;
+            }
+
+            try {
+                log('Récupération des tâches existantes...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('maintenance_tasks')
+                    .select(`
+                        *,
+                        room:rooms(numero, bed_type),
+                        hotel:hotels(nom)
+                    `)
+                    .limit(5);
+
+                if (error) {
+                    log(`Erreur récupération: ${error.message}`, 'error');
+                    log(`Code: ${error.code}`, 'error');
+                } else {
+                    log(`✅ ${data.length} tâches récupérées`, 'success');
+                    log(`Données: ${JSON.stringify(data, null, 2)}`, 'info');
+                }
+            } catch (err) {
+                log(`Exception: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDirectSupabaseCall() {
+            if (!supabase) {
+                log('Supabase non initialisé', 'error');
+                return;
+            }
+
+            try {
+                log('Test de création directe via Supabase...', 'info');
+                
+                const taskData = {
+                    titre: document.getElementById('taskTitle').value,
+                    description: document.getElementById('taskDescription').value,
+                    priorite: document.getElementById('taskPriority').value,
+                    responsable: document.getElementById('taskResponsable').value,
+                    statut: 'en_attente',
+                    hotel_id: parseInt(document.getElementById('taskHotelId').value),
+                    room_id: parseInt(document.getElementById('taskRoomId').value),
+                    user_owner_id: 'c8c827c4-419f-409c-a696-e6bf0856984b',
+                    created_by: 'c8c827c4-419f-409c-a696-e6bf0856984b'
+                };
+
+                log(`Données à insérer: ${JSON.stringify(taskData, null, 2)}`, 'info');
+
+                const { data, error } = await supabase
+                    .from('maintenance_tasks')
+                    .insert(taskData)
+                    .select(`
+                        *,
+                        room:rooms(numero, bed_type),
+                        hotel:hotels(nom)
+                    `)
+                    .single();
+
+                if (error) {
+                    log(`❌ Erreur création: ${error.message}`, 'error');
+                    log(`Code: ${error.code}`, 'error');
+                    log(`Détails: ${error.details}`, 'error');
+                } else {
+                    log('✅ Tâche créée avec succès!', 'success');
+                    log(`Tâche créée: ${JSON.stringify(data, null, 2)}`, 'success');
+                    
+                    // Nettoyer après 5 secondes
+                    setTimeout(async () => {
+                        const { error: deleteError } = await supabase
+                            .from('maintenance_tasks')
+                            .delete()
+                            .eq('id', data.id);
+                        
+                        if (deleteError) {
+                            log(`⚠️ Erreur suppression: ${deleteError.message}`, 'error');
+                        } else {
+                            log(`🧹 Tâche ${data.id} supprimée`, 'info');
+                        }
+                    }, 5000);
+                }
+            } catch (err) {
+                log(`Exception: ${err.message}`, 'error');
+            }
+        }
+
+        async function testViaMaintenanceAPI() {
+            log('Test via API Maintenance (simulation)...', 'info');
+            
+            try {
+                // Simuler l'appel API comme dans l'application
+                const taskData = {
+                    titre: document.getElementById('taskTitle').value,
+                    description: document.getElementById('taskDescription').value,
+                    priorite: document.getElementById('taskPriority').value,
+                    responsable: document.getElementById('taskResponsable').value,
+                    room_id: parseInt(document.getElementById('taskRoomId').value),
+                };
+                
+                const hotelId = parseInt(document.getElementById('taskHotelId').value);
+                const userId = 'c8c827c4-419f-409c-a696-e6bf0856984b';
+                
+                log(`Simulation createMaintenanceTask(${JSON.stringify(taskData)}, ${hotelId}, ${userId})`, 'info');
+                
+                // Reproduire la logique de lib/api/maintenance.ts
+                const isDevelopment = true; // Simuler le mode développement
+                const fallbackUserId = 'c8c827c4-419f-409c-a696-e6bf0856984b';
+                const actualUserId = userId || (isDevelopment ? fallbackUserId : null);
+                
+                if (!actualUserId) {
+                    log('❌ ID utilisateur requis', 'error');
+                    return;
+                }
+                
+                const client = supabase; // En développement, l'API utilise supabaseAdmin
+                
+                const insertData = {
+                    ...taskData,
+                    hotel_id: hotelId,
+                    user_owner_id: actualUserId,
+                    statut: 'en_attente',
+                    created_by: actualUserId,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log(`Données finales d'insertion: ${JSON.stringify(insertData, null, 2)}`, 'info');
+                
+                const { data, error } = await client
+                    .from('maintenance_tasks')
+                    .insert(insertData)
+                    .select(`
+                        *,
+                        room:rooms(numero, bed_type),
+                        hotel:hotels(nom)
+                    `)
+                    .single();
+                
+                if (error) {
+                    log(`❌ Erreur API: ${error.message}`, 'error');
+                    log(`Code: ${error.code}`, 'error');
+                } else {
+                    log('✅ API simulation réussie!', 'success');
+                    log(`Résultat: ${JSON.stringify(data, null, 2)}`, 'success');
+                    
+                    // Nettoyer
+                    setTimeout(async () => {
+                        const { error: deleteError } = await supabase
+                            .from('maintenance_tasks')
+                            .delete()
+                            .eq('id', data.id);
+                        
+                        if (deleteError) {
+                            log(`⚠️ Erreur suppression: ${deleteError.message}`, 'error');
+                        } else {
+                            log(`🧹 Tâche ${data.id} supprimée`, 'info');
+                        }
+                    }, 5000);
+                }
+                
+            } catch (err) {
+                log(`Exception API: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-initialiser au chargement
+        window.addEventListener('load', () => {
+            log('Page chargée, prêt pour les tests', 'info');
+        });
+    </script>
+</body>
+</html>

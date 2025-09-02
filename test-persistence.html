@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de persistance de l'établissement</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            color: #007bff;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        #localStorage-content {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test de persistance de l'établissement sélectionné</h1>
+        
+        <div class="test-section">
+            <h2>📋 État actuel du localStorage</h2>
+            <div id="localStorage-content">Chargement...</div>
+            <button onclick="refreshLocalStorage()">🔄 Actualiser</button>
+            <button onclick="clearLocalStorage()">🗑️ Effacer tout</button>
+        </div>
+
+        <div class="test-section">
+            <h2>✏️ Simuler une sélection</h2>
+            <p>Sélectionner un établissement (ID):</p>
+            <button onclick="selectEstablishment(1)">Hôtel 1</button>
+            <button onclick="selectEstablishment(2)">Hôtel 2</button>
+            <button onclick="selectEstablishment(3)">Hôtel 3</button>
+            <button onclick="selectEstablishment(null)">Aucun</button>
+            <div id="selection-status" class="status info" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Vérifier la persistance</h2>
+            <p>1. Sélectionnez un établissement ci-dessus</p>
+            <p>2. Actualisez la page (F5)</p>
+            <p>3. Vérifiez que la sélection est maintenue</p>
+            <button onclick="testPersistence()">🧪 Tester la persistance</button>
+            <div id="test-status" class="status info" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Résumé</h2>
+            <div id="summary">
+                <p><strong>Clé utilisée:</strong> soliReserve_selectedEstablishment</p>
+                <p><strong>Valeur actuelle:</strong> <span id="current-value">-</span></p>
+                <p><strong>État:</strong> <span id="persistence-state">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'soliReserve_selectedEstablishment';
+
+        function refreshLocalStorage() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            const content = document.getElementById('localStorage-content');
+            const currentValue = document.getElementById('current-value');
+            const state = document.getElementById('persistence-state');
+            
+            if (stored) {
+                content.textContent = `${STORAGE_KEY} = ${stored}`;
+                currentValue.textContent = stored;
+                state.textContent = '✅ Persistance active';
+                state.style.color = 'green';
+            } else {
+                content.textContent = 'Aucune valeur stockée';
+                currentValue.textContent = 'Aucune';
+                state.textContent = '⚠️ Aucune sélection sauvegardée';
+                state.style.color = 'orange';
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.removeItem(STORAGE_KEY);
+            refreshLocalStorage();
+            showStatus('selection-status', 'LocalStorage effacé', 'info');
+        }
+
+        function selectEstablishment(id) {
+            if (id === null) {
+                localStorage.removeItem(STORAGE_KEY);
+                showStatus('selection-status', 'Sélection effacée', 'info');
+            } else {
+                localStorage.setItem(STORAGE_KEY, id.toString());
+                showStatus('selection-status', `Établissement ${id} sélectionné et sauvegardé`, 'success');
+            }
+            refreshLocalStorage();
+            
+            // Dispatch custom event like in the app
+            const event = new CustomEvent('establishmentChanged', {
+                detail: { 
+                    hotelId: id,
+                    timestamp: Date.now()
+                }
+            });
+            window.dispatchEvent(event);
+        }
+
+        function testPersistence() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            const testStatus = document.getElementById('test-status');
+            
+            if (stored) {
+                showStatus('test-status', 
+                    `✅ Test réussi! L'établissement ${stored} est bien persisté dans localStorage.`, 
+                    'success');
+            } else {
+                showStatus('test-status', 
+                    '❌ Aucune sélection trouvée. Sélectionnez d\'abord un établissement.', 
+                    'error');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // Listen for establishment changes
+        window.addEventListener('establishmentChanged', (event) => {
+            console.log('Establishment changed event received:', event.detail);
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', refreshLocalStorage);
+        
+        // Auto-refresh every 2 seconds
+        setInterval(refreshLocalStorage, 2000);
+    </script>
+</body>
+</html>

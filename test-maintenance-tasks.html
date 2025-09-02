@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des tâches de maintenance en temps réel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            color: #007bff;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .tasks-list {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .task-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            border-left: 3px solid #007bff;
+        }
+        .real-time-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        .connected {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+        .disconnected {
+            background: #dc3545;
+        }
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+            }
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 2px 5px;
+            background: #f0f0f0;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+        .log-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #2d2d2d;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test des tâches de maintenance en temps réel</h1>
+        
+        <div class="test-section">
+            <h2>📊 État de la connexion temps réel</h2>
+            <p>
+                État WebSocket: <span id="ws-status">Déconnecté</span>
+                <span id="rt-indicator" class="real-time-indicator disconnected"></span>
+            </p>
+            <p>Auto-refresh: <span id="refresh-status">Désactivé</span></p>
+            <p>Dernière mise à jour: <span id="last-update">-</span></p>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Simulation d'événements</h2>
+            <button onclick="simulateTaskCreation()">➕ Simuler création de tâche</button>
+            <button onclick="simulateTaskUpdate()">✏️ Simuler modification de tâche</button>
+            <button onclick="simulateTaskDeletion()">🗑️ Simuler suppression de tâche</button>
+            <button onclick="forceRefresh()">🔄 Forcer le refresh</button>
+            <div id="sim-status" class="status info" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Liste des tâches (temps réel)</h2>
+            <div id="tasks-list" class="tasks-list">
+                <p>Chargement...</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Test de détection de frappe</h2>
+            <input 
+                type="text" 
+                id="test-input" 
+                placeholder="Tapez pour tester la détection de frappe..."
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+            />
+            <p>État de frappe: <span id="typing-status">Inactif</span></p>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Métriques</h2>
+            <p>Nombre de tâches: <span id="task-count">0</span></p>
+            <p>Événements reçus: <span id="event-count">0</span></p>
+            <p>Temps depuis le dernier événement: <span id="time-since-event">-</span></p>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Console de debug</h2>
+            <div id="debug-console" class="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let tasks = [];
+        let eventCount = 0;
+        let lastEventTime = null;
+        let wsConnected = false;
+        let isTyping = false;
+        let typingTimeout = null;
+
+        // Logging
+        function log(message, type = 'info') {
+            const console = document.getElementById('debug-console');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${time}] ${message}`;
+            entry.style.color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#74c0fc';
+            console.appendChild(entry);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // Mise à jour de l'interface
+        function updateUI() {
+            // Mise à jour de la liste des tâches
+            const listEl = document.getElementById('tasks-list');
+            if (tasks.length === 0) {
+                listEl.innerHTML = '<p>Aucune tâche</p>';
+            } else {
+                listEl.innerHTML = tasks.map(task => `
+                    <div class="task-item">
+                        <strong>#${task.id}</strong> - ${task.titre || 'Sans titre'}
+                        <br>
+                        <small>Statut: ${task.statut} | Priorité: ${task.priorite}</small>
+                    </div>
+                `).join('');
+            }
+
+            // Mise à jour des métriques
+            document.getElementById('task-count').textContent = tasks.length;
+            document.getElementById('event-count').textContent = eventCount;
+            
+            // Temps depuis le dernier événement
+            if (lastEventTime) {
+                const secondsSince = Math.floor((Date.now() - lastEventTime) / 1000);
+                document.getElementById('time-since-event').textContent = `${secondsSince}s`;
+            }
+            
+            // Dernière mise à jour
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Simulation WebSocket
+        function simulateWebSocket() {
+            log('🔌 Simulation de connexion WebSocket...', 'info');
+            
+            setTimeout(() => {
+                wsConnected = true;
+                document.getElementById('ws-status').textContent = 'Connecté';
+                document.getElementById('rt-indicator').className = 'real-time-indicator connected';
+                log('✅ WebSocket connecté', 'success');
+            }, 1000);
+        }
+
+        // Simulation de création de tâche
+        function simulateTaskCreation() {
+            const newTask = {
+                id: Date.now(),
+                titre: `Tâche test ${tasks.length + 1}`,
+                description: 'Tâche créée automatiquement pour test',
+                statut: 'en_attente',
+                priorite: 'moyenne',
+                created_at: new Date().toISOString()
+            };
+            
+            tasks.unshift(newTask);
+            eventCount++;
+            lastEventTime = Date.now();
+            
+            log(`➕ Tâche créée: #${newTask.id}`, 'success');
+            showStatus('sim-status', '✅ Tâche créée avec succès', 'success');
+            
+            // Dispatch custom event
+            window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
+                detail: { action: 'INSERT', task: newTask }
+            }));
+            
+            updateUI();
+        }
+
+        // Simulation de modification de tâche
+        function simulateTaskUpdate() {
+            if (tasks.length === 0) {
+                showStatus('sim-status', '❌ Aucune tâche à modifier', 'error');
+                return;
+            }
+            
+            const task = tasks[0];
+            task.statut = task.statut === 'en_attente' ? 'en_cours' : 'terminee';
+            eventCount++;
+            lastEventTime = Date.now();
+            
+            log(`✏️ Tâche modifiée: #${task.id} - Statut: ${task.statut}`, 'success');
+            showStatus('sim-status', '✅ Tâche modifiée avec succès', 'success');
+            
+            // Dispatch custom event
+            window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
+                detail: { action: 'UPDATE', task: task }
+            }));
+            
+            updateUI();
+        }
+
+        // Simulation de suppression de tâche
+        function simulateTaskDeletion() {
+            if (tasks.length === 0) {
+                showStatus('sim-status', '❌ Aucune tâche à supprimer', 'error');
+                return;
+            }
+            
+            const task = tasks.shift();
+            eventCount++;
+            lastEventTime = Date.now();
+            
+            log(`🗑️ Tâche supprimée: #${task.id}`, 'success');
+            showStatus('sim-status', '✅ Tâche supprimée avec succès', 'success');
+            
+            // Dispatch custom event
+            window.dispatchEvent(new CustomEvent('forceTaskRefresh', {
+                detail: { action: 'DELETE', task: task }
+            }));
+            
+            updateUI();
+        }
+
+        // Force refresh
+        function forceRefresh() {
+            log('🔄 Force refresh déclenché', 'info');
+            showStatus('sim-status', '🔄 Actualisation forcée', 'info');
+            
+            // Simuler le rechargement des données
+            setTimeout(() => {
+                updateUI();
+                log('✅ Données actualisées', 'success');
+            }, 500);
+        }
+
+        // Détection de frappe
+        document.getElementById('test-input').addEventListener('input', function() {
+            if (!isTyping) {
+                isTyping = true;
+                document.getElementById('typing-status').textContent = '🔤 En cours de frappe...';
+                document.getElementById('refresh-status').textContent = 'Suspendu (frappe en cours)';
+                log('🔤 Frappe détectée - Auto-refresh suspendu', 'info');
+            }
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                isTyping = false;
+                document.getElementById('typing-status').textContent = 'Inactif';
+                document.getElementById('refresh-status').textContent = 'Actif';
+                log('✅ Frappe terminée - Auto-refresh réactivé', 'success');
+            }, 2000);
+        });
+
+        // Auto-refresh simulation
+        setInterval(() => {
+            if (!isTyping && wsConnected) {
+                document.getElementById('refresh-status').textContent = 'Actif (15s)';
+                // Simule un polling toutes les 15 secondes
+                if (Date.now() - lastEventTime > 15000) {
+                    log('⏰ Auto-refresh (15s)', 'info');
+                    updateUI();
+                }
+            }
+        }, 1000);
+
+        // Afficher un statut
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+
+        // Écouter les événements personnalisés
+        window.addEventListener('forceTaskRefresh', (event) => {
+            log(`📡 Événement reçu: ${event.detail.action}`, 'info');
+            updateUI();
+        });
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Application initialisée', 'info');
+            simulateWebSocket();
+            updateUI();
+            
+            // Créer quelques tâches par défaut
+            setTimeout(() => {
+                simulateTaskCreation();
+                setTimeout(simulateTaskCreation, 500);
+                setTimeout(simulateTaskCreation, 1000);
+            }, 1500);
+        });
+
+        // Mise à jour du compteur de temps
+        setInterval(() => {
+            if (lastEventTime) {
+                const secondsSince = Math.floor((Date.now() - lastEventTime) / 1000);
+                document.getElementById('time-since-event').textContent = `${secondsSince}s`;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
