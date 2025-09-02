@@ -33,31 +33,52 @@ interface MaintenanceTasksTodoListProps {
   roomId?: number;
   showAddButton?: boolean;
   onAddTask?: () => void;
+  // Props to share state from parent component
+  tasks?: MaintenanceTaskWithRelations[];
+  loading?: boolean;
+  error?: string | null;
+  createTask?: (taskData: any) => Promise<any>;
+  updateTask?: (id: number, updates: any) => Promise<any>;
+  deleteTask?: (id: number) => Promise<any>;
+  completeTask?: (id: number) => Promise<any>;
+  startTask?: (id: number) => Promise<any>;
+  cancelTask?: (id: number) => Promise<any>;
 }
 
 export default function MaintenanceTasksTodoList({
   hotelId,
   roomId,
   showAddButton = true,
-  onAddTask
+  onAddTask,
+  // Props from parent to share state
+  tasks: propTasks,
+  loading: propLoading,
+  error: propError,
+  createTask: propCreateTask,
+  updateTask: propUpdateTask,
+  deleteTask: propDeleteTask,
+  completeTask: propCompleteTask,
+  startTask: propStartTask,
+  cancelTask: propCancelTask
 }: MaintenanceTasksTodoListProps) {
   const { addNotification } = useNotifications();
   const { user } = useAuth();
   
-  // Use the shared hook for real-time updates and optimistic updates
-  const { 
-    tasks, 
-    loading, 
-    error,
-    createTask,
-    updateTask,
-    deleteTask,
-    completeTask,
-    startTask,
-    cancelTask
-  } = useMaintenanceTasks(hotelId, roomId, { 
+  // Only use own hook if parent doesn't provide data
+  const ownHookData = (!propTasks && !propCreateTask) ? useMaintenanceTasks(hotelId, roomId, { 
     enableRealTime: true
-  });
+  }) : null;
+  
+  // Use props from parent if provided, otherwise use own hook
+  const tasks = propTasks ?? ownHookData?.tasks ?? [];
+  const loading = propLoading ?? ownHookData?.loading ?? false;
+  const error = propError ?? ownHookData?.error ?? null;
+  const createTask = propCreateTask ?? ownHookData?.createTask;
+  const updateTask = propUpdateTask ?? ownHookData?.updateTask;
+  const deleteTask = propDeleteTask ?? ownHookData?.deleteTask;
+  const completeTask = propCompleteTask ?? ownHookData?.completeTask;
+  const startTask = propStartTask ?? ownHookData?.startTask;
+  const cancelTask = propCancelTask ?? ownHookData?.cancelTask;
 
   // États pour les modals et formulaires
   const [showCreateForm, setShowCreateForm] = useState(false);

@@ -102,6 +102,9 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
     createTask,
     updateTask,
     deleteTask,
+    completeTask,
+    startTask,
+    cancelTask,
     getTaskStatistics
   } = useMaintenanceTasks(selectedHotel?.id, undefined, {
     enableRealTime: true
@@ -1147,6 +1150,16 @@ export default function MaintenanceManagement({ selectedHotel }: MaintenanceMana
                   setSelectedTaskRoom(selectedRoomForDetail.id);
                   setShowTaskForm(true);
                 }}
+                // Pass filtered tasks and functions from parent to share state
+                tasks={maintenanceTasks.filter(t => t.room_id === selectedRoomForDetail.id)}
+                loading={tasksLoading}
+                error={tasksError}
+                createTask={createTask}
+                updateTask={updateTask}
+                deleteTask={deleteTask}
+                completeTask={completeTask}
+                startTask={startTask}
+                cancelTask={cancelTask}
               />
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
